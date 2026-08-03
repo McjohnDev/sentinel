@@ -1,0 +1,45 @@
+# Configuration de l'agent CBC Supervision
+
+# Configuration du serveur
+server:
+  url: "https://localhost:8443"
+  enrollment_token: "demo-token-123"
+
+# Configuration de l'agent
+agent:
+  heartbeat_interval: 30  # secondes entre chaque heartbeat
+  retry_interval: 60      # secondes avant de réessayer en cas d'échec
+  max_retries: 3          # nombre maximum de tentatives de connexion
+
+# Configuration des métriques
+metrics:
+  cpu:
+    enabled: true
+    interval: 1  # secondes pour la mesure CPU
+  memory:
+    enabled: true
+  disk:
+    enabled: true
+    path: "/"  # chemin du disque à surveiller
+  temperature:
+    enabled: true
+  uptime:
+    enabled: true
+  latency:
+    enabled: true
+    target: "8.8.8.8"  # cible pour le ping
+
+# Configuration du mode dégradé
+degraded_mode:
+  enabled: true
+  buffer_size: 100  # nombre de heartbeats à stocker en local
+  retry_on_recovery: true
+
+# Configuration des logs
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "agent.log"
+  rotation:
+    enabled: true
+    max_size_mb: 10
+    backup_count: 5

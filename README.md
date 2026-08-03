@@ -1,0 +1,679 @@
+# CBC Supervision Platform
+
+**Plateforme de supervision centralisée multiplateforme pour le parc informatique d'entreprise**
+
+[![Version](https://img.shields.io/badge/version-v1.0.0--developing-blue.svg)](https://github.com/cbc-cameroun/supervision-platform)
+[![Build Status](https://img.shields.io/badge/build-pending-yellow.svg)](https://github.com/cbc-cameroun/supervision-platform/actions)
+[![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/cbc-cameroun/supervision-platform)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Status](https://img.shields.io/badge/status-active-success.svg)](https://github.com/cbc-cameroun/supervision-platform)
+
+---
+
+## Table des matières
+
+- [Pourquoi ce projet ?](#pourquoi-ce-projet)
+- [Présentation du projet](#présentation-du-projet)
+- [Objectifs](#objectifs)
+- [Fonctionnalités principales](#fonctionnalités-principales)
+- [Aperçu](#aperçu)
+- [Fonctionnement général](#fonctionnement-général)
+- [Cas d'utilisation](#cas-dutilisation)
+- [Principes du projet](#principes-du-projet)
+- [Exigences non fonctionnelles](#exigences-non-fonctionnelles)
+- [Périmètre](#périmètre)
+- [Roadmap](#roadmap)
+- [Technologies](#technologies)
+- [Structure du dépôt](#structure-du-dépôt)
+- [Structure générale du système](#structure-générale-du-système)
+- [Sécurité](#sécurité)
+- [Journal des versions](#journal-des-versions)
+- [Licence](#licence)
+- [Contribution](#contribution)
+- [Auteur](#auteur)
+
+---
+
+## Pourquoi ce projet ?
+
+### Le problème de la supervision informatique
+
+La supervision informatique est un défi majeur pour toute organisation gérant un parc de machines hétérogène. Sans une vision centralisée, les équipes IT opèrent dans le noir, détectant les incidents de manière réactive plutôt que proactive. Les conséquences sont directes : temps d'arrêt prolongés, perte de productivité, et risque pour la continuité des activités.
+
+### Pourquoi une supervision centralisée ?
+
+Une supervision centralisée apporte une réponse structurée à ces défis :
+
+- **Visibilité unifiée** : Une seule source de vérité pour l'état de l'ensemble du parc
+- **Détection proactive** : Les anomalies sont identifiées avant qu'elles ne deviennent des incidents critiques
+- **Réactivité accrue** : Les équipes sont informées immédiatement et peuvent intervenir plus rapidement
+- **Maintenance simplifiée** : La configuration est centralisée, éliminant les interventions machine par machine
+- **Historique et traçabilité** : Les données sont conservées, permettant l'analyse des tendances et l'amélioration continue
+
+### La valeur métier de CBC Supervision Platform
+
+Pour la Commercial Bank Cameroun, cette plateforme représente un investissement stratégique dans la résilience de son infrastructure informatique. Elle permet de :
+
+- Garantir la disponibilité des services critiques de la banque
+- Réduire le MTTR (Mean Time To Recovery) des incidents
+- Optimiser l'utilisation des ressources serveurs
+- Fournir des indicateurs pour la planification capacitaire
+- Renforcer la conformité et la sécurité du parc informatique
+
+---
+
+## Présentation du projet
+
+### Résumé
+
+CBC Supervision Platform est une solution de supervision centralisée permettant de surveiller en temps réel l'état de santé du parc informatique de la Commercial Bank Cameroun. Elle remplace l'architecture fragmentée de scripts PowerShell par une plateforme unifiée, multiplateforme et sécurisée.
+
+### Contexte
+
+La Commercial Bank Cameroun gère un parc informatique hétérogène composé de serveurs et postes de travail sous Windows, Linux et macOS. La supervision actuelle repose sur des scripts PowerShell décentralisés, difficiles à maintenir et ne fournissant pas une vision globale du parc.
+
+### Problème rencontré
+
+L'architecture actuelle présente plusieurs limitations majeures :
+
+- **Absence de vision centralisée** : Pas de vue d'ensemble en temps réel de l'état du parc
+- **Maintenance complexe** : Scripts PowerShell dispersés sur chaque machine
+- **Détection réactive** : Les incidents sont détectés tardivement, souvent après signalement utilisateur
+- **Configuration manuelle** : Chaque modification de configuration doit être appliquée machine par machine
+- **Absence d'historique** : Pas de traçabilité des incidents et des métriques
+- **Alertes manuelles** : Pas de notification automatique en cas d'anomalie
+
+### Solution proposée
+
+CBC Supervision Platform propose une architecture agent-serveur moderne :
+
+- **Agent léger multiplateforme** : Déployé sur chaque machine, il collecte les métriques système en temps réel
+- **Plateforme centralisée** : Serveur unique qui agrège et traite toutes les données
+- **Dashboard web** : Interface unique pour consulter l'état du parc et gérer les alertes
+- **Alertes automatiques** : Détection proactive des anomalies et notification par email
+- **Configuration centralisée** : Gestion unifiée des seuils et paramètres depuis une interface web
+
+---
+
+## Aperçu
+
+### Dashboard principal
+
+<!-- Placeholder pour capture d'écran du dashboard principal -->
+
+*Vue d'ensemble du parc avec KPIs et liste des agents*
+
+### Liste des agents
+
+<!-- Placeholder pour capture d'écran de la liste des agents -->
+
+*Liste filtrable et triable de tous les agents avec leurs métriques en temps réel*
+
+### Vue détaillée d'un serveur
+
+<!-- Placeholder pour capture d'écran des détails d'un serveur -->
+
+*Métriques détaillées, alertes actives et informations système d'une machine spécifique*
+
+### Gestion des alertes
+
+<!-- Placeholder pour capture d'écran de la gestion des alertes -->
+
+*Interface de gestion des alertes avec filtrage, tri et acquittement*
+
+---
+
+## Objectifs
+
+La plateforme vise à atteindre les objectifs suivants :
+
+- **Visibilité permanente** : Fournir une vue en temps réel de l'état de tous les agents déployés
+- **Détection proactive** : Identifier automatiquement les anomalies de ressources (CPU, RAM, disque)
+- **Réactivité améliorée** : Réduire le temps de détection et de résolution des incidents
+- **Maintenance simplifiée** : Centraliser la configuration et éliminer les scripts dispersés
+- **Multiplateforme** : Supporter Windows, Linux et macOS avec une solution unifiée
+- **Sécurité** : Garantir des communications authentifiées et chiffrées entre agents et serveur
+
+---
+
+## Fonctionnalités principales
+
+### Supervision en temps réel
+
+- Collecte automatique des métriques système (CPU, RAM, disque, uptime)
+- Détection automatique des agents hors ligne
+- Dashboard web avec vue d'ensemble et détails par machine
+- Rafraîchissement automatique des données (30 secondes)
+
+### Alertes intelligentes
+
+- Détection automatique des anomalies basée sur des seuils configurables
+- 3 niveaux de gravité : Info, Warning, Critique
+- 4 types d'alertes : Agent hors ligne, CPU élevé, RAM élevée, Disque plein
+- Hystérésis pour éviter les alertes oscillantes
+- Historique des alertes sur 30 jours
+
+### Notifications par email
+
+- Envoi automatique d'emails pour les alertes Warning et Critique
+- Configuration des destinataires via l'interface web
+- Contenu détaillé de l'alerte avec lien vers le dashboard
+
+### Gestion centralisée
+
+- Configuration des seuils d'alerte (globaux ou par agent)
+- Gestion des utilisateurs avec 3 profils (Administrateur, Opérateur, Lecture seule)
+- Génération de jetons d'enrôlement pour les nouveaux agents
+- Export CSV des listes d'agents et d'alertes
+
+### Multiplateforme
+
+- Support complet de Windows, Linux et macOS
+- Agent Python unique pour tous les systèmes d'exploitation
+- Collecte de métriques standardisées indépendamment de l'OS
+
+---
+
+## Fonctionnement général
+
+### L'agent
+
+L'agent est un logiciel léger installé sur chaque machine du parc. Son rôle est de :
+
+- Collecter les métriques système (CPU, RAM, disque, etc.) toutes les 30 secondes
+- Envoyer ces métriques au serveur central via une connexion HTTPS sécurisée
+- Recevoir et appliquer automatiquement les configurations envoyées par le serveur
+- Gérer automatiquement les reconnexions en cas de perte de réseau
+
+L'agent s'installe facilement via un package standard (MSI, DEB, RPM, PKG) et se configure avec un jeton d'enrôlement unique.
+
+### La plateforme centrale
+
+Le serveur central est le cœur du système. Son rôle est de :
+
+- Recevoir et traiter les heartbeats de tous les agents
+- Stocker les métriques et calculer les informations dérivées (statut en ligne/hors ligne)
+- Générer automatiquement les alertes lorsque les seuils sont dépassés
+- Envoyer les notifications par email
+- Fournir l'API pour le dashboard web
+- Gérer la configuration centralisée
+
+### Le dashboard
+
+Le dashboard est l'interface web accessible aux utilisateurs. Il permet de :
+
+- Consulter la vue d'ensemble du parc (KPIs, liste des agents)
+- Voir les détails d'une machine spécifique (métriques, alertes actives)
+- Gérer la liste des alertes (filtrage, acquittement)
+- Configurer les seuils et paramètres globaux
+- Gérer les utilisateurs et les agents
+
+### Les alertes
+
+Les alertes sont des notifications automatiques générées par le serveur lorsqu'une anomalie est détectée :
+
+- Elles sont basées sur des seuils configurables (CPU, RAM, disque, temps hors ligne)
+- Elles ont 3 niveaux de gravité (Info, Warning, Critique)
+- Elles peuvent être acquittées manuellement par les utilisateurs
+- Elles sont résolues automatiquement lorsque la condition disparaît
+- Elles sont conservées dans l'historique pendant 30 jours
+
+### Les notifications
+
+Les notifications sont les messages envoyés aux équipes pour les informer des alertes :
+
+- En V1, seul le canal email est implémenté
+- Les alertes Info ne déclenchent pas de notification
+- Les alertes Warning et Critique déclenchent un email immédiat
+- Les destinataires sont configurés globalement dans les paramètres
+
+---
+
+## Principes du projet
+
+La conception de CBC Supervision Platform est guidée par les principes suivants :
+
+### Simplicité
+
+L'interface et l'installation doivent être accessibles sans nécessiter une expertise approfondie. L'agent s'installe en quelques minutes avec un package standard, et le dashboard est intuitif pour tous les profils utilisateurs.
+
+### Fiabilité
+
+Le système doit fonctionner de manière prévisible et cohérente. Les agents gèrent automatiquement les reconnexions, et le serveur continue d'opérer même en cas de défaillance partielle.
+
+### Sécurité
+
+La sécurité est intégrée par design : communications chiffrées, authentification forte, gestion des accès basée sur les rôles, et protection des données sensibles.
+
+### Performance
+
+La plateforme doit supporter des milliers d'agents sans dégradation des performances. Les heartbeats sont légers et le traitement est optimisé pour minimiser la latence.
+
+### Maintenabilité
+
+Le code est structuré pour faciliter les évolutions futures. La séparation des responsabilités entre agent, serveur et dashboard permet des modifications indépendantes.
+
+### Extensibilité
+
+L'architecture est conçue pour accueillir de nouvelles fonctionnalités sans refondre le système. De nouveaux types de télémétries, de canaux de notification ou d'intégrations peuvent être ajoutés progressivement.
+
+### Scalabilité
+
+Le système peut évoluer horizontalement pour accompagner la croissance du parc. Le serveur central peut être déployé en cluster pour gérer une charge accrue.
+
+### Multiplateforme
+
+La solution fonctionne de manière identique sur Windows, Linux et macOS, offrant une expérience unifiée quel que soit l'environnement.
+
+---
+
+## Exigences non fonctionnelles
+
+### Disponibilité
+
+- Le serveur central doit être disponible 99.5% du temps en production
+- Le dashboard doit être accessible en permanence pendant les heures ouvrées
+- Les agents doivent continuer de fonctionner en cas d'indisponibilité temporaire du serveur
+
+### Performance
+
+- Le temps de traitement d'un heartbeat doit être inférieur à 100ms
+- Le dashboard doit afficher les données en moins de 2 secondes
+- L'agent doit consommer moins de 1% de CPU et 50 Mo de RAM
+
+### Sécurité
+
+- Toutes les communications doivent être chiffrées en TLS 1.3 minimum
+- Les mots de passe doivent être hachés avec un algorithme moderne (bcrypt ou argon2)
+- Les jetons d'authentification doivent expirer après une durée configurable
+- Les actions sensibles doivent être tracées dans les logs d'audit
+
+### Maintenabilité
+
+- Le code doit respecter les standards de qualité (linting, tests unitaires)
+- La documentation doit être maintenue à jour avec les évolutions
+- Les erreurs doivent être journalisées avec un niveau de détail suffisant pour le diagnostic
+
+### Évolutivité
+
+- Le système doit supporter jusqu'à 10 000 agents en V1
+- L'ajout de nouveaux agents ne doit pas dégrader les performances existantes
+- La base de données doit pouvoir être migrée vers un cluster si nécessaire
+
+### Observabilité
+
+- Les métriques internes du système doivent être exposées (CPU, mémoire, latence)
+- Les erreurs doivent être visibles dans un système de monitoring centralisé
+- Les logs doivent être structurés et facilement analysables
+
+### Résilience
+
+- Le système doit tolérer la perte de connexions temporaires des agents
+- Le serveur doit pouvoir redémarrer sans perte de données critiques
+- Les opérations en échec doivent pouvoir être réessayées automatiquement
+
+---
+
+## Cas d'utilisation
+
+### Cas 1 - Surveillance quotidienne du parc
+
+Un administrateur système consulte le dashboard chaque matin pour vérifier l'état global du parc. Il identifie rapidement les machines hors ligne ou en anomalie grâce aux indicateurs visuels (badges de couleur, barres de progression). Il peut alors prioriser ses interventions en fonction de la gravité des alertes.
+
+### Cas 2 - Traitement d'une alerte critique
+
+Un opérateur reçoit un email l'informant que le disque d'un serveur critique est à 96% d'utilisation. Il clique sur le lien dans l'email pour accéder directement au dashboard, consulte les métriques de la machine, identifie les fichiers volumineux à supprimer, effectue le nettoyage, puis acquitte l'alerte depuis l'interface web.
+
+### Cas 3 - Installation d'un nouvel agent
+
+Un technicien doit déployer l'agent sur un nouveau serveur. Il se connecte au dashboard, génère un jeton d'enrôlement à usage unique, installe l'agent sur le serveur avec ce jeton, et vérifie quelques secondes plus tard que le nouveau serveur apparaît dans la liste des agents avec le statut "En ligne".
+
+### Cas 4 - Ajustement des seuils
+
+Après avoir observé que certains serveurs génèrent fréquemment des alertes CPU Warning à 80% alors que cette charge est normale pour eux, un administrateur configure des seuils personnalisés pour ces machines spécifiques (CPU Warning à 90%, Critique à 95%). Les alertes cessent d'être générées pour ces serveurs, tandis que les seuils globaux s'appliquent toujours aux autres machines.
+
+### Cas 5 - Consultation de l'historique
+
+Un responsable infrastructure souhaite analyser les tendances des incidents sur le dernier mois. Il accède à la liste des alertes, filtre par la période des 30 derniers jours, exporte le résultat en CSV, et utilise un tableur pour identifier les machines les plus problématiques et planifier les actions de maintenance préventives.
+
+---
+
+## Périmètre
+
+### Inclus dans la V1
+
+**Supervision**
+- ✅ Collecte de 21 télémétries système (CPU, RAM, disque, uptime, etc.)
+- ✅ Détection automatique des agents hors ligne (90 secondes)
+- ✅ Détection automatique des anomalies (CPU, RAM, disque)
+- ✅ Agent multiplateforme (Windows, Linux, macOS)
+
+**Alertes**
+- ✅ 3 niveaux de gravité (Info, Warning, Critique)
+- ✅ 4 types d'alertes (hors ligne, CPU, RAM, disque)
+- ✅ Seuils configurables (globaux et par agent)
+- ✅ Acquittement manuel des alertes
+- ✅ Historique des alertes (30 jours)
+
+**Notifications**
+- ✅ Notifications par email
+- ✅ Configuration des destinataires
+- ✅ Contenu détaillé avec lien vers le dashboard
+
+**Dashboard**
+- ✅ Vue d'ensemble du parc (KPIs, liste des agents)
+- ✅ Détails par machine (métriques, alertes actives)
+- ✅ Liste des alertes avec filtrage
+- ✅ Gestion des agents (configuration, révocation, suppression)
+- ✅ Paramètres globaux (seuils, notifications, rétention)
+
+**Gestion**
+- ✅ 3 profils utilisateurs (Admin, Opérateur, Lecture seule)
+- ✅ Génération de jetons d'enrôlement
+- ✅ Export CSV (agents, alertes)
+- ✅ Configuration centralisée
+
+**Sécurité**
+- ✅ Communications HTTPS authentifiées
+- ✅ Jetons d'enrôlement à usage unique
+- ✅ Gestion des rôles et permissions
+
+### Prévu pour les versions futures
+
+**Supervision avancée**
+- ⏳ Supervision des processus et services
+- ⏳ Supervision des logs applicatifs
+- ⏳ Supervision réseau avancée (bande passante, connexions)
+- ⏳ Historique des télémétries (time-series)
+
+**Notifications**
+- ⏳ SMS
+- ⏳ Slack
+- ⏳ Microsoft Teams
+- ⏳ Telegram
+- ⏳ Webhook
+
+**Dashboard**
+- ⏳ Graphiques temporels et tendances
+- ⏳ Statistiques globales agrégées
+- ⏳ Personnalisation de l'affichage
+- ⏳ Rapports automatisés planifiés
+
+**Gestion des agents**
+- ⏳ Mise à jour automatique des agents
+- ⏳ Gestion de groupes d'agents
+- ⏳ Désactivation d'agents
+- ⏳ Suppression automatique après désinstallation
+
+**Sécurité**
+- ⏳ MFA (Multi-Factor Authentication)
+- ⏳ Intégration LDAP/Active Directory
+
+**Données**
+- ⏳ Persistance locale des données hors ligne
+- ⏳ Synchronisation différée
+
+**Internationalisation**
+- ⏳ Support multilingue
+- ⏳ Conversion de fuseau horaire
+
+---
+
+## Roadmap
+
+### V1.0 - Fondation
+
+*Objectif : Supervision basique du parc avec alertes par email*
+
+- ✅ Agent multiplateforme (Windows, Linux, macOS)
+- ✅ Collecte de 21 télémétries système
+- ✅ Détection automatique des agents hors ligne
+- ✅ Alertes avec 3 niveaux de gravité
+- ✅ Notifications par email
+- ✅ Dashboard web avec vue d'ensemble et détails
+- ✅ Gestion des utilisateurs avec 3 profils
+- ✅ Configuration centralisée
+
+### V1.1 - Amélioration de l'expérience
+
+*Objectif : Renforcer l'UX et la fiabilité*
+
+- ⏳ Graphiques temporels basiques
+- ⏳ Amélioration des filtres et de la recherche
+- ⏳ Mode maintenance pour les agents
+- ⏳ Amélioration de la gestion des erreurs
+- ⏳ Documentation utilisateur complète
+
+### V1.2 - Extensions de supervision
+
+*Objectif : Étendre les capacités de supervision*
+
+- ⏳ Supervision des processus et services
+- ⏳ Supervision réseau basique
+- ⏳ Historique des télémétries (7 jours)
+- ⏳ Rapports CSV avancés
+- ⏳ Canaux de notification additionnels (Slack, Teams)
+
+### V2.0 - Plateforme d'entreprise
+
+*Objectif : Transformation en plateforme de supervision complète*
+
+- ⏳ Mise à jour automatique des agents
+- ⏳ Gestion de groupes d'agents
+- ⏳ Intégration LDAP/Active Directory
+- ⏳ MFA (Multi-Factor Authentication)
+- ⏳ API publique pour intégrations tierces
+- ⏳ Historique des télémétries complet (time-series)
+- ⏳ Dashboard avancé avec tendances et prédictions
+
+---
+
+## Technologies
+
+| Composant | Technologie | Description |
+|-----------|-------------|-------------|
+| **Agent** | Python 3.9+ | Langage principal pour la multiplateforme |
+| **Backend** | Python 3.9+ | Framework web et API REST |
+| **Frontend** | JavaScript moderne | Framework SPA pour le dashboard |
+| **Base de données** | PostgreSQL | Stockage relationnel des données |
+| **API** | REST HTTPS | Interface de communication standard |
+| **Communications** | HTTPS/TLS | Chiffrement des communications agent-serveur |
+| **Déploiement** | Docker | Conteneurisation pour simplifier le déploiement |
+
+---
+
+## Structure du dépôt
+
+```
+cbc-supervision-platform/
+├── docs/                      # Documentation du projet
+│   ├── specification/         # Spécification fonctionnelle
+│   ├── architecture/          # Documentation technique
+│   └── api/                   # Documentation de l'API
+├── agent/                     # Code source de l'agent
+│   ├── src/                   # Source principal
+│   ├── tests/                 # Tests unitaires et intégration
+│   ├── packaging/             # Scripts de packaging (MSI, DEB, RPM, PKG)
+│   └── requirements.txt       # Dépendances Python
+├── server/                    # Code source du serveur central
+│   ├── src/                   # Source principal
+│   ├── tests/                 # Tests unitaires et intégration
+│   ├── migrations/            # Migrations de base de données
+│   └── requirements.txt       # Dépendances Python
+├── dashboard/                 # Code source du dashboard web
+│   ├── src/                   # Source principal
+│   ├── tests/                 # Tests unitaires et E2E
+│   └── package.json           # Dépendances JavaScript
+├── shared/                    # Code partagé entre composants
+│   ├── models/                # Modèles de données communs
+│   ├── utils/                 # Utilitaires partagés
+│   └── constants/             # Constantes communes
+├── scripts/                   # Scripts utilitaires
+│   ├── deploy/                # Scripts de déploiement
+│   ├── setup/                 # Scripts d'installation
+│   └── maintenance/          # Scripts de maintenance
+├── tests/                     # Tests d'intégration E2E
+│   ├── docker-compose.yml     # Environnement de test
+│   └── fixtures/              # Données de test
+├── docker/                    # Configuration Docker
+│   ├── Dockerfile.agent       # Image Docker de l'agent (tests)
+│   ├── Dockerfile.server      # Image Docker du serveur
+│   └── Dockerfile.dashboard   # Image Docker du dashboard
+├── .github/                   # Configuration GitHub
+│   ├── workflows/             # Actions GitHub (CI/CD)
+│   └── ISSUE_TEMPLATE/        # Modèles d'issues
+├── README.md                  # Documentation principale
+├── LICENSE                    # Licence du projet
+├── CONTRIBUTING.md            # Guide de contribution
+└── .gitignore                 # Fichiers ignorés par Git
+```
+
+---
+
+## Structure générale du système
+
+Le système CBC Supervision Platform repose sur une architecture à trois composants principaux :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Parc informatique                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │  ... │
+│  │ Windows  │  │  Linux   │  │   macOS  │  │ Windows  │      │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘      │
+│       │             │             │             │              │
+│       └─────────────┴─────────────┴─────────────┘              │
+│                     HTTPS (Heartbeats)                         │
+└──────────────────────┬──────────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────────┐
+│                    Serveur central                               │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  - Réception des heartbeats                              │  │
+│  │  - Stockage des métriques                                │  │
+│  │  - Génération des alertes                                │  │
+│  │  - Envoi des notifications email                         │  │
+│  │  - API pour le dashboard                                 │  │
+│  │  - Gestion de la configuration                           │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└──────────────────────┬──────────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────────┐
+│                    Dashboard web                                 │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  - Vue d'ensemble du parc                                 │  │
+│  │  - Détails par machine                                     │  │
+│  │  - Liste des alertes                                      │  │
+│  │  - Gestion des agents et utilisateurs                     │  │
+│  │  - Paramètres globaux                                      │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Flux de données :**
+
+1. Les agents collectent les métriques système localement
+2. Les agents envoient les métriques au serveur central via HTTPS (toutes les 30 secondes)
+3. Le serveur central traite les données, calcule les informations dérivées et génère les alertes
+4. Le serveur envoie les notifications email si nécessaire
+5. Le dashboard web interroge le serveur via API pour afficher les données aux utilisateurs
+
+---
+
+## Sécurité
+
+### Communications
+
+- **HTTPS obligatoire** : Toutes les communications entre agents et serveur utilisent le protocole HTTPS avec validation du certificat SSL
+- **Authentification par jeton** : Chaque agent possède une clé d'authentification unique générée lors de l'enrôlement
+- **Jeton d'enrôlement à usage unique** : L'enrôlement d'un nouvel agent nécessite un jeton généré depuis le dashboard, valide 24 heures et utilisable une seule fois
+
+### Gestion des accès
+
+- **3 profils utilisateurs** : Administrateur, Opérateur, Lecture seule
+- **Permissions granulaires** : Chaque profil dispose de droits spécifiques (lecture, écriture, administration)
+- **Authentification requise** : L'accès au dashboard nécessite une authentification par identifiant et mot de passe
+- **Politique de mot de passe** : Minimum 8 caractères, 1 majuscule, 1 chiffre
+
+### Protection des données
+
+- **Secrets jamais en clair** : Les mots de passe et clés d'authentification sont stockés de manière sécurisée (hash)
+- **Pas de données sensibles dans les logs** : Les logs ne contiennent pas d'informations d'authentification ou de données sensibles
+- **Rétention configurable** : La durée de conservation des données est configurable et automatiquement purgée
+
+### Audit
+
+- **Traçabilité des actions** : Les actions des utilisateurs (connexion, modification) sont loggées
+- **Historique des alertes** : Toutes les alertes sont conservées avec leur historique d'acquittement
+
+---
+
+## Journal des versions
+
+### [V1.0.0] - Version actuelle
+
+**Fonctionnalités initiales**
+
+- ✅ Agent multiplateforme (Windows, Linux, macOS)
+- ✅ Collecte de 21 télémétries système
+- ✅ Détection automatique des agents hors ligne
+- ✅ Alertes avec 3 niveaux de gravité
+- ✅ Notifications par email
+- ✅ Dashboard web avec vue d'ensemble et détails
+- ✅ Gestion des utilisateurs avec 3 profils
+- ✅ Configuration centralisée
+- ✅ Export CSV
+
+**Fonctionnalités supplémentaires implémentées**
+
+- ✅ Authentification JWT avec refresh tokens
+- ✅ Rate limiting et protection contre force brute
+- ✅ Validation stricte des entrées
+- ✅ Logs d'audit et traçabilité
+- ✅ Historique des métriques et stockage temporel
+- ✅ Acquittement et résolution des alertes
+- ✅ Gestion des seuils par agent
+- ✅ Permissions par rôle (RBAC)
+- ✅ Notifications push WebSocket en temps réel
+- ✅ Graphiques d'évolution et visualisation des métriques
+- ✅ Health check endpoints
+- ✅ Configuration par environnement (.env)
+- ✅ Logs structurés et centralisation
+- ✅ Monitoring avec Prometheus
+- ✅ Backup automatique PostgreSQL
+- ✅ Migrations de base de données (Alembic)
+- ✅ Notifications en temps réel dans le navigateur
+- ✅ Responsive design mobile
+- ✅ Dark mode et thèmes
+- ✅ Configuration de l'agent par fichier YAML/JSON
+- ✅ Mode dégradé et gestion pannes réseau
+- ✅ Logs détaillés avec rotation
+- ✅ Pagination des listes
+- ✅ Cache Redis pour requêtes fréquentes
+- ✅ Indexation optimisée PostgreSQL
+- ✅ Documentation API Swagger/OpenAPI
+
+---
+
+## Licence
+
+Ce projet est propriété de la Commercial Bank Cameroun. Tous droits réservés.
+
+---
+
+## Contribution
+
+Ce projet est développé en interne pour la Commercial Bank Cameroun. Les contributions externes ne sont pas acceptées à ce stade.
+
+Pour toute question ou suggestion, veuillez contacter l'équipe en charge du projet.
+
+---
+
+## Auteur
+
+**Commercial Bank Cameroun**
+- Direction des Systèmes d'Information
+- Équipe Infrastructure et Sécurité
+
+*Année 2026*
