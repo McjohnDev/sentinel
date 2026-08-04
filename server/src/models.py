@@ -31,12 +31,13 @@ class User(Base):
 
 class Agent(Base):
     """Modèle de données pour un agent de supervision."""
-    
+
     __tablename__ = 'agents'
-    
+
     id = Column(String, primary_key=True)  # Agent ID généré par le serveur
     machine_id = Column(String, unique=True, nullable=False, index=True)  # UUID de la machine
     hostname = Column(String, nullable=False)
+    name = Column(String, nullable=True)  # Nom affichable de l'agent
     ip_address = Column(String)
     os = Column(String)  # Windows, Linux, macOS
     os_version = Column(String)
@@ -47,7 +48,8 @@ class Agent(Base):
     enrolled_at = Column(DateTime, default=func.now())
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    
+    location = Column(String, nullable=True)  # Localisation de l'agent
+
     # Seuils personnalisés par agent (None = utiliser les seuils globaux)
     cpu_warning_threshold = Column(Float, nullable=True)
     cpu_critical_threshold = Column(Float, nullable=True)
@@ -55,7 +57,7 @@ class Agent(Base):
     ram_critical_threshold = Column(Float, nullable=True)
     disk_warning_threshold = Column(Float, nullable=True)
     disk_critical_threshold = Column(Float, nullable=True)
-    
+
     heartbeats = relationship("Heartbeat", back_populates="agent", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="agent", cascade="all, delete-orphan")
 
@@ -146,3 +148,56 @@ class Alert(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
     agent = relationship("Agent", back_populates="alerts")
+
+
+class GlobalSettings(Base):
+    """Modèle de données pour les paramètres globaux de seuils."""
+
+    __tablename__ = 'global_settings'
+
+    id = Column(String, primary_key=True, default='default')
+    cpu_warning_threshold = Column(Float, default=80)
+    cpu_critical_threshold = Column(Float, default=90)
+    ram_warning_threshold = Column(Float, default=80)
+    ram_critical_threshold = Column(Float, default=90)
+    disk_warning_threshold = Column(Float, default=85)
+    disk_critical_threshold = Column(Float, default=95)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class EmailConfig(Base):
+    """Modèle de données pour la configuration des notifications email."""
+
+    __tablename__ = 'email_config'
+
+    id = Column(String, primary_key=True, default='default')
+    recipients = Column(String, default='[]')  # JSON array of email addresses
+    smtp_host = Column(String)
+    smtp_port = Column(Integer, default=587)
+    smtp_secure = Column(Boolean, default=True)
+    smtp_user = Column(String)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class RetentionConfig(Base):
+    """Modèle de données pour la configuration de rétention des données."""
+
+    __tablename__ = 'retention_config'
+
+    id = Column(String, primary_key=True, default='default')
+    alerts_days = Column(Integer, default=30)
+    heartbeats_days = Column(Integer, default=7)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class EnrollmentToken(Base):
+    """Modèle de données pour les tokens d'enrôlement des agents."""
+
+    __tablename__ = 'enrollment_tokens'
+
+    id = Column(String, primary_key=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=False)
+    status = Column(String, default='active')  # active, expired, consumed
+    created_by = Column(String)  # User who created the token

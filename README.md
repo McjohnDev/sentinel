@@ -487,28 +487,39 @@ Un responsable infrastructure souhaite analyser les tendances des incidents sur 
 
 ```
 cbc-supervision-platform/
+├── src/                       # Source du frontend React
+│   ├── components/            # Composants React réutilisables
+│   │   ├── common/           # Composants communs (Badge, Modal, etc.)
+│   │   └── layout/           # Composants de layout (Header, Sidebar)
+│   ├── context/              # Contexte global React (AppContext)
+│   ├── services/             # Services API
+│   │   ├── api/              # Services d'appel API (auth, agents, alerts, etc.)
+│   │   ├── types/            # Types TypeScript pour les DTOs API
+│   │   └── mappers/          # Mappers backend → frontend
+│   ├── views/                # Vues principales (Dashboard, Agents, Alerts, etc.)
+│   ├── types.ts              # Types TypeScript globaux
+│   ├── App.tsx               # Composant principal React
+│   └── main.tsx              # Point d'entrée React
+├── server/                    # Code source du serveur central
+│   ├── src/                   # Source principal
+│   │   ├── models.py          # Modèles SQLAlchemy ORM
+│   │   ├── main.py            # Application FastAPI principale
+│   │   ├── database.py        # Configuration base de données
+│   │   ├── auth_service.py    # Service d'authentification
+│   │   ├── alert_service.py   # Service de gestion des alertes
+│   │   ├── permissions.py     # Gestion des permissions RBAC
+│   │   ├── audit_logger.py    # Logger d'audit
+│   │   ├── websocket_manager.py # Gestion WebSocket
+│   │   └── cache_service.py   # Service de cache Redis
+│   ├── tests/                 # Tests unitaires et intégration
+│   ├── alembic/               # Migrations de base de données
+│   ├── logs/                  # Logs d'application
+│   ├── ssl/                   # Certificats SSL
+│   └── requirements.txt       # Dépendances Python
 ├── docs/                      # Documentation du projet
 │   ├── specification/         # Spécification fonctionnelle
 │   ├── architecture/          # Documentation technique
 │   └── api/                   # Documentation de l'API
-├── agent/                     # Code source de l'agent
-│   ├── src/                   # Source principal
-│   ├── tests/                 # Tests unitaires et intégration
-│   ├── packaging/             # Scripts de packaging (MSI, DEB, RPM, PKG)
-│   └── requirements.txt       # Dépendances Python
-├── server/                    # Code source du serveur central
-│   ├── src/                   # Source principal
-│   ├── tests/                 # Tests unitaires et intégration
-│   ├── migrations/            # Migrations de base de données
-│   └── requirements.txt       # Dépendances Python
-├── dashboard/                 # Code source du dashboard web
-│   ├── src/                   # Source principal
-│   ├── tests/                 # Tests unitaires et E2E
-│   └── package.json           # Dépendances JavaScript
-├── shared/                    # Code partagé entre composants
-│   ├── models/                # Modèles de données communs
-│   ├── utils/                 # Utilitaires partagés
-│   └── constants/             # Constantes communes
 ├── scripts/                   # Scripts utilitaires
 │   ├── deploy/                # Scripts de déploiement
 │   ├── setup/                 # Scripts d'installation
@@ -523,6 +534,10 @@ cbc-supervision-platform/
 ├── .github/                   # Configuration GitHub
 │   ├── workflows/             # Actions GitHub (CI/CD)
 │   └── ISSUE_TEMPLATE/        # Modèles d'issues
+├── package.json               # Dépendances JavaScript (frontend)
+├── tsconfig.json              # Configuration TypeScript
+├── vite.config.ts             # Configuration Vite
+├── tailwind.config.js         # Configuration TailwindCSS
 ├── README.md                  # Documentation principale
 ├── LICENSE                    # Licence du projet
 ├── CONTRIBUTING.md            # Guide de contribution
@@ -643,8 +658,7 @@ Le système CBC Supervision Platform repose sur une architecture à trois compos
 - ✅ Monitoring avec Prometheus
 - ✅ Backup automatique PostgreSQL
 - ✅ Migrations de base de données (Alembic)
-- ✅ Notifications en temps réel dans le navigateur
-- ✅ Responsive design mobile
+mobile
 - ✅ Dark mode et thèmes
 - ✅ Configuration de l'agent par fichier YAML/JSON
 - ✅ Mode dégradé et gestion pannes réseau

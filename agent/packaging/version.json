@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "release_date": "2026-08-04",
+  "download_url": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0.tar.gz",
+  "checksum": "sha256:YOUR_CHECKSUM_HERE",
+  "release_notes": "Version initiale de l'agent CBC Supervision\n\nFonctionnalités:\n- Collecte des métriques système (CPU, mémoire, disque, réseau)\n- Mode dégradé avec bufferisation\n- Service automatique (systemd/launchd/Windows Service)\n- Mises à jour automatiques\n\nAméliorations:\n- Installation multi-plateforme\n- Configuration flexible via YAML\n- Logging avancé",
+  "platforms": {
+    "linux": {
+      "deb": "https://download.cbc-cam.cm/cbc-agent/cbc-agent_1.0.0_amd64.deb",
+      "rpm": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0-1.x86_64.rpm",
+      "tarball": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0-linux.tar.gz"
+    },
+    "macos": {
+      "pkg": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0.pkg",
+      "tarball": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0-macos.tar.gz"
+    },
+    "windows": {
+      "msi": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0.msi",
+      "exe": "https://download.cbc-cam.cm/cbc-agent/cbc-agent-1.0.0.exe"
+    }
+  },
+  "minimum_required_version": "1.0.0",
+  "security_updates": [],
+  "critical": false
+}

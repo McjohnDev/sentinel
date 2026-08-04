@@ -1,0 +1,6 @@
+{
+  "name": "CBC Supervision Platform",
+  "description": "Plateforme de supervision et de surveillance d'infrastructure informatique pour la Commercial Bank Cameroun",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

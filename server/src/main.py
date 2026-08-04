@@ -11,11 +11,11 @@ import uuid
 import re
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
 from src.database import get_db, engine, Base
-from src.models import Agent, Heartbeat, Alert, AlertType, User
+from src.models import Agent, Heartbeat, Alert, AlertType, User, GlobalSettings, EmailConfig, RetentionConfig, EnrollmentToken
 from src.config import settings
 from src.alert_service import AlertService
 from src.auth_service import AuthService
@@ -241,12 +241,55 @@ class UpdateAgentThresholdsRequest(BaseModel):
     ram_critical_threshold: Optional[float] = None
     disk_warning_threshold: Optional[float] = None
     disk_critical_threshold: Optional[float] = None
-    
+
     @validator('cpu_warning_threshold', 'cpu_critical_threshold', 'ram_warning_threshold', 'ram_critical_threshold', 'disk_warning_threshold', 'disk_critical_threshold')
     def validate_threshold(cls, v):
         if v is not None and not 0 <= v <= 100:
             raise ValueError('Le seuil doit être entre 0 et 100')
         return v
+
+
+# New Pydantic models for settings endpoints
+class GlobalThresholdsRequest(BaseModel):
+    cpu_warning: float
+    cpu_critical: float
+    ram_warning: float
+    ram_critical: float
+    disk_warning: float
+    disk_critical: float
+
+    @validator('cpu_warning', 'cpu_critical', 'ram_warning', 'ram_critical', 'disk_warning', 'disk_critical')
+    def validate_threshold(cls, v):
+        if not 0 <= v <= 100:
+            raise ValueError('Le seuil doit être entre 0 et 100')
+        return v
+
+
+class EmailConfigRequest(BaseModel):
+    recipients: list
+    smtp_host: str
+    smtp_port: int
+    smtp_secure: bool
+    smtp_user: str
+
+
+class RetentionConfigRequest(BaseModel):
+    alerts_days: int
+    heartbeats_days: int
+
+    @validator('alerts_days', 'heartbeats_days')
+    def validate_days(cls, v):
+        if v < 1:
+            raise ValueError('Le nombre de jours doit être au moins 1')
+        return v
+
+
+class UpdateAgentLocationRequest(BaseModel):
+    location: str
+
+
+class UpdateAgentNameRequest(BaseModel):
+    name: str
 
 
 # Stockage simple des tokens (en production, utiliser une base de données avec expiration)
@@ -956,6 +999,315 @@ def delete_user(request: Request, user_id: str, current_user: User = Depends(req
     db.commit()
     
     return {"message": "Utilisateur supprimé avec succès"}
+
+
+# ==================== SETTINGS ENDPOINTS ====================
+
+@app.get("/api/settings/thresholds")
+@limiter.limit("30/minute")
+def get_global_thresholds(request: Request, current_user: User = Depends(require_operator_or_admin()), db: Session = Depends(get_db)):
+    """Récupère les seuils globaux."""
+    settings = db.query(GlobalSettings).filter(GlobalSettings.id == 'default').first()
+    if not settings:
+        # Créer les settings par défaut s'ils n'existent pas
+        settings = GlobalSettings(id='default')
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    return {
+        "id": settings.id,
+        "cpu_warning": settings.cpu_warning_threshold,
+        "cpu_critical": settings.cpu_critical_threshold,
+        "ram_warning": settings.ram_warning_threshold,
+        "ram_critical": settings.ram_critical_threshold,
+        "disk_warning": settings.disk_warning_threshold,
+        "disk_critical": settings.disk_critical_threshold,
+        "updated_at": settings.updated_at
+    }
+
+
+@app.put("/api/settings/thresholds")
+@limiter.limit("20/minute")
+def update_global_thresholds(request: Request, thresholds: GlobalThresholdsRequest, current_user: User = Depends(require_admin()), db: Session = Depends(get_db)):
+    """Met à jour les seuils globaux."""
+    settings = db.query(GlobalSettings).filter(GlobalSettings.id == 'default').first()
+    if not settings:
+        settings = GlobalSettings(id='default')
+        db.add(settings)
+
+    settings.cpu_warning_threshold = thresholds.cpu_warning
+    settings.cpu_critical_threshold = thresholds.cpu_critical
+    settings.ram_warning_threshold = thresholds.ram_warning
+    settings.ram_critical_threshold = thresholds.ram_critical
+    settings.disk_warning_threshold = thresholds.disk_warning
+    settings.disk_critical_threshold = thresholds.disk_critical
+
+    db.commit()
+    db.refresh(settings)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="UPDATE_GLOBAL_THRESHOLDS",
+        details=f"Updated global thresholds: {thresholds.dict()}"
+    )
+
+    return {
+        "id": settings.id,
+        "cpu_warning": settings.cpu_warning_threshold,
+        "cpu_critical": settings.cpu_critical_threshold,
+        "ram_warning": settings.ram_warning_threshold,
+        "ram_critical": settings.ram_critical_threshold,
+        "disk_warning": settings.disk_warning_threshold,
+        "disk_critical": settings.disk_critical_threshold,
+        "updated_at": settings.updated_at
+    }
+
+
+@app.get("/api/settings/email")
+@limiter.limit("30/minute")
+def get_email_config(request: Request, current_user: User = Depends(require_operator_or_admin()), db: Session = Depends(get_db)):
+    """Récupère la configuration email."""
+    config = db.query(EmailConfig).filter(EmailConfig.id == 'default').first()
+    if not config:
+        config = EmailConfig(id='default')
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+
+    return {
+        "id": config.id,
+        "recipients": json.loads(config.recipients) if config.recipients else [],
+        "smtp_host": config.smtp_host,
+        "smtp_port": config.smtp_port,
+        "smtp_secure": config.smtp_secure,
+        "smtp_user": config.smtp_user,
+        "updated_at": config.updated_at
+    }
+
+
+@app.put("/api/settings/email")
+@limiter.limit("20/minute")
+def update_email_config(request: Request, config_request: EmailConfigRequest, current_user: User = Depends(require_admin()), db: Session = Depends(get_db)):
+    """Met à jour la configuration email."""
+    config = db.query(EmailConfig).filter(EmailConfig.id == 'default').first()
+    if not config:
+        config = EmailConfig(id='default')
+        db.add(config)
+
+    config.recipients = json.dumps(config_request.recipients)
+    config.smtp_host = config_request.smtp_host
+    config.smtp_port = config_request.smtp_port
+    config.smtp_secure = config_request.smtp_secure
+    config.smtp_user = config_request.smtp_user
+
+    db.commit()
+    db.refresh(config)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="UPDATE_EMAIL_CONFIG",
+        details=f"Updated email configuration"
+    )
+
+    return {
+        "id": config.id,
+        "recipients": json.loads(config.recipients),
+        "smtp_host": config.smtp_host,
+        "smtp_port": config.smtp_port,
+        "smtp_secure": config.smtp_secure,
+        "smtp_user": config.smtp_user,
+        "updated_at": config.updated_at
+    }
+
+
+@app.get("/api/settings/retention")
+@limiter.limit("30/minute")
+def get_retention_config(request: Request, current_user: User = Depends(require_operator_or_admin()), db: Session = Depends(get_db)):
+    """Récupère la configuration de rétention."""
+    config = db.query(RetentionConfig).filter(RetentionConfig.id == 'default').first()
+    if not config:
+        config = RetentionConfig(id='default')
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+
+    return {
+        "id": config.id,
+        "alerts_days": config.alerts_days,
+        "heartbeats_days": config.heartbeats_days,
+        "updated_at": config.updated_at
+    }
+
+
+@app.put("/api/settings/retention")
+@limiter.limit("20/minute")
+def update_retention_config(request: Request, config_request: RetentionConfigRequest, current_user: User = Depends(require_admin()), db: Session = Depends(get_db)):
+    """Met à jour la configuration de rétention."""
+    config = db.query(RetentionConfig).filter(RetentionConfig.id == 'default').first()
+    if not config:
+        config = RetentionConfig(id='default')
+        db.add(config)
+
+    config.alerts_days = config_request.alerts_days
+    config.heartbeats_days = config_request.heartbeats_days
+
+    db.commit()
+    db.refresh(config)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="UPDATE_RETENTION_CONFIG",
+        details=f"Updated retention config: alerts={config_request.alerts_days}d, heartbeats={config_request.heartbeats_days}d"
+    )
+
+    return {
+        "id": config.id,
+        "alerts_days": config.alerts_days,
+        "heartbeats_days": config.heartbeats_days,
+        "updated_at": config.updated_at
+    }
+
+
+@app.get("/api/settings/tokens")
+@limiter.limit("30/minute")
+def get_enrollment_tokens(request: Request, current_user: User = Depends(require_admin()), db: Session = Depends(get_db)):
+    """Récupère tous les tokens d'enrôlement."""
+    tokens = db.query(EnrollmentToken).order_by(EnrollmentToken.created_at.desc()).all()
+    return [
+        {
+            "id": token.id,
+            "token": token.token,
+            "created_at": token.created_at,
+            "expires_at": token.expires_at,
+            "status": token.status,
+            "created_by": token.created_by
+        }
+        for token in tokens
+    ]
+
+
+@app.post("/api/settings/tokens")
+@limiter.limit("10/minute")
+def generate_enrollment_token(request: Request, current_user: User = Depends(require_admin()), db: Session = Depends(get_db)):
+    """Génère un nouveau token d'enrôlement."""
+    import secrets
+    import string
+
+    # Générer un token aléatoire
+    token_str = f"CBC-ENROLL-{''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(5))}-{datetime.now().year}"
+
+    # Expiration dans 24h
+    expires_at = datetime.now() + timedelta(hours=24)
+
+    token = EnrollmentToken(
+        id=str(uuid.uuid4()),
+        token=token_str,
+        expires_at=expires_at,
+        status='active',
+        created_by=current_user.username
+    )
+
+    db.add(token)
+    db.commit()
+    db.refresh(token)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="GENERATE_ENROLLMENT_TOKEN",
+        details=f"Generated enrollment token: {token_str}"
+    )
+
+    return {
+        "id": token.id,
+        "token": token.token,
+        "created_at": token.created_at,
+        "expires_at": token.expires_at,
+        "status": token.status,
+        "created_by": token.created_by
+    }
+
+
+# ==================== ADDITIONAL AGENT ENDPOINTS ====================
+
+@app.put("/api/agents/{agent_id}/revoke")
+@limiter.limit("20/minute")
+def revoke_agent(request: Request, agent_id: str, current_user: User = Depends(require_operator_or_admin()), db: Session = Depends(get_db)):
+    """Révoque un agent."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+
+    agent.status = 'revoked'
+    db.commit()
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="REVOKE_AGENT",
+        details=f"Revoked agent {agent_id} ({agent.hostname})"
+    )
+
+    return {"message": "Agent révoqué avec succès"}
+
+
+@app.delete("/api/agents/{agent_id}")
+@limiter.limit("10/minute")
+def delete_agent(request: Request, agent_id: str, current_user: User = Depends(require_admin()), db: Session = Depends(get_db)):
+    """Supprime un agent."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+
+    db.delete(agent)
+    db.commit()
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="DELETE_AGENT",
+        details=f"Deleted agent {agent_id} ({agent.hostname})"
+    )
+
+    return {"message": "Agent supprimé avec succès"}
+
+
+@app.put("/api/agents/{agent_id}/location")
+@limiter.limit("30/minute")
+def update_agent_location(request: Request, agent_id: str, location_req: UpdateAgentLocationRequest, current_user: User = Depends(require_operator_or_admin()), db: Session = Depends(get_db)):
+    """Met à jour la localisation d'un agent."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+
+    agent.location = location_req.location
+    db.commit()
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="UPDATE_AGENT_LOCATION",
+        details=f"Updated location for agent {agent_id} to {location_req.location}"
+    )
+
+    return {"message": "Localisation mise à jour avec succès"}
+
+
+@app.put("/api/agents/{agent_id}/name")
+@limiter.limit("30/minute")
+def update_agent_name(request: Request, agent_id: str, name_req: UpdateAgentNameRequest, current_user: User = Depends(require_operator_or_admin()), db: Session = Depends(get_db)):
+    """Met à jour le nom d'un agent."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+
+    agent.name = name_req.name
+    db.commit()
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="UPDATE_AGENT_NAME",
+        details=f"Updated name for agent {agent_id} to {name_req.name}"
+    )
+
+    return {"message": "Nom mis à jour avec succès"}
 
 
 @app.websocket("/ws/notifications")
