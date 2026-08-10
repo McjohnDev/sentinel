@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Badge } from '../components/common/Badge';
 import { ProgressBar } from '../components/common/ProgressBar';
@@ -37,7 +37,11 @@ import {
   Check,
   TrendingUp,
   PieChart as PieChartIcon,
+  Signal,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
+import { BackendNotificationChannelStatus } from '../services/types/api.types';
 
 export const DashboardView: React.FC = () => {
   const {
@@ -57,6 +61,30 @@ export const DashboardView: React.FC = () => {
   const [pieMode, setPieMode] = useState<'os' | 'status' | 'alerts'>('os');
   const [ackModalOpen, setAckModalOpen] = useState(false);
   const [targetAlertToAck, setTargetAlertToAck] = useState<Alert | null>(null);
+  const [notificationChannelStatus, setNotificationChannelStatus] = useState<BackendNotificationChannelStatus | null>(null);
+
+  // Récupérer le statut du canal de notification (exigence R11)
+  useEffect(() => {
+    const fetchNotificationStatus = async () => {
+      try {
+        const response = await fetch('/api/system/notification-channel-status', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          },
+        });
+        if (response.ok) {
+          const status = await response.json();
+          setNotificationChannelStatus(status);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération du statut du canal de notification:', error);
+      }
+    };
+
+    fetchNotificationStatus();
+    const interval = setInterval(fetchNotificationStatus, 60000); // Vérifier toutes les 60s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleOpenAckModal = (alt: Alert) => {
     setTargetAlertToAck(alt);
@@ -166,13 +194,53 @@ export const DashboardView: React.FC = () => {
     <div className="space-y-6">
       {/* Quick Action Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             Vue d'ensemble du parc informatique
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Supervision centralisée en temps réel — Commercial Bank Cameroun
           </p>
+        </div>
+
+        {/* Indicateur visuel du canal de notification (exigence R11) */}
+        <div className="flex items-center gap-2">
+          {notificationChannelStatus && (
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
+                notificationChannelStatus.status === 'operational'
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : notificationChannelStatus.status === 'degraded'
+                  ? 'bg-amber-50 border-amber-200'
+                  : notificationChannelStatus.status === 'error'
+                  ? 'bg-rose-50 border-rose-200'
+                  : 'bg-slate-50 border-slate-200'
+              }`}
+            >
+              {notificationChannelStatus.status === 'operational' ? (
+                <Signal className="w-4 h-4 text-emerald-600" />
+              ) : notificationChannelStatus.status === 'degraded' ? (
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+              ) : notificationChannelStatus.status === 'error' ? (
+                <XCircle className="w-4 h-4 text-rose-600" />
+              ) : (
+                <Signal className="w-4 h-4 text-slate-400" />
+              )}
+              <span
+                className={`text-xs font-bold ${
+                  notificationChannelStatus.status === 'operational'
+                    ? 'text-emerald-800'
+                    : notificationChannelStatus.status === 'degraded'
+                    ? 'text-amber-800'
+                    : notificationChannelStatus.status === 'error'
+                    ? 'text-rose-800'
+                    : 'text-slate-600'
+                }`}
+              >
+                Canal de notification: {notificationChannelStatus.status === 'operational' ? 'Opérationnel' : notificationChannelStatus.status === 'degraded' ? 'Dégradé' : notificationChannelStatus.status === 'error' ? 'Erreur' : 'Inconnu'}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

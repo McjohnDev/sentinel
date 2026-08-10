@@ -96,12 +96,40 @@ export interface GlobalThresholds {
   diskCritical: number;
 }
 
-export interface EmailNotificationConfig {
+export interface MessagingNotificationConfig {
   recipients: string[];
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-  smtpUser: string;
+  apiEndpoint: string;
+  apiKey: string;
+  apiTimeout: number;
+  enabled: boolean;
+}
+
+export interface ServicesMonitoringConfig {
+  enabled: boolean;
+  services: string[];
+  interval: number;
+}
+
+export interface FilesMonitoringConfig {
+  enabled: boolean;
+  files: Array<{
+    path: string;
+    max_size_mb?: number;
+  }>;
+  interval: number;
+}
+
+export interface TimeWindow {
+  start: string; // HH:MM format
+  end: string; // HH:MM format
+}
+
+export interface AvailabilityPolicy {
+  enabled: boolean;
+  timeWindows: {
+    [day: string]: TimeWindow[]; // day: "monday", "tuesday", etc.
+  };
+  offlineThresholdSeconds?: number;
 }
 
 export interface DataRetentionConfig {

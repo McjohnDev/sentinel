@@ -2,7 +2,7 @@
 
 **Plateforme de supervision centralisée multiplateforme pour le parc informatique d'entreprise**
 
-[![Version](https://img.shields.io/badge/version-v1.0.0--developing-blue.svg)](https://github.com/cbc-cameroun/supervision-platform)
+[![Version](https://img.shields.io/badge/version-v1.1.0--developing-blue.svg)](https://github.com/cbc-cameroun/supervision-platform)
 [![Build Status](https://img.shields.io/badge/build-pending-yellow.svg)](https://github.com/cbc-cameroun/supervision-platform/actions)
 [![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/cbc-cameroun/supervision-platform)
@@ -313,6 +313,43 @@ La solution fonctionne de manière identique sur Windows, Linux et macOS, offran
 - Le serveur doit pouvoir redémarrer sans perte de données critiques
 - Les opérations en échec doivent pouvoir être réessayées automatiquement
 
+### Volumétrie
+
+**À DÉFINIR / À VALIDER**
+
+- **Nombre d'agents** : Cible de plusieurs centaines de machines (serveurs + postes de travail)
+- **Fréquence des heartbeats** : 30 secondes par agent
+- **Volume de données par heartbeat** : ~1 KB par heartbeat
+- **Volume de données quotidien** : À calculer selon le nombre d'agents et la fréquence
+- **Volume d'alertes** : Variable selon l'activité du parc, estimation à fournir par CBC
+- **Croissance prévue** : À définir selon la stratégie de déploiement de CBC
+
+### Dimensionnement
+
+**À DÉFINIR / À VALIDER**
+
+- **Ressources serveur central** :
+  - CPU : À dimensionner selon le nombre d'agents
+  - RAM : À dimensionner selon le nombre d'agents et la charge
+  - Stockage : À dimensionner selon la rétention des données
+- **Base de données** :
+  - PostgreSQL : Capacité cible pour plusieurs centaines de machines
+  - Redis : Cache pour les données fréquemment accédées
+- **Capacité cible** : Plusieurs centaines de machines (serveurs + postes de travail)
+
+### Sauvegarde
+
+**À DÉFINIR / À VALIDER**
+
+- **Stratégie de sauvegarde** :
+  - Sauvegarde complète de la base de données
+  - Sauvegarde des fichiers de configuration
+  - Sauvegarde des logs d'audit
+- **Fréquence** : À définir selon les exigences de CBC
+- **Rétention** : À définir selon les exigences de CBC
+- **Restauration** : Procédure de restauration à documenter
+- **Paramètres RPO/RTO** : À définir selon les exigences de CBC
+
 ---
 
 ## Cas d'utilisation
@@ -341,32 +378,42 @@ Un responsable infrastructure souhaite analyser les tendances des incidents sur 
 
 ## Périmètre
 
-### Inclus dans la V1
+### Inclus dans la V1.1
 
 **Supervision**
-- ✅ Collecte de 21 télémétries système (CPU, RAM, disque, uptime, etc.)
-- ✅ Détection automatique des agents hors ligne (90 secondes)
+- ✅ Collecte de métriques système (CPU, RAM, disque, uptime)
+- ✅ Détection automatique des agents hors ligne (seuils différenciés par type de machine)
 - ✅ Détection automatique des anomalies (CPU, RAM, disque)
 - ✅ Agent multiplateforme (Windows, Linux, macOS)
+- ✅ Différenciation serveurs/postes de travail (machine_type)
+- ✅ Supervision des services système (préparée, liste officielle à définir)
+- ✅ Supervision des fichiers (préparée, liste officielle à définir)
 
 **Alertes**
 - ✅ 3 niveaux de gravité (Info, Warning, Critique)
-- ✅ 4 types d'alertes (hors ligne, CPU, RAM, disque)
+- ✅ Types d'alertes (hors ligne, CPU, RAM, disque, services, fichiers)
 - ✅ Seuils configurables (globaux et par agent)
 - ✅ Acquittement manuel des alertes
 - ✅ Historique des alertes (30 jours)
+- ✅ Règle R11 : Détection des pannes du canal de notification
 
 **Notifications**
-- ✅ Notifications par email
+- ✅ Notifications via API Mail Service CBC (implémentation conforme documentation v1.0)
 - ✅ Configuration des destinataires
+- ✅ Indicateur visuel de l'état du canal de notification (R11)
 - ✅ Contenu détaillé avec lien vers le dashboard
+- ✅ Health check automatique via endpoint /health
+- ✅ Sécurisation de la clé API via variables d'environnement
 
 **Dashboard**
 - ✅ Vue d'ensemble du parc (KPIs, liste des agents)
 - ✅ Détails par machine (métriques, alertes actives)
 - ✅ Liste des alertes avec filtrage
 - ✅ Gestion des agents (configuration, révocation, suppression)
-- ✅ Paramètres globaux (seuils, notifications, rétention)
+- ✅ Paramètres globaux (seuils, notifications API CBC, rétention)
+- ✅ Indicateur visuel du canal de notification (Opérationnel/Dégradé/Erreur)
+- ✅ Configuration paramétrable de supervision des services système
+- ✅ Configuration paramétrable de supervision des fichiers
 
 **Gestion**
 - ✅ 3 profils utilisateurs (Admin, Opérateur, Lecture seule)
@@ -379,15 +426,20 @@ Un responsable infrastructure souhaite analyser les tendances des incidents sur 
 - ✅ Jetons d'enrôlement à usage unique
 - ✅ Gestion des rôles et permissions
 
+**Documentation**
+- ✅ Exigences non fonctionnelles (Volumétrie, Dimensionnement, Sauvegarde)
+
 ### Prévu pour les versions futures
 
 **Supervision avancée**
-- ⏳ Supervision des processus et services
+- ✅ Supervision des services système (mécanisme paramétrable prêt, liste officielle à définir par CBC)
+- ✅ Supervision des fichiers (mécanisme paramétrable prêt, liste officielle à définir par CBC)
 - ⏳ Supervision des logs applicatifs
 - ⏳ Supervision réseau avancée (bande passante, connexions)
 - ⏳ Historique des télémétries (time-series)
 
 **Notifications**
+- ✅ API Mail Service CBC (implémenté selon documentation v1.0)
 - ⏳ SMS
 - ⏳ Slack
 - ⏳ Microsoft Teams
@@ -480,6 +532,85 @@ Un responsable infrastructure souhaite analyser les tendances des incidents sur 
 | **API** | REST HTTPS | Interface de communication standard |
 | **Communications** | HTTPS/TLS | Chiffrement des communications agent-serveur |
 | **Déploiement** | Docker | Conteneurisation pour simplifier le déploiement |
+
+---
+
+## Configuration des fenêtres horaires
+
+Les fenêtres horaires permettent de définir les périodes pendant lesquelles les postes de travail sont censés être disponibles. En dehors de ces périodes, l'absence d'un poste ne générera pas d'alerte offline.
+
+### Configuration par défaut
+
+Les fenêtres horaires sont désactivées par défaut. Elles doivent être activées explicitement dans la configuration.
+
+### Configuration YAML (Agent)
+
+```yaml
+availability:
+  enabled: false  # Activer pour utiliser les fenêtres horaires
+  time_windows:
+    monday:
+      - start: "08:00"
+        end: "12:00"
+      - start: "14:00"
+        end: "18:00"
+    tuesday:
+      - start: "08:00"
+        end: "12:00"
+      - start: "14:00"
+        end: "18:00"
+    # ... autres jours
+  offline_threshold_seconds: null  # null = utiliser le seuil par défaut
+```
+
+### Configuration Frontend
+
+Dans le dashboard, naviguez vers **Paramètres > Fenêtres Horaires** pour configurer :
+
+- Activation/désactivation des fenêtres horaires
+- Plages horaires par jour (support de plages multiples)
+- Seuil offline personnalisé (optionnel)
+
+### Comportement
+
+- **Serveurs** : Toujours supervisés 24/7, les fenêtres horaires ne s'appliquent pas
+- **Postes de travail** : Supervisés uniquement pendant les fenêtres horaires configurées
+- **Hors fenêtres** : L'absence d'un poste ne génère pas d'alerte offline
+- **Dans fenêtres** : L'absence d'un poste génère une alerte selon le seuil configuré
+
+### Politiques
+
+- **Politique globale** : S'applique à tous les agents sans configuration spécifique
+- **Politique par agent** : Remplace la politique globale pour un agent spécifique
+
+---
+
+## Configuration des fréquences
+
+Toutes les fréquences sont centralisées dans `server/src/config.py` et peuvent être configurées via variables d'environnement.
+
+### Fréquences configurables
+
+| Paramètre | Valeur par défaut | Description |
+|-----------|------------------|-------------|
+| `heartbeat_interval_seconds` | 30 | Intervalle d'envoi des heartbeats par l'agent |
+| `heartbeat_timeout_seconds` | 90 | Timeout de réception des heartbeats côté serveur |
+| `offline_check_interval_seconds` | 60 | Fréquence de vérification des agents offline |
+| `services_check_interval_seconds` | 60 | Intervalle de vérification des services |
+| `files_check_interval_seconds` | 300 | Intervalle de vérification des fichiers |
+| `notification_channel_health_check_interval_seconds` | 60 | Fréquence du health check du canal de notification |
+
+### Variables d'environnement
+
+```bash
+# Fréquences
+HEARTBEAT_INTERVAL_SECONDS=30
+HEARTBEAT_TIMEOUT_SECONDS=90
+OFFLINE_CHECK_INTERVAL_SECONDS=60
+SERVICES_CHECK_INTERVAL_SECONDS=60
+FILES_CHECK_INTERVAL_SECONDS=300
+NOTIFICATION_CHANNEL_HEALTH_CHECK_INTERVAL_SECONDS=60
+```
 
 ---
 
@@ -626,7 +757,88 @@ Le système CBC Supervision Platform repose sur une architecture à trois compos
 
 ## Journal des versions
 
-### [V1.0.0] - Version actuelle
+### [V1.1.0] - Version actuelle (en développement)
+
+**Changements majeurs**
+
+- ✅ **Fenêtres horaires configurables** : Implémentation complète pour les postes de travail
+  - Modèle AvailabilityPolicy avec support de plages horaires multiples par jour
+  - Service AvailabilityService pour vérification des fenêtres horaires
+  - Intégration dans AlertService pour éviter les faux positifs offline
+  - Configuration par agent ou politique globale
+  - Frontend : Onglet "Fenêtres Horaires" dans SettingsView
+  - **⚠️ ATTENTION** : Valeurs par défaut techniques, à définir par CBC
+
+- ✅ **Centralisation des fréquences configurables** : Toutes les fréquences dans config.py
+  - heartbeat_interval_seconds : 30s (agent)
+  - heartbeat_timeout_seconds : 90s (serveur)
+  - offline_check_interval_seconds : 60s
+  - services_check_interval_seconds : 60s
+  - files_check_interval_seconds : 300s
+  - notification_channel_health_check_interval_seconds : 60s
+
+- ✅ **Configuration paramétrable services/fichiers** : Modèles dédiés
+  - ServiceMonitoringConfig : enabled, expected_status, check_interval_seconds
+  - FileMonitoringConfig : enabled, max_size_mb, check_interval_seconds
+  - Support de politiques globales et par agent
+
+- ✅ **Remplacement SMTP par API Mail Service CBC** : Implémentation conforme documentation v1.0
+  - Endpoint /mail pour l'envoi de notifications
+  - Endpoint /health pour le health check du canal de notification (R11)
+  - Authentification via header X-API-Key
+  - Sécurisation de la clé API via variables d'environnement (CBC_MAIL_API_KEY)
+  - Support des envois HTML avec emojis pour les alertes
+
+- ✅ **Différenciation serveurs/postes de travail** : Ajout du champ machine_type
+  - Enum MachineType (SERVER, WORKSTATION)
+  - Seuils offline différenciés (90s pour serveurs, 7200s pour postes de travail)
+  - Configuration paramétrable dans l'agent (config.yaml)
+
+- ✅ **Suppression des télémétries obsolètes** : Suppression de 3 télémétries
+  - Suppression de la température CPU
+  - Suppression de la latence réseau
+  - Suppression de l'architecture CPU
+
+- ✅ **Mécanisme paramétrable de supervision services/fichiers** : Infrastructure prête
+  - Backend : Modèles ServiceMonitoring et FileMonitoring créés
+  - Backend : Méthodes check_service_alerts() et check_file_alerts() dans AlertService
+  - Agent : Méthodes collect_services() et collect_files() préparées
+  - Configuration : Paramètres activables via variables d'environnement
+  - Frontend : Onglets de configuration dans SettingsView
+  - API : Endpoints /api/settings/services-monitoring et /api/settings/files-monitoring
+  - **⚠️ ATTENTION** : Liste officielle des services/fichiers à définir par CBC
+
+- ✅ **Règle R11 - Indicateur visuel du canal de notification** : Implémentation complète
+  - Backend : Modèle NotificationChannelStatus créé
+  - Backend : Endpoint /api/system/notification-channel-status
+  - Frontend : Indicateur visuel dans DashboardView avec polling automatique
+  - États : Opérationnel (vert), Dégradé (orange), Erreur (rouge), Désactivé (gris)
+
+- ✅ **Exigences non fonctionnelles** : Documentation étendue
+  - Section Volumétrie ajoutée (placeholders pour valeurs à définir)
+  - Section Dimensionnement ajoutée (placeholders pour ressources serveur)
+  - Section Sauvegarde ajoutée (placeholders pour stratégie de sauvegarde)
+
+**Changements techniques**
+
+- ✅ Migration Alembic v1_1_0_migration.py créée pour les changements de schéma
+- ✅ Mise à jour des tests backend pour V1.1
+- ✅ Mise à jour des types TypeScript (BackendAgent, BackendMessagingConfig, BackendNotificationChannelStatus)
+- ✅ Mise à jour de AppContext pour inclure les nouvelles configurations
+- ✅ Mise à jour de SettingsView avec les onglets services/fichiers
+
+**Informations requises de CBC**
+
+Pour finaliser la V1.1, les informations suivantes sont nécessaires :
+- Liste officielle des services système à superviser (ex: SWIFT AutoClient)
+- Liste officielle des fichiers à superviser (ex: fichiers de logs SWIFT)
+- Seuil offline officiel pour les postes de travail (placeholder actuel: 7200s)
+- Valeurs de dimensionnement serveur (CPU, RAM, stockage)
+- Stratégie de sauvegarde (fréquence, rétention, RPO/RTO)
+
+---
+
+### [V1.0.0] - Version précédente
 
 **Fonctionnalités initiales**
 

@@ -111,14 +111,13 @@ class CBCAgent:
     
     def _get_agent_version(self) -> str:
         """Version de l'agent."""
-        return "1.0.0"
+        return "1.1.0"
     
     def collect_metrics(self) -> dict:
         """Collecte toutes les métriques système."""
         # CPU
         cpu_percent = psutil.cpu_percent(interval=1)
         cpu_cores = psutil.cpu_count(logical=True)
-        cpu_architecture = platform.machine()
         
         # RAM
         ram = psutil.virtual_memory()
@@ -137,17 +136,14 @@ class CBCAgent:
         # Uptime
         uptime_seconds = int(time.time() - psutil.boot_time())
         
-        # Latence (ping simplifié)
-        latency_ms = self._measure_latency()
-        
-        # Température CPU (optionnel)
-        temperature_celsius = self._get_cpu_temperature()
+        # Services et fichiers (si configurés)
+        services_data = self.collect_services()
+        files_data = self.collect_files()
         
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "cpu_percent": cpu_percent,
             "cpu_cores": cpu_cores,
-            "cpu_architecture": cpu_architecture,
             "ram_percent": ram_percent,
             "ram_total_gb": round(ram_total_gb, 2),
             "ram_used_gb": round(ram_used_gb, 2),
@@ -157,30 +153,83 @@ class CBCAgent:
             "disk_used_gb": round(disk_used_gb, 2),
             "disk_free_gb": round(disk_free_gb, 2),
             "uptime_seconds": uptime_seconds,
-            "latency_ms": latency_ms,
-            "temperature_celsius": temperature_celsius
+            "services": services_data,
+            "files": files_data
         }
     
-    def _measure_latency(self) -> float:
-        """Mesure la latence vers le serveur."""
-        try:
-            start = time.time()
-            requests.get(f"{self.server_url}/", timeout=5, verify=False)
-            return round((time.time() - start) * 1000, 2)
-        except:
-            return None
+    def collect_services(self) -> list:
+        """
+        Collecte l'état des services système.
+        
+        NOTE: Cette méthode nécessite la liste des services à superviser.
+        Pour l'instant, elle retourne une liste vide.
+        
+        Returns:
+            Liste des services avec leur état (ex: [{"name": "SWIFT AutoClient", "status": "running"}])
+        """
+        services_config = self.config.get('services_monitoring', {})
+        services_to_monitor = services_config.get('services', [])
+        
+        # TODO: Définir la liste officielle des services à superviser
+        # Pour l'instant, on retourne une liste vide
+        services_data = []
+        
+        # Exemple d'implémentation pour Windows (à adapter selon OS)
+        # if platform.system() == 'Windows':
+        #     import win32service
+        #     for service_name in services_to_monitor:
+        #         try:
+        #             status = win32service.QueryServiceStatus(service_name)
+        #             services_data.append({"name": service_name, "status": "running" if status[1] == 4 else "stopped"})
+        #         except:
+        #             services_data.append({"name": service_name, "status": "unknown"})
+        
+        return services_data
     
-    def _get_cpu_temperature(self) -> float:
-        """Récupère la température CPU si disponible."""
-        try:
-            temps = psutil.sensors_temperatures()
-            if temps:
-                for name, entries in temps.items():
-                    if entries:
-                        return entries[0].current
-        except:
-            pass
-        return None
+    def collect_files(self) -> list:
+        """
+        Collecte l'état des fichiers surveillés.
+        
+        NOTE: Cette méthode nécessite la liste des fichiers à superviser.
+        Pour l'instant, elle retourne une liste vide.
+        
+        Returns:
+            Liste des fichiers avec leur état (ex: [{"path": "/var/log/swift.log", "exists": true, "size_bytes": 1024}])
+        """
+        files_config = self.config.get('files_monitoring', {})
+        files_to_monitor = files_config.get('files', [])
+        
+        # TODO: Définir la liste officielle des fichiers à superviser
+        # Pour l'instant, on retourne une liste vide
+        files_data = []
+        
+        for file_path in files_to_monitor:
+            try:
+                if os.path.exists(file_path):
+                    stat = os.stat(file_path)
+                    files_data.append({
+                        "path": file_path,
+                        "exists": True,
+                        "size_bytes": stat.st_size,
+                        "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                    })
+                else:
+                    files_data.append({
+                        "path": file_path,
+                        "exists": False,
+                        "size_bytes": None,
+                        "last_modified": None
+                    })
+            except Exception as e:
+                self.logger.warning(f"Erreur lors de la vérification du fichier {file_path}: {e}")
+                files_data.append({
+                    "path": file_path,
+                    "exists": False,
+                    "size_bytes": None,
+                    "last_modified": None
+                })
+        
+        return files_data
     
     def enroll(self) -> bool:
         """Enrôle l'agent auprès du serveur."""
@@ -188,13 +237,21 @@ class CBCAgent:
         os_name, os_version = self._get_os_info()
         agent_version = self._get_agent_version()
         
+        # Récupérer le type de machine depuis la configuration (défaut: workstation)
+        machine_type = self.config.get('agent', {}).get('machine_type', 'workstation')
+        
+        # Récupérer la configuration de disponibilité
+        availability_config = self.config.get('availability', {})
+        
         payload = {
             "token": self.enrollment_token,
             "machine_id": self.machine_id,
             "hostname": hostname,
             "os": os_name,
             "os_version": os_version,
-            "agent_version": agent_version
+            "agent_version": agent_version,
+            "machine_type": machine_type,
+            "availability_config": availability_config
         }
         
         try:

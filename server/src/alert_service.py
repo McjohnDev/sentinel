@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from src.models import Agent, Heartbeat, Alert, AlertSeverity, AlertType, AlertStatus
+from src.models import (
+    Agent, Heartbeat, Alert, AlertSeverity, AlertType, AlertStatus,
+    MachineType, ServiceMonitoring, FileMonitoring, AvailabilityPolicy
+)
 from src.config import settings
-from src.email_service import EmailService
+from src.messaging_service import MessagingService
+from src.availability_service import AvailabilityService
 
 
 class AlertService:
@@ -113,18 +117,18 @@ class AlertService:
         db.commit()
         db.refresh(alert)
         
-        # Envoyer un email si l'alerte est critique
+        # Envoyer une notification via l'API CBC si l'alerte est critique
         if severity == AlertSeverity.CRITICAL:
             agent = db.query(Agent).filter(Agent.id == agent_id).first()
             if agent:
-                EmailService.send_alert_email_to_admin({
-                    'type': alert_type.value,
-                    'severity': severity.value,
-                    'message': message,
-                    'hostname': agent.hostname,
-                    'value': value,
-                    'threshold': threshold
-                })
+                MessagingService.send_alert_notification(
+                    alert_type=alert_type.value,
+                    severity=severity.value,
+                    message=message,
+                    hostname=agent.hostname,
+                    value=value,
+                    threshold=threshold
+                )
         
         return alert
     
@@ -166,36 +170,59 @@ class AlertService:
     
     @staticmethod
     def check_offline_agents(db: Session):
-        """Vérifie les agents hors ligne et génère des alertes."""
+        """Vérifie les agents hors ligne et génère des alertes en fonction du type de machine et des fenêtres horaires."""
         import uuid
+        import json
         
-        threshold = datetime.utcnow() - timedelta(seconds=settings.offline_alert_threshold_seconds)
-        
-        # Récupérer les agents actifs sans heartbeat récent
-        offline_agents = db.query(Agent).filter(
-            Agent.status == "active",
-            Agent.last_communication < threshold
-        ).all()
-        
-        for agent in offline_agents:
-            # Vérifier si une alerte hors ligne existe déjà
-            existing_alert = db.query(Alert).filter(
-                Alert.agent_id == agent.id,
-                Alert.type == AlertType.AGENT_OFFLINE,
-                Alert.status == AlertStatus.OPEN
+        for agent in db.query(Agent).filter(Agent.status == "active").all():
+            # Récupérer la politique de disponibilité (spécifique à l'agent ou globale)
+            availability_policy = db.query(AvailabilityPolicy).filter(
+                AvailabilityPolicy.agent_id == agent.id
             ).first()
             
-            if not existing_alert:
-                # Créer une alerte hors ligne
-                alert = Alert(
-                    id=str(uuid.uuid4()),
+            if not availability_policy:
+                # Utiliser la politique globale
+                availability_policy = db.query(AvailabilityPolicy).filter(
+                    AvailabilityPolicy.id == 'default'
+                ).first()
+            
+            # Construire le dictionnaire de politique pour AvailabilityService
+            policy_dict = None
+            if availability_policy:
+                policy_dict = {
+                    'time_windows_enabled': availability_policy.time_windows_enabled,
+                    'time_windows': availability_policy.time_windows,
+                    'offline_threshold_seconds': availability_policy.offline_threshold_seconds
+                }
+            
+            # Déterminer si une alerte doit être générée
+            if agent.last_communication:
+                should_alert, reason = AvailabilityService.should_alert_offline(
                     agent_id=agent.id,
-                    severity=AlertSeverity.CRITICAL,
-                    type=AlertType.AGENT_OFFLINE,
-                    message=f"Agent hors ligne depuis {agent.last_communication}",
-                    status=AlertStatus.OPEN
+                    machine_type=agent.machine_type.value,
+                    last_communication=agent.last_communication,
+                    availability_policy=policy_dict
                 )
-                db.add(alert)
+                
+                if should_alert:
+                    # Vérifier si une alerte hors ligne existe déjà
+                    existing_alert = db.query(Alert).filter(
+                        Alert.agent_id == agent.id,
+                        Alert.type == AlertType.AGENT_OFFLINE,
+                        Alert.status == AlertStatus.OPEN
+                    ).first()
+                    
+                    if not existing_alert:
+                        # Créer une alerte hors ligne
+                        alert = Alert(
+                            id=str(uuid.uuid4()),
+                            agent_id=agent.id,
+                            severity=AlertSeverity.CRITICAL if agent.machine_type == MachineType.SERVER else AlertSeverity.WARNING,
+                            type=AlertType.AGENT_OFFLINE,
+                            message=f"Agent hors ligne - {reason}",
+                            status=AlertStatus.OPEN
+                        )
+                        db.add(alert)
         
         db.commit()
     
@@ -232,3 +259,169 @@ class AlertService:
             db.add(back_online_alert)
             
             db.commit()
+    
+    @staticmethod
+    def check_service_alerts(db: Session, agent_id: str, services_data: List[Dict[str, Any]]) -> Optional[Alert]:
+        """
+        Vérifie l'état des services et génère des alertes si nécessaire.
+        
+        NOTE: Cette méthode nécessite la liste des services à superviser.
+        Pour l'instant, elle est préparée pour accepter les données de services.
+        
+        Args:
+            db: Session de base de données
+            agent_id: ID de l'agent
+            services_data: Liste des services avec leur état (ex: [{"name": "SWIFT AutoClient", "status": "running"}])
+        
+        Returns:
+            Alert si une alerte a été créée, None sinon
+        """
+        import uuid
+        
+        # TODO: Définir la liste officielle des services à superviser
+        # Pour l'instant, on accepte tous les services fournis
+        critical_services = []  # À DÉFINIR - liste des services critiques
+        
+        for service in services_data:
+            service_name = service.get("name")
+            service_status = service.get("status")
+            
+            if not service_name:
+                continue
+            
+            # Mettre à jour ou créer l'enregistrement de supervision
+            existing = db.query(ServiceMonitoring).filter(
+                ServiceMonitoring.agent_id == agent_id,
+                ServiceMonitoring.service_name == service_name
+            ).first()
+            
+            if existing:
+                existing.status = service_status
+                existing.last_check = datetime.utcnow()
+                existing.updated_at = datetime.utcnow()
+            else:
+                new_monitoring = ServiceMonitoring(
+                    id=str(uuid.uuid4()),
+                    agent_id=agent_id,
+                    service_name=service_name,
+                    status=service_status
+                )
+                db.add(new_monitoring)
+            
+            # Générer une alerte si un service critique est arrêté
+            if service_name in critical_services and service_status == "stopped":
+                existing_alert = db.query(Alert).filter(
+                    Alert.agent_id == agent_id,
+                    Alert.type == AlertType.SERVICE_DOWN,
+                    Alert.status == AlertStatus.OPEN
+                ).first()
+                
+                if not existing_alert:
+                    alert = Alert(
+                        id=str(uuid.uuid4()),
+                        agent_id=agent_id,
+                        severity=AlertSeverity.CRITICAL,
+                        type=AlertType.SERVICE_DOWN,
+                        message=f"Service critique arrêté: {service_name}",
+                        status=AlertStatus.OPEN
+                    )
+                    db.add(alert)
+                    
+                    # Envoyer notification
+                    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+                    if agent:
+                        MessagingService.send_alert_notification(
+                            alert_type="service_down",
+                            severity="critical",
+                            message=f"Service critique arrêté: {service_name}",
+                            hostname=agent.hostname
+                        )
+        
+        db.commit()
+        return None
+    
+    @staticmethod
+    def check_file_alerts(db: Session, agent_id: str, files_data: List[Dict[str, Any]]) -> Optional[Alert]:
+        """
+        Vérifie l'état des fichiers et génère des alertes si nécessaire.
+        
+        NOTE: Cette méthode nécessite la liste des fichiers à superviser et les critères d'anomalie.
+        Pour l'instant, elle est préparée pour accepter les données de fichiers.
+        
+        Args:
+            db: Session de base de données
+            agent_id: ID de l'agent
+            files_data: Liste des fichiers avec leur état (ex: [{"path": "/var/log/swift.log", "exists": true, "size": 1024}])
+        
+        Returns:
+            Alert si une alerte a été créée, None sinon
+        """
+        import uuid
+        
+        # TODO: Définir la liste officielle des fichiers à superviser et les critères d'anomalie
+        # Pour l'instant, on accepte tous les fichiers fournis
+        monitored_files = []  # À DÉFINIR - liste des fichiers à superviser
+        
+        for file_info in files_data:
+            file_path = file_info.get("path")
+            exists = file_info.get("exists", False)
+            size_bytes = file_info.get("size_bytes")
+            last_modified = file_info.get("last_modified")
+            
+            if not file_path:
+                continue
+            
+            # Mettre à jour ou créer l'enregistrement de supervision
+            existing = db.query(FileMonitoring).filter(
+                FileMonitoring.agent_id == agent_id,
+                FileMonitoring.file_path == file_path
+            ).first()
+            
+            if existing:
+                existing.exists = exists
+                existing.size_bytes = size_bytes
+                existing.last_modified = last_modified
+                existing.last_check = datetime.utcnow()
+                existing.updated_at = datetime.utcnow()
+            else:
+                new_monitoring = FileMonitoring(
+                    id=str(uuid.uuid4()),
+                    agent_id=agent_id,
+                    file_path=file_path,
+                    exists=exists,
+                    size_bytes=size_bytes,
+                    last_modified=last_modified
+                )
+                db.add(new_monitoring)
+            
+            # Générer une alerte si un fichier surveillé n'existe pas
+            if file_path in monitored_files and not exists:
+                existing_alert = db.query(Alert).filter(
+                    Alert.agent_id == agent_id,
+                    Alert.type == AlertType.FILE_ANOMALY,
+                    Alert.status == AlertStatus.OPEN
+                ).first()
+                
+                if not existing_alert:
+                    alert = Alert(
+                        id=str(uuid.uuid4()),
+                        agent_id=agent_id,
+                        severity=AlertSeverity.WARNING,
+                        type=AlertType.FILE_ANOMALY,
+                        message=f"Fichier surveillé manquant: {file_path}",
+                        status=AlertStatus.OPEN
+                    )
+                    db.add(alert)
+                    
+                    # Envoyer notification
+                    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+                    if agent:
+                        MessagingService.send_alert_notification(
+                            alert_type="file_anomaly",
+                            severity="warning",
+                            message=f"Fichier surveillé manquant: {file_path}",
+                            hostname=agent.hostname
+                        )
+        
+        db.commit()
+        return None

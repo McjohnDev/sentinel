@@ -5,12 +5,12 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { GlobalThresholds, EmailNotificationConfig, DataRetentionConfig } from '../types';
+import { GlobalThresholds, MessagingNotificationConfig, ServicesMonitoringConfig, FilesMonitoringConfig, DataRetentionConfig } from '../types';
 import { Modal } from '../components/common/Modal';
 import {
   Settings,
   Sliders,
-  Mail,
+  MessageSquare,
   Clock,
   Key,
   Plus,
@@ -32,29 +32,43 @@ import {
   Download,
   BadgeCheck,
   Sparkles,
+  Layers,
+  File,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
   const {
     globalThresholds,
-    emailConfig,
+    messagingConfig,
+    servicesMonitoringConfig,
+    filesMonitoringConfig,
+    availabilityPolicy,
     retentionConfig,
     enrollmentTokens,
     currentRole,
     updateGlobalThresholds,
-    updateEmailConfig,
+    updateMessagingConfig,
+    updateServicesMonitoringConfig,
+    updateFilesMonitoringConfig,
+    updateAvailabilityPolicy,
     updateRetentionConfig,
     generateEnrollmentToken,
     addToast,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'thresholds' | 'email' | 'retention' | 'tokens' | 'compliance'>('thresholds');
+  const [activeTab, setActiveTab] = useState<'thresholds' | 'messaging' | 'services' | 'files' | 'availability' | 'retention' | 'tokens' | 'compliance'>('thresholds');
 
   // Form states
   const [thresholdsForm, setThresholdsForm] = useState<GlobalThresholds>(globalThresholds);
-  const [emailForm, setEmailForm] = useState<EmailNotificationConfig>(emailConfig);
+  const [messagingForm, setMessagingForm] = useState<MessagingNotificationConfig>(messagingConfig);
+  const [servicesForm, setServicesForm] = useState<ServicesMonitoringConfig>(servicesMonitoringConfig);
+  const [filesForm, setFilesForm] = useState<FilesMonitoringConfig>(filesMonitoringConfig);
+  const [availabilityForm, setAvailabilityForm] = useState<AvailabilityPolicy>(availabilityPolicy);
   const [retentionForm, setRetentionForm] = useState<DataRetentionConfig>(retentionConfig);
-  const [newEmail, setNewEmail] = useState('');
+  const [newRecipient, setNewRecipient] = useState('');
+  const [newService, setNewService] = useState('');
+  const [newFilePath, setNewFilePath] = useState('');
+  const [newFileSizeMb, setNewFileSizeMb] = useState('');
   const [formError, setFormError] = useState('');
 
   // Token Modal
@@ -82,52 +96,114 @@ export const SettingsView: React.FC = () => {
     updateGlobalThresholds(thresholdsForm);
   };
 
-  const handleAddEmailRecipient = () => {
-    if (!newEmail || !newEmail.includes('@')) {
+  const handleAddRecipient = () => {
+    if (!newRecipient || !newRecipient.includes('@')) {
       addToast({
         type: 'error',
-        title: 'Email invalide',
+        title: 'Destinataire invalide',
         message: 'Veuillez renseigner une adresse email valide.',
       });
       return;
     }
-    if (emailForm.recipients.includes(newEmail)) {
+    if (messagingForm.recipients.includes(newRecipient)) {
       addToast({
         type: 'warning',
         title: 'Adresse existante',
-        message: 'Cet email fait déjà partie de la liste des destinataires.',
+        message: 'Ce destinataire fait déjà partie de la liste.',
       });
       return;
     }
-    setEmailForm({ ...emailForm, recipients: [...emailForm.recipients, newEmail] });
-    setNewEmail('');
+    setMessagingForm({ ...messagingForm, recipients: [...messagingForm.recipients, newRecipient] });
+    setNewRecipient('');
   };
 
-  const handleRemoveEmailRecipient = (emailToRemove: string) => {
-    setEmailForm({
-      ...emailForm,
-      recipients: emailForm.recipients.filter((e) => e !== emailToRemove),
-    });
+  const handleRemoveRecipient = (recipient: string) => {
+    setMessagingForm({ ...messagingForm, recipients: messagingForm.recipients.filter(r => r !== recipient) });
   };
 
-  const handleSaveEmailConfig = (e: React.FormEvent) => {
+  const handleSaveMessaging = (e: React.FormEvent) => {
     e.preventDefault();
-    updateEmailConfig(emailForm);
+    updateMessagingConfig(messagingForm);
   };
 
-  const handleTestSmtp = () => {
+  const handleTestMessaging = () => {
     addToast({
       type: 'info',
-      title: 'Test SMTP en cours',
-      message: `Envoi d'un message de test à ${emailForm.smtpUser}...`,
+      title: 'Test API de messagerie en cours',
+      message: `Envoi d'un message de test via l'API CBC...`,
     });
     setTimeout(() => {
       addToast({
         type: 'success',
-        title: 'Test SMTP réussi !',
-        message: 'Le serveur SMTP a accepté le message de test avec succès.',
+        title: 'Test API réussi !',
+        message: 'L\'API de messagerie CBC a accepté le message de test avec succès.',
       });
     }, 1200);
+  };
+
+  const handleAddService = () => {
+    if (!newService.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Service invalide',
+        message: 'Veuillez renseigner un nom de service valide.',
+      });
+      return;
+    }
+    if (servicesForm.services.includes(newService)) {
+      addToast({
+        type: 'warning',
+        title: 'Service existant',
+        message: 'Ce service fait déjà partie de la liste.',
+      });
+      return;
+    }
+    setServicesForm({ ...servicesForm, services: [...servicesForm.services, newService] });
+    setNewService('');
+  };
+
+  const handleRemoveService = (service: string) => {
+    setServicesForm({ ...servicesForm, services: servicesForm.services.filter(s => s !== service) });
+  };
+
+  const handleSaveServices = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateServicesMonitoringConfig(servicesForm);
+  };
+
+  const handleAddFile = () => {
+    if (!newFilePath.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Fichier invalide',
+        message: 'Veuillez renseigner un chemin de fichier valide.',
+      });
+      return;
+    }
+    const newFile: { path: string; max_size_mb?: number } = { path: newFilePath };
+    if (newFileSizeMb) {
+      newFile.max_size_mb = parseInt(newFileSizeMb);
+    }
+    if (filesForm.files.some(f => f.path === newFilePath)) {
+      addToast({
+        type: 'warning',
+        title: 'Fichier existant',
+        message: 'Ce fichier fait déjà partie de la liste.',
+      });
+      return;
+    }
+    setFilesForm({ ...filesForm, files: [...filesForm.files, newFile] });
+    setNewFilePath('');
+    setNewFileSizeMb('');
+  };
+
+  const handleRemoveFile = (filePath: string) => {
+    setFilesForm({ ...filesForm, files: filesForm.files.filter(f => f.path !== filePath) });
+  };
+
+  const handleSaveFiles = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateFilesMonitoringConfig(filesForm);
   };
 
   const handleSaveRetention = (e: React.FormEvent) => {
@@ -182,15 +258,48 @@ export const SettingsView: React.FC = () => {
           Seuils d'alerte globaux
         </button>
         <button
-          onClick={() => setActiveTab('email')}
+          onClick={() => setActiveTab('messaging')}
           className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'email'
+            activeTab === 'messaging'
               ? 'border-[#D0B335] text-slate-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Mail className="w-4 h-4" />
-          Notifications Email & SMTP
+          <MessageSquare className="w-4 h-4" />
+          Notifications API CBC
+        </button>
+        <button
+          onClick={() => setActiveTab('services')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
+            activeTab === 'services'
+              ? 'border-[#D0B335] text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          Supervision Services
+        </button>
+        <button
+          onClick={() => setActiveTab('files')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
+            activeTab === 'files'
+              ? 'border-[#D0B335] text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <File className="w-4 h-4" />
+          Supervision Fichiers
+        </button>
+        <button
+          onClick={() => setActiveTab('availability')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
+            activeTab === 'availability'
+              ? 'border-[#D0B335] text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Fenêtres Horaires
         </button>
         <button
           onClick={() => setActiveTab('retention')}
@@ -347,10 +456,10 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: EMAIL & SMTP */}
-      {activeTab === 'email' && (
+      {/* TAB 2: MESSAGING API CBC */}
+      {activeTab === 'messaging' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
-          <form onSubmit={handleSaveEmailConfig} className="space-y-6">
+          <form onSubmit={handleSaveMessaging} className="space-y-6">
             {/* Destinataires */}
             <div className="space-y-3">
               <h4 className="text-sm font-bold text-slate-900 tracking-tight">
@@ -360,8 +469,8 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <input
                   type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
+                  value={newRecipient}
+                  onChange={(e) => setNewRecipient(e.target.value)}
                   placeholder="nom@cbcam.cm"
                   disabled={currentRole !== 'Admin'}
                   className="w-full sm:w-80 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
@@ -369,7 +478,7 @@ export const SettingsView: React.FC = () => {
                 {currentRole === 'Admin' && (
                   <button
                     type="button"
-                    onClick={handleAddEmailRecipient}
+                    onClick={handleAddRecipient}
                     className="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-slate-800"
                   >
                     <Plus className="w-4 h-4" />
@@ -379,7 +488,7 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap gap-2 pt-2">
-                {emailForm.recipients.map((rec) => (
+                {messagingForm.recipients.map((rec) => (
                   <span
                     key={rec}
                     className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200"
@@ -388,7 +497,7 @@ export const SettingsView: React.FC = () => {
                     {currentRole === 'Admin' && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveEmailRecipient(rec)}
+                        onClick={() => handleRemoveRecipient(rec)}
                         className="text-slate-400 hover:text-rose-600"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -399,84 +508,426 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            {/* SMTP Server Config */}
+            {/* API de messagerie CBC Config */}
             <div className="pt-4 border-t border-slate-100 space-y-4">
               <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                Configuration du Serveur SMTP Bancaire
+                Configuration de l'API de messagerie interne CBC
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Serveur SMTP Host</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Endpoint API</label>
                   <input
                     type="text"
                     disabled={currentRole !== 'Admin'}
-                    value={emailForm.smtpHost}
-                    onChange={(e) => setEmailForm({ ...emailForm, smtpHost: e.target.value })}
+                    value={messagingForm.apiEndpoint}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, apiEndpoint: e.target.value })}
+                    placeholder="https://api.cbc.internal/messaging"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Port SMTP</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Clé API</label>
+                  <input
+                    type="password"
+                    disabled={currentRole !== 'Admin'}
+                    value={messagingForm.apiKey}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, apiKey: e.target.value })}
+                    placeholder="••••••••••••••••"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Timeout (secondes)</label>
                   <input
                     type="number"
                     disabled={currentRole !== 'Admin'}
-                    value={emailForm.smtpPort}
-                    onChange={(e) => setEmailForm({ ...emailForm, smtpPort: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Utilisateur SMTP / No-Reply</label>
-                  <input
-                    type="text"
-                    disabled={currentRole !== 'Admin'}
-                    value={emailForm.smtpUser}
-                    onChange={(e) => setEmailForm({ ...emailForm, smtpUser: e.target.value })}
+                    value={messagingForm.apiTimeout}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, apiTimeout: Number(e.target.value) })}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
                   />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <input
                     type="checkbox"
-                    id="smtpSecure"
+                    id="messagingEnabled"
                     disabled={currentRole !== 'Admin'}
-                    checked={emailForm.smtpSecure}
-                    onChange={(e) => setEmailForm({ ...emailForm, smtpSecure: e.target.checked })}
+                    checked={messagingForm.enabled}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, enabled: e.target.checked })}
                     className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
                   />
-                  <label htmlFor="smtpSecure" className="text-xs font-bold text-slate-800">
-                    Activer le chiffrement SSL/TLS sécurisé
+                  <label htmlFor="messagingEnabled" className="text-xs font-bold text-slate-700">
+                    Activer les notifications
                   </label>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={handleTestSmtp}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl flex items-center gap-1.5"
-              >
-                <Send className="w-3.5 h-3.5 text-blue-600" />
-                Tester l'envoi d'email
-              </button>
-
-              {currentRole === 'Admin' && (
+            {/* Actions */}
+            {currentRole === 'Admin' && (
+              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
                 >
                   <Save className="w-4 h-4" />
-                  Sauvegarder SMTP
+                  Enregistrer la configuration
                 </button>
-              )}
-            </div>
+                <button
+                  type="button"
+                  onClick={handleTestMessaging}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors border border-slate-200"
+                >
+                  <Send className="w-4 h-4" />
+                  Tester l'API
+                </button>
+              </div>
+            )}
           </form>
         </div>
       )}
 
-      {/* TAB 3: DATA RETENTION */}
+      {/* TAB 3: SUPERVISION SERVICES */}
+      {activeTab === 'services' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+          <form onSubmit={handleSaveServices} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Configuration de la supervision des services système
+              </h4>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="servicesEnabled"
+                  disabled={currentRole !== 'Admin'}
+                  checked={servicesForm.enabled}
+                  onChange={(e) => setServicesForm({ ...servicesForm, enabled: e.target.checked })}
+                  className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
+                />
+                <label htmlFor="servicesEnabled" className="text-xs font-bold text-slate-700">
+                  Activer la supervision
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Liste des services à superviser
+              </h4>
+              <p className="text-xs text-slate-500">
+                Ajoutez les services système à superviser (ex: SWIFT AutoClient, SQL Server, IIS)
+              </p>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newService}
+                  onChange={(e) => setNewService(e.target.value)}
+                  placeholder="Nom du service (ex: SWIFT AutoClient)"
+                  disabled={currentRole !== 'Admin'}
+                  className="w-full sm:w-80 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
+                />
+                {currentRole === 'Admin' && (
+                  <button
+                    type="button"
+                    onClick={handleAddService}
+                    className="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-slate-800"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                {servicesForm.services.map((service) => (
+                  <span
+                    key={service}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200"
+                  >
+                    {service}
+                    {currentRole === 'Admin' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveService(service)}
+                        className="text-slate-400 hover:text-rose-600"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700 mb-1">Intervalle de vérification (secondes)</label>
+              <input
+                type="number"
+                disabled={currentRole !== 'Admin'}
+                value={servicesForm.interval}
+                onChange={(e) => setServicesForm({ ...servicesForm, interval: Number(e.target.value) })}
+                className="w-full sm:w-40 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+              />
+            </div>
+
+            {/* Actions */}
+            {currentRole === 'Admin' && (
+              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Enregistrer la configuration
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
+      {/* TAB 4: SUPERVISION FICHIERS */}
+      {activeTab === 'files' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+          <form onSubmit={handleSaveFiles} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Configuration de la supervision des fichiers
+              </h4>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="filesEnabled"
+                  disabled={currentRole !== 'Admin'}
+                  checked={filesForm.enabled}
+                  onChange={(e) => setFilesForm({ ...filesForm, enabled: e.target.checked })}
+                  className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
+                />
+                <label htmlFor="filesEnabled" className="text-xs font-bold text-slate-700">
+                  Activer la supervision
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Liste des fichiers à superviser
+              </h4>
+              <p className="text-xs text-slate-500">
+                Ajoutez les fichiers à superviser (ex: fichiers de logs, fichiers de configuration)
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  value={newFilePath}
+                  onChange={(e) => setNewFilePath(e.target.value)}
+                  placeholder="Chemin du fichier (ex: /var/log/swift.log)"
+                  disabled={currentRole !== 'Admin'}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
+                />
+                <input
+                  type="number"
+                  value={newFileSizeMb}
+                  onChange={(e) => setNewFileSizeMb(e.target.value)}
+                  placeholder="Taille max (Mo, optionnel)"
+                  disabled={currentRole !== 'Admin'}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
+                />
+                {currentRole === 'Admin' && (
+                  <button
+                    type="button"
+                    onClick={handleAddFile}
+                    className="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-slate-800"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                {filesForm.files.map((file) => (
+                  <div
+                    key={file.path}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200"
+                  >
+                    <span className="font-mono">{file.path}</span>
+                    {file.max_size_mb && (
+                      <span className="text-slate-500">(max: {file.max_size_mb} Mo)</span>
+                    )}
+                    {currentRole === 'Admin' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(file.path)}
+                        className="text-slate-400 hover:text-rose-600"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700 mb-1">Intervalle de vérification (secondes)</label>
+              <input
+                type="number"
+                disabled={currentRole !== 'Admin'}
+                value={filesForm.interval}
+                onChange={(e) => setFilesForm({ ...filesForm, interval: Number(e.target.value) })}
+                className="w-full sm:w-40 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+              />
+            </div>
+
+            {/* Actions */}
+            {currentRole === 'Admin' && (
+              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Enregistrer la configuration
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
+      {/* TAB 5: FENÊTRES HORAIRES */}
+      {activeTab === 'availability' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); updateAvailabilityPolicy(availabilityForm); }} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Configuration des fenêtres horaires de disponibilité
+              </h4>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="availabilityEnabled"
+                  disabled={currentRole !== 'Admin'}
+                  checked={availabilityForm.enabled}
+                  onChange={(e) => setAvailabilityForm({ ...availabilityForm, enabled: e.target.checked })}
+                  className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
+                />
+                <label htmlFor="availabilityEnabled" className="text-xs font-bold text-slate-700">
+                  Activer les fenêtres horaires
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+                Fenêtres horaires par jour
+              </h4>
+              <p className="text-xs text-slate-500">
+                Définissez les plages horaires pendant lesquelles les postes de travail doivent être disponibles.
+                En dehors de ces plages, l'absence d'un poste ne générera pas d'alerte.
+              </p>
+
+              <div className="space-y-4">
+                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                  <div key={day} className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-slate-800 capitalize">{day}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newTimeWindows = { ...availabilityForm.timeWindows };
+                          if (!newTimeWindows[day]) {
+                            newTimeWindows[day] = [{ start: '08:00', end: '18:00' }];
+                          }
+                          setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
+                        }}
+                        disabled={currentRole !== 'Admin'}
+                        className="text-xs text-slate-600 hover:text-slate-900"
+                      >
+                        + Ajouter plage
+                      </button>
+                    </div>
+                    
+                    {availabilityForm.timeWindows[day]?.map((window, index) => (
+                      <div key={index} className="flex items-center gap-2 mb-2">
+                        <input
+                          type="time"
+                          value={window.start}
+                          onChange={(e) => {
+                            const newTimeWindows = { ...availabilityForm.timeWindows };
+                            newTimeWindows[day][index].start = e.target.value;
+                            setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
+                          }}
+                          disabled={currentRole !== 'Admin'}
+                          className="w-32 p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                        />
+                        <span className="text-xs text-slate-500">→</span>
+                        <input
+                          type="time"
+                          value={window.end}
+                          onChange={(e) => {
+                            const newTimeWindows = { ...availabilityForm.timeWindows };
+                            newTimeWindows[day][index].end = e.target.value;
+                            setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
+                          }}
+                          disabled={currentRole !== 'Admin'}
+                          className="w-32 p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                        />
+                        {currentRole === 'Admin' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTimeWindows = { ...availabilityForm.timeWindows };
+                              newTimeWindows[day].splice(index, 1);
+                              setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
+                            }}
+                            className="text-slate-400 hover:text-rose-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700 mb-1">Seuil offline personnalisé (secondes, optionnel)</label>
+              <input
+                type="number"
+                disabled={currentRole !== 'Admin'}
+                value={availabilityForm.offlineThresholdSeconds || ''}
+                onChange={(e) => setAvailabilityForm({ ...availabilityForm, offlineThresholdSeconds: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="Laisser vide pour utiliser le seuil par défaut"
+                className="w-full sm:w-40 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Remplace le seuil par défaut (90s pour serveurs, 7200s pour postes) si défini
+              </p>
+            </div>
+
+            {/* Actions */}
+            {currentRole === 'Admin' && (
+              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Enregistrer la configuration
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
+      {/* TAB 6: RÉTENTION DES DONNÉES */}
       {activeTab === 'retention' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
           <form onSubmit={handleSaveRetention} className="space-y-6">

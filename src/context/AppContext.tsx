@@ -11,7 +11,10 @@ import {
   User,
   Role,
   GlobalThresholds,
-  EmailNotificationConfig,
+  MessagingNotificationConfig,
+  ServicesMonitoringConfig,
+  FilesMonitoringConfig,
+  AvailabilityPolicy,
   DataRetentionConfig,
   EnrollmentToken,
   Toast,
@@ -34,7 +37,10 @@ interface AppContextType {
   alerts: Alert[];
   users: User[];
   globalThresholds: GlobalThresholds;
-  emailConfig: EmailNotificationConfig;
+  messagingConfig: MessagingNotificationConfig;
+  servicesMonitoringConfig: ServicesMonitoringConfig;
+  filesMonitoringConfig: FilesMonitoringConfig;
+  availabilityPolicy: AvailabilityPolicy;
   retentionConfig: DataRetentionConfig;
   enrollmentTokens: EnrollmentToken[];
   toasts: Toast[];
@@ -48,7 +54,10 @@ interface AppContextType {
   updateAgentThresholds: (agentId: string, thresholds: CustomThresholds) => void;
   resetAgentThresholds: (agentId: string) => void;
   updateGlobalThresholds: (thresholds: GlobalThresholds) => void;
-  updateEmailConfig: (config: EmailNotificationConfig) => void;
+  updateMessagingConfig: (config: MessagingNotificationConfig) => void;
+  updateServicesMonitoringConfig: (config: ServicesMonitoringConfig) => void;
+  updateFilesMonitoringConfig: (config: FilesMonitoringConfig) => void;
+  updateAvailabilityPolicy: (policy: AvailabilityPolicy) => void;
   updateRetentionConfig: (config: DataRetentionConfig) => void;
   generateEnrollmentToken: () => EnrollmentToken;
   createUser: (userData: { name: string; email: string; role: Role }) => void;
@@ -92,12 +101,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     diskWarning: 85,
     diskCritical: 95,
   });
-  const [emailConfig, setEmailConfig] = useState<EmailNotificationConfig>({
+  const [messagingConfig, setMessagingConfig] = useState<MessagingNotificationConfig>({
     recipients: [],
-    smtpHost: '',
-    smtpPort: 587,
-    smtpSecure: true,
-    smtpUser: '',
+    apiEndpoint: '',
+    apiKey: '',
+    apiTimeout: 30,
+    enabled: true,
+  });
+  const [servicesMonitoringConfig, setServicesMonitoringConfig] = useState<ServicesMonitoringConfig>({
+    enabled: false,
+    services: [],
+    interval: 60,
+  });
+  const [filesMonitoringConfig, setFilesMonitoringConfig] = useState<FilesMonitoringConfig>({
+    enabled: false,
+    files: [],
+    interval: 300,
+  });
+  const [availabilityPolicy, setAvailabilityPolicy] = useState<AvailabilityPolicy>({
+    enabled: false,
+    timeWindows: {},
+    offlineThresholdSeconds: undefined,
   });
   const [retentionConfig, setRetentionConfig] = useState<DataRetentionConfig>({
     alertsDays: 30,
@@ -451,12 +475,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
-  const updateEmailConfig = (config: EmailNotificationConfig) => {
-    setEmailConfig(config);
+  const updateMessagingConfig = (config: MessagingNotificationConfig) => {
+    setMessagingConfig(config);
     addToast({
       type: 'success',
-      title: 'Configuration email mise à jour',
-      message: 'Les destinataires et le serveur SMTP ont été sauvegardés.',
+      title: 'Configuration mise à jour',
+      message: 'La configuration de messagerie a été mise à jour avec succès.',
+    });
+  };
+
+  const updateServicesMonitoringConfig = (config: ServicesMonitoringConfig) => {
+    setServicesMonitoringConfig(config);
+    addToast({
+      type: 'success',
+      title: 'Configuration mise à jour',
+      message: 'La configuration de supervision des services a été mise à jour avec succès.',
+    });
+  };
+
+  const updateFilesMonitoringConfig = (config: FilesMonitoringConfig) => {
+    setFilesMonitoringConfig(config);
+    addToast({
+      type: 'success',
+      title: 'Configuration mise à jour',
+      message: 'La configuration de supervision des fichiers a été mise à jour avec succès.',
+    });
+  };
+
+  const updateAvailabilityPolicy = (policy: AvailabilityPolicy) => {
+    setAvailabilityPolicy(policy);
+    addToast({
+      type: 'success',
+      title: 'Configuration mise à jour',
+      message: 'La politique de disponibilité a été mise à jour avec succès.',
     });
   };
 
@@ -611,7 +662,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         alerts,
         users,
         globalThresholds,
-        emailConfig,
+        messagingConfig,
+        servicesMonitoringConfig,
+        filesMonitoringConfig,
+        availabilityPolicy,
         retentionConfig,
         enrollmentTokens,
         toasts,
@@ -625,7 +679,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateAgentThresholds,
         resetAgentThresholds,
         updateGlobalThresholds,
-        updateEmailConfig,
+        updateMessagingConfig,
+        updateServicesMonitoringConfig,
+        updateFilesMonitoringConfig,
+        updateAvailabilityPolicy,
         updateRetentionConfig,
         generateEnrollmentToken,
         createUser,

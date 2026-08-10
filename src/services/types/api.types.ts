@@ -20,6 +20,7 @@ export interface BackendAgent {
   disk_threshold_critical?: number;
   name?: string;
   location?: string;
+  machine_type: 'server' | 'workstation'; // V1.1
 }
 
 export interface BackendAlert {
@@ -68,14 +69,21 @@ export interface BackendGlobalSettings {
   updated_at: string;
 }
 
-export interface BackendEmailConfig {
+export interface BackendMessagingConfig {
   id: string;
-  recipients: string;
-  smtp_host: string;
-  smtp_port: number;
-  smtp_secure: boolean;
-  smtp_user: string;
+  recipients: string[];
+  api_endpoint: string;
+  api_timeout: number;
+  enabled: boolean;
   updated_at: string;
+}
+
+export interface BackendNotificationChannelStatus {
+  status: 'operational' | 'degraded' | 'error' | 'unknown' | 'disabled';
+  configured: boolean;
+  enabled: boolean;
+  last_check: string;
+  error?: string;
 }
 
 export interface BackendRetentionConfig {
