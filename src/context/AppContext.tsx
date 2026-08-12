@@ -195,8 +195,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [globalThresholds]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}emailConfig`, JSON.stringify(emailConfig));
-  }, [emailConfig]);
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}messagingConfig`, JSON.stringify(messagingConfig));
+  }, [messagingConfig]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}retentionConfig`, JSON.stringify(retentionConfig));

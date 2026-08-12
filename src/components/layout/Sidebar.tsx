@@ -72,17 +72,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Gold CBC Crest Icon */}
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#E6CA4E] to-[#D0B335] text-slate-950 font-black text-sm flex items-center justify-center shadow-lg shadow-[#D0B335]/20 border border-amber-300/40">
-            CBC
+          {/* Commercial Bank Logo SVG */}
+          <div className="bg-white p-1.5 rounded-lg">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 600 350"
+              width="80"
+              height="47"
+              className="flex-shrink-0"
+            >
+            <g transform="translate(0, 10)">
+              <g id="logo-mark">
+                <path d="M 245,50 C 232,50 225,57 225,70 L 225,140 C 225,153 232,160 245,160 L 278,160 L 278,50 Z" fill="#D3A029" />
+                <path d="M 286,50 L 320,50 C 333,50 340,57 340,70 L 340,98 C 340,103 337,105 332,105 L 286,105 Z" fill="#050505" />
+                <path d="M 286,111 L 332,111 C 337,111 340,113 340,118 L 340,140 C 340,153 333,160 320,160 L 286,160 Z" fill="#A0A2A5" />
+              </g>
+
+              <g id="logo-text">
+                <text x="300" y="235" textAnchor="middle" fontSize="52" letterSpacing="-1.5">
+                  <tspan fill="#000000">Commercial</tspan><tspan fill="#D3A029">Bank</tspan>
+                </text>
+              </g>
+            </g>
+          </svg>
           </div>
           <div>
-            <h1 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
+            <h1 className="text-sm font-extrabold text-white tracking-tight">
               CBC Supervision
             </h1>
-            <p className="text-[10px] text-[#D0B335] font-semibold tracking-wider uppercase">
-              Commercial Bank
-            </p>
             <button
               type="button"
               onClick={() => {
