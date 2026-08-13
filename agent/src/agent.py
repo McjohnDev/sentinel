@@ -381,20 +381,14 @@ class CBCAgent:
 
 if __name__ == "__main__":
     import sys
+    import argparse
     
-    # Configuration par défaut
-    CONFIG_PATH = None
-    SERVER_URL = None
-    ENROLLMENT_TOKEN = None
+    parser = argparse.ArgumentParser(description='CBC Supervision Agent')
+    parser.add_argument('--config', type=str, help='Path to config file')
+    parser.add_argument('--server-url', type=str, help='Server URL')
+    parser.add_argument('--enrollment-token', type=str, help='Enrollment token')
     
-    # Permettre de passer le fichier de config, l'URL et le token en arguments
-    if len(sys.argv) > 1 and sys.argv[1].endswith('.yaml'):
-        CONFIG_PATH = sys.argv[1]
-    elif len(sys.argv) > 1:
-        SERVER_URL = sys.argv[1]
+    args = parser.parse_args()
     
-    if len(sys.argv) > 2:
-        ENROLLMENT_TOKEN = sys.argv[2]
-    
-    agent = CBCAgent(config_path=CONFIG_PATH, server_url=SERVER_URL, enrollment_token=ENROLLMENT_TOKEN)
+    agent = CBCAgent(config_path=args.config, server_url=args.server_url, enrollment_token=args.enrollment_token)
     agent.run()

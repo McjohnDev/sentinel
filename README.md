@@ -585,6 +585,326 @@ Dans le dashboard, naviguez vers **Paramètres > Fenêtres Horaires** pour confi
 
 ---
 
+## Mode dégradé de l'agent
+
+L'agent implémente un mode dégradé pour garantir la continuité de la supervision même en cas d'indisponibilité du serveur central.
+
+### Fonctionnement
+
+Lorsque le serveur central est inaccessible, l'agent:
+- Stocke les heartbeats localement dans un buffer en mémoire
+- Continue de collecter les métriques système à intervalle régulier
+- Tente de se reconnecter au serveur avec un mécanisme de retry
+- Envoie automatiquement les heartbeats bufferisés lorsque la connexion est rétablie
+
+### Configuration
+
+Le mode dégradé peut être configuré via le fichier `config.yaml` de l'agent:
+
+```yaml
+degraded_mode:
+  enabled: true  # Activer le mode dégradé
+  buffer_size: 100  # Nombre maximum de heartbeats à stocker
+  retry_on_recovery: true  # Envoyer les heartbeats bufferisés lors de la reconnexion
+```
+
+### Paramètres
+
+- **enabled** : Active ou désactive le mode dégradé (défaut: true)
+- **buffer_size** : Nombre maximum de heartbeats stockés en mémoire (défaut: 100)
+- **retry_on_recovery** : Envoie automatiquement les heartbeats bufferisés quand la connexion revient (défaut: true)
+
+### Limites
+
+- Les heartbeats sont stockés en mémoire volatile et sont perdus si l'agent redémarre
+- Le buffer circulaire supprime automatiquement les heartbeats les plus anciens quand la limite est atteinte
+- La synchronisation différée peut créer un délai dans l'affichage des métriques
+
+---
+
+## Logging structuré et rotation des logs
+
+La plateforme utilise un système de logging structuré pour faciliter le diagnostic et le monitoring.
+
+### Logging du serveur
+
+Le serveur implémente un logging structuré en format JSON avec les caractéristiques suivantes:
+
+- **Format JSON** : Tous les logs sont en format JSON structuré pour une analyse facile
+- **Double sortie** : Logs envoyés à la fois vers un fichier et la console
+- **Rotation automatique** : Les fichiers de logs sont gérés avec rotation pour éviter la saturation disque
+- **Métadonnées enrichies** : Chaque log inclut timestamp, niveau, module, fonction, et ligne de code
+
+### Configuration du logging serveur
+
+Le logging est configuré dans `server/src/main.py`:
+
+```python
+# Handler fichier avec rotation
+file_handler = logging.FileHandler("logs/application.log")
+file_handler.setFormatter(JSONFormatter())
+
+# Handler console
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(JSONFormatter())
+```
+
+### Logging de l'agent
+
+L'agent implémente également un système de logging avec rotation configurable:
+
+```yaml
+logging:
+  level: INFO  # Niveau de log (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  file: agent.log  # Nom du fichier de log
+  rotation:
+    enabled: true  # Activer la rotation
+    max_size_mb: 10  # Taille max avant rotation
+    backup_count: 5  # Nombre de fichiers de backup à conserver
+```
+
+### Logs d'audit
+
+Toutes les actions sensibles sont tracées dans les logs d'audit:
+- Connexions utilisateurs
+- Enrôlement d'agents
+- Acquittement et résolution d'alertes
+- Modifications de configuration
+
+---
+
+## Métriques Prometheus et Monitoring
+
+Le serveur expose des métriques Prometheus pour le monitoring de la plateforme elle-même.
+
+### Endpoint de métriques
+
+Les métriques sont disponibles via l'endpoint `/metrics`:
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+### Métriques exposées
+
+| Métrique | Type | Description |
+|----------|------|-------------|
+| `http_requests_total` | Counter | Nombre total de requêtes HTTP (par méthode, endpoint, status) |
+| `http_request_duration_seconds` | Histogram | Durée des requêtes HTTP |
+| `active_agents` | Gauge | Nombre d'agents actifs |
+| `total_alerts` | Gauge | Nombre total d'alertes (par gravité) |
+| `websocket_connections` | Gauge | Nombre de connexions WebSocket actives |
+
+### Intégration Prometheus
+
+Pour intégrer avec Prometheus, ajoutez ceci à votre configuration `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'cbc-supervision'
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: '/metrics'
+```
+
+---
+
+## Cache Redis
+
+La plateforme utilise Redis pour mettre en cache les données fréquemment accédées afin d'améliorer les performances et réduire la charge sur la base de données.
+
+### Utilisation du cache
+
+Le cache est utilisé pour:
+- **Liste des agents** : Cache des résultats paginés (TTL: 30 secondes)
+- **Liste des alertes** : Cache des résultats paginés (TTL: 30 secondes)
+- **Données de configuration** : Cache des paramètres globaux
+
+### Configuration du cache
+
+Le service de cache est configuré dans `server/src/cache_service.py`:
+
+```python
+# Stocker dans le cache (TTL: 30 secondes)
+cache_service.set(cache_key, result, ttl=30)
+
+# Récupérer depuis le cache
+cached_data = cache_service.get(cache_key)
+
+# Invalider un pattern de cache
+cache_service.delete_pattern("agents:*")
+```
+
+### Invalidation du cache
+
+Le cache est automatiquement invalidé lors:
+- De la mise à jour d'un agent
+- De la création d'une nouvelle alerte
+- De la modification de la configuration
+
+### Avantages
+
+- Réduction de la charge base de données
+- Temps de réponse amélioré pour les endpoints fréquents
+- Scalabilité accrue pour les requêtes de lecture
+
+---
+
+## WebSocket et Notifications en temps réel
+
+La plateforme utilise WebSocket pour envoyer des notifications en temps réel aux clients connectés.
+
+### Fonctionnalités WebSocket
+
+- **Notifications d'alertes** : Les nouvelles alertes sont poussées en temps réel
+- **Mises à jour d'agents** : Les changements de statut sont immédiatement visibles
+- **Connexions multiples** : Support de plusieurs clients simultanés
+
+### Endpoint WebSocket
+
+```javascript
+// Connexion WebSocket
+const ws = new WebSocket('ws://localhost:8000/ws');
+
+// Écouter les messages
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Notification:', data);
+};
+```
+
+### Gestion des connexions
+
+Le gestionnaire WebSocket (`server/src/websocket_manager.py`) gère:
+- L'inscription des clients
+- La diffusion des messages
+- La gestion des déconnexions
+- Le nettoyage des connexions inactives
+
+### Types de notifications
+
+- `alert_created` : Nouvelle alerte créée
+- `alert_acknowledged` : Alerte acquittée
+- `alert_resolved` : Alerte résolue
+- `agent_online` : Agent revenu en ligne
+- `agent_offline` : Agent passé hors ligne
+
+---
+
+## Health Checks
+
+La plateforme fournit plusieurs endpoints de health check pour le monitoring de l'état du système.
+
+### Endpoints disponibles
+
+| Endpoint | Description |
+|----------|-------------|
+| `/` | Informations de base (nom, version, statut) |
+| `/health` | Health check général du service |
+| `/health/db` | Health check de la connexion base de données |
+| `/metrics` | Métriques Prometheus |
+
+### Exemples de réponses
+
+```bash
+# Health check général
+curl http://localhost:8000/health
+# {"status":"healthy","service":"CBC Supervision Platform","version":"1.1.0"}
+
+# Health check base de données
+curl http://localhost:8000/health/db
+# {"status":"healthy","database":"connected"}
+```
+
+### Utilisation
+
+Ces endpoints peuvent être utilisés par:
+- **Load balancers** : Pour vérifier la disponibilité du service
+- **Orchestrateurs** : Kubernetes, Docker Swarm pour les health checks
+- **Moniteurs** : Nagios, Zabbix pour le monitoring
+
+---
+
+## Configuration par environnement
+
+La plateforme supporte la configuration par environnement via des fichiers `.env` et des variables d'environnement.
+
+### Fichier .env.example
+
+Un fichier exemple est fourni dans `server/.env.example`:
+
+```bash
+# Base de données
+DATABASE_URL=postgresql://cbc_user:cbc_password@localhost:5432/cbc_supervision
+
+# Sécurité
+SECRET_KEY=your-secret-key-change-in-production
+
+# API Mail Service CBC
+CBC_MAIL_API_ENDPOINT=http://lumen-mail-service.test
+CBC_MAIL_API_KEY=your-api-key
+
+# Fréquences
+HEARTBEAT_INTERVAL_SECONDS=30
+HEARTBEAT_TIMEOUT_SECONDS=90
+```
+
+### Chargement de la configuration
+
+La configuration est chargée via `pydantic-settings` dans `server/src/config.py`:
+
+```python
+class Settings(BaseSettings):
+    database_url: str = "postgresql://..."
+    secret_key: str = "your-secret-key"
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+```
+
+### Environnements typiques
+
+- **Développement** : Configuration locale avec SQLite ou PostgreSQL local
+- **Staging** : Configuration de pré-production avec données de test
+- **Production** : Configuration optimisée avec secrets sécurisés
+
+---
+
+## Rate Limiting et Protection
+
+La plateforme implémente un rate limiting pour protéger contre les abus et les attaques par force brute.
+
+### Configuration du rate limiting
+
+Le rate limiting est implémenté avec `slowapi` et configuré par endpoint:
+
+```python
+@limiter.limit("20/minute")  # 20 enrôlements par minute
+def enroll_agent(...)
+
+@limiter.limit("5/minute")  # 5 tentatives de login par minute
+def login(...)
+
+@limiter.limit("100/minute")  # 100 requêtes par minute pour les listes
+def list_agents(...)
+```
+
+### Protection contre force brute
+
+- **Login** : Limité à 5 tentatives par minute par adresse IP
+- **Enrôlement** : Limité à 20 enrôlements par minute
+- **API endpoints** : Limités à 100 requêtes par minute par adresse IP
+
+### Comportement en cas de dépassement
+
+Lorsque la limite est dépassée, le serveur retourne:
+- Status HTTP 429 (Too Many Requests)
+- Message d'erreur explicite
+- Header `Retry-After` indiquant le temps d'attente
+
+---
+
 ## Configuration des fréquences
 
 Toutes les fréquences sont centralisées dans `server/src/config.py` et peuvent être configurées via variables d'environnement.
@@ -611,6 +931,103 @@ SERVICES_CHECK_INTERVAL_SECONDS=60
 FILES_CHECK_INTERVAL_SECONDS=300
 NOTIFICATION_CHANNEL_HEALTH_CHECK_INTERVAL_SECONDS=60
 ```
+
+---
+
+## Déploiement avec Docker
+
+La plateforme CBC Supervision Platform peut être déployée facilement avec Docker et Docker Compose pour simplifier l'installation et la gestion des dépendances.
+
+### Prérequis
+
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### Structure Docker
+
+Le projet inclut les fichiers Docker suivants dans le répertoire `docker/`:
+
+- `Dockerfile.server` : Image Docker pour le serveur central (FastAPI + PostgreSQL)
+- `docker-compose.yml` : Configuration Docker Compose pour l'orchestration des services
+
+### Démarrage rapide avec Docker Compose
+
+1. **Cloner le dépôt et naviguer vers le répertoire racine**
+
+```bash
+cd /path/to/CBC-Supervision-Platform
+```
+
+2. **Lancer les services avec Docker Compose**
+
+```bash
+docker-compose -f docker/docker-compose.yml up -d
+```
+
+Cette commande démarre:
+- **PostgreSQL 15** : Base de données pour le stockage des agents, alertes et métriques
+- **Serveur FastAPI** : API REST sur le port 8000
+
+3. **Vérifier que les services sont en cours d'exécution**
+
+```bash
+docker-compose -f docker/docker-compose.yml ps
+```
+
+4. **Accéder à l'API**
+
+- API Documentation (Swagger) : http://localhost:8000/docs
+- API Documentation (ReDoc) : http://localhost:8000/redoc
+- Health Check : http://localhost:8000/health
+
+### Configuration
+
+Les variables d'environnement peuvent être configurées dans le fichier `docker-compose.yml` ou via un fichier `.env`:
+
+```yaml
+environment:
+  DATABASE_URL: postgresql://cbc_user:cbc_password@postgres:5432/cbc_supervision
+  SECRET_KEY: your-secret-key-change-in-production
+  CBC_MAIL_API_ENDPOINT: http://lumen-mail-service.test
+  CBC_MAIL_API_KEY: your-api-key
+```
+
+### Commandes utiles
+
+```bash
+# Démarrer les services
+docker-compose -f docker/docker-compose.yml up -d
+
+# Arrêter les services
+docker-compose -f docker/docker-compose.yml down
+
+# Voir les logs
+docker-compose -f docker/docker-compose.yml logs -f
+
+# Redémarrer un service spécifique
+docker-compose -f docker/docker-compose.yml restart server
+
+# Reconstruire les images après modification
+docker-compose -f docker/docker-compose.yml up -d --build
+```
+
+### Persistance des données
+
+Les données PostgreSQL sont persistées dans un volume Docker nommé `postgres_data`. Les données sont conservées même après l'arrêt des conteneurs.
+
+### Sécurité en production
+
+Pour un déploiement en production, assurez-vous de:
+
+1. **Modifier les mots de passe par défaut** dans `docker-compose.yml`
+2. **Utiliser des secrets Docker** ou un gestionnaire de secrets pour les clés sensibles
+3. **Configurer HTTPS/TLS** pour les communications
+4. **Limiter l'accès réseau** avec des réseaux Docker privés
+5. **Utiliser des images Docker signées et vérifiées**
+
+### Déploiement du frontend
+
+Le frontend React peut être construit et servi via un conteneur nginx séparé. Consultez la documentation d'installation pour plus de détails.
 
 ---
 
