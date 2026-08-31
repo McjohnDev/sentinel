@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "EventSeverity": {
+      "enum": [
+        "info",
+        "minor",
+        "major",
+        "critical"
+      ],
+      "title": "EventSeverity",
+      "type": "string"
+    },
+    "EventSource": {
+      "enum": [
+        "agent",
+        "platform",
+        "external"
+      ],
+      "title": "EventSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Discrete event (service down, log match, OS event, \u2026).",
+  "examples": [
+    {
+      "attributes": {
+        "service": "nginx"
+      },
+      "host": "db-02.prod",
+      "message": "Service nginx is not running",
+      "schema": "event.v1",
+      "severity": "critical",
+      "source": "agent",
+      "ts": "2026-07-30T08:15:00Z",
+      "type": "service_down"
+    }
+  ],
+  "properties": {
+    "schema": {
+      "default": "event.v1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/EventSource"
+    },
+    "host": {
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Host",
+      "type": "string"
+    },
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    },
+    "type": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Type",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/EventSeverity"
+    },
+    "message": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "attributes": {
+      "additionalProperties": true,
+      "title": "Attributes",
+      "type": "object"
+    },
+    "agent_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Id"
+    },
+    "message_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message Id"
+    }
+  },
+  "required": [
+    "source",
+    "host",
+    "ts",
+    "type",
+    "severity",
+    "message"
+  ],
+  "title": "EventV1",
+  "type": "object"
+}

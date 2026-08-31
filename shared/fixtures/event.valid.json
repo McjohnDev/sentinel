@@ -1,0 +1,12 @@
+{
+  "schema": "event.v1",
+  "source": "agent",
+  "host": "db-02.prod",
+  "ts": "2026-07-30T08:15:00+00:00",
+  "type": "service_down",
+  "severity": "critical",
+  "message": "Service nginx is not running",
+  "attributes": {
+    "service": "nginx"
+  }
+}

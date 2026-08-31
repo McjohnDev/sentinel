@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "TaskIssuer": {
+      "enum": [
+        "user",
+        "api",
+        "n8n",
+        "rule"
+      ],
+      "title": "TaskIssuer",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Platform-initiated action request (AGT-010 / Part G.3).",
+  "properties": {
+    "schema": {
+      "default": "task.v1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "task_id": {
+      "format": "uuid",
+      "title": "Task Id",
+      "type": "string"
+    },
+    "issued_by": {
+      "$ref": "#/$defs/TaskIssuer"
+    },
+    "signature": {
+      "description": "Platform signature",
+      "minLength": 1,
+      "title": "Signature",
+      "type": "string"
+    },
+    "plugin": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Plugin",
+      "type": "string"
+    },
+    "input": {
+      "additionalProperties": true,
+      "title": "Input",
+      "type": "object"
+    },
+    "dry_run": {
+      "default": false,
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "approval_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Approval Ref"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "agent_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Id"
+    }
+  },
+  "required": [
+    "task_id",
+    "issued_by",
+    "signature",
+    "plugin",
+    "expires_at"
+  ],
+  "title": "TaskV1",
+  "type": "object"
+}

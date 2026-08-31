@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "TaskStatus": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "running",
+        "succeeded",
+        "failed",
+        "expired",
+        "dry_run"
+      ],
+      "title": "TaskStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structured task result \u2014 never free text only (AGT-081).",
+  "properties": {
+    "schema": {
+      "default": "task.result.v1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "task_id": {
+      "format": "uuid",
+      "title": "Task Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/TaskStatus"
+    },
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "exit_code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exit Code"
+    },
+    "output": {
+      "additionalProperties": true,
+      "title": "Output",
+      "type": "object"
+    },
+    "stdout_truncated": {
+      "anyOf": [
+        {
+          "maxLength": 8000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stdout Truncated"
+    },
+    "stderr_truncated": {
+      "anyOf": [
+        {
+          "maxLength": 8000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stderr Truncated"
+    },
+    "audit_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Audit Ref"
+    },
+    "rejection_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set when L0 agent rejects an action task",
+      "title": "Rejection Reason"
+    }
+  },
+  "required": [
+    "task_id",
+    "status",
+    "duration_ms"
+  ],
+  "title": "TaskResultV1",
+  "type": "object"
+}

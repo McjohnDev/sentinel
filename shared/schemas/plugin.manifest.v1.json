@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "PluginIOSchema": {
+      "description": "JSON Schema fragment describing plugin input or output.",
+      "properties": {
+        "type": {
+          "default": "object",
+          "title": "Type",
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "title": "Properties"
+        },
+        "required": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required",
+          "type": "array"
+        },
+        "additionalProperties": {
+          "default": true,
+          "title": "Additionalproperties",
+          "type": "boolean"
+        }
+      },
+      "title": "PluginIOSchema",
+      "type": "object"
+    },
+    "PluginPrivilege": {
+      "enum": [
+        "none",
+        "read",
+        "service_control",
+        "file_write",
+        "command_exec",
+        "elevated"
+      ],
+      "title": "PluginPrivilege",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Machine-readable plugin declaration (collectors Lot 1, actions Lot 2).",
+  "properties": {
+    "schema": {
+      "default": "plugin.manifest.v1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_.-]*$",
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "kind": {
+      "description": "collector | action | both",
+      "title": "Kind",
+      "type": "string"
+    },
+    "input_schema": {
+      "$ref": "#/$defs/PluginIOSchema"
+    },
+    "output_schema": {
+      "$ref": "#/$defs/PluginIOSchema"
+    },
+    "required_privileges": {
+      "items": {
+        "$ref": "#/$defs/PluginPrivilege"
+      },
+      "title": "Required Privileges",
+      "type": "array"
+    },
+    "default_interval_seconds": {
+      "anyOf": [
+        {
+          "maximum": 900,
+          "minimum": 10,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 60,
+      "description": "Collectors only; 10 s\u201315 min (SPEC)",
+      "title": "Default Interval Seconds"
+    },
+    "capability_level": {
+      "default": "L0",
+      "description": "L0 collect-only; L1 actions (Lot 2)",
+      "title": "Capability Level",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "description",
+    "kind"
+  ],
+  "title": "PluginManifestV1",
+  "type": "object"
+}

@@ -1,0 +1,100 @@
+{
+  "additionalProperties": false,
+  "description": "Single time-series sample from an agent or connector.",
+  "examples": [
+    {
+      "agent_id": "550e8400-e29b-41d4-a716-446655440000",
+      "family": "cpu",
+      "host": "web-01.prod",
+      "labels": {
+        "core": "all",
+        "env": "prod",
+        "group": "web"
+      },
+      "name": "cpu.total.utilization",
+      "schema": "metric.v1",
+      "ts": "2026-07-30T08:15:00Z",
+      "unit": "percent",
+      "value": 87.5
+    }
+  ],
+  "properties": {
+    "schema": {
+      "default": "metric.v1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "agent_id": {
+      "format": "uuid",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "host": {
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Host",
+      "type": "string"
+    },
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    },
+    "family": {
+      "description": "cpu | memory | disk | network | process | agent | \u2026",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Family",
+      "type": "string"
+    },
+    "name": {
+      "description": "Canonical metric name, e.g. cpu.total.utilization",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "value": {
+      "title": "Value",
+      "type": "number"
+    },
+    "unit": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Unit",
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Labels",
+      "type": "object"
+    },
+    "message_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Deduplication id for at-least-once delivery (PLT-001)",
+      "title": "Message Id"
+    }
+  },
+  "required": [
+    "agent_id",
+    "host",
+    "ts",
+    "family",
+    "name",
+    "value",
+    "unit"
+  ],
+  "title": "MetricV1",
+  "type": "object"
+}

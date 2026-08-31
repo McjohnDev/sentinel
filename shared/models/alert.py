@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, Float, Enum as SQLEnum
 from sqlalchemy.sql import func
 from datetime import datetime
 import enum

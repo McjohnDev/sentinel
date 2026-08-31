@@ -1,0 +1,10 @@
+{
+  "schema": "metric.v2",
+  "agent_id": "not-a-uuid",
+  "host": "",
+  "ts": "yesterday",
+  "family": "cpu",
+  "name": "cpu.total.utilization",
+  "value": "high",
+  "unit": "percent"
+}

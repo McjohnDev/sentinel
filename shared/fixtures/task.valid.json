@@ -1,0 +1,13 @@
+{
+  "schema": "task.v1",
+  "task_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "issued_by": "user",
+  "signature": "sig-placeholder",
+  "plugin": "service.manage",
+  "input": {
+    "service": "nginx",
+    "operation": "restart"
+  },
+  "dry_run": true,
+  "expires_at": "2026-07-30T09:00:00+00:00"
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "plugin.manifest.v1",
+  "name": "cpu.collector",
+  "version": "1.0.0",
+  "description": "Collect CPU utilisation metrics",
+  "kind": "collector",
+  "input_schema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "metrics": {
+        "type": "array"
+      }
+    },
+    "required": [
+      "metrics"
+    ]
+  },
+  "required_privileges": [
+    "read"
+  ],
+  "default_interval_seconds": 60,
+  "capability_level": "L0"
+}

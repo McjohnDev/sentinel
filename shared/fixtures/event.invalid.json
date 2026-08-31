@@ -1,0 +1,9 @@
+{
+  "schema": "event.v1",
+  "source": "unknown",
+  "host": "db-02.prod",
+  "ts": "2026-07-30T08:15:00+00:00",
+  "type": "service_down",
+  "severity": "urgent",
+  "message": "x"
+}

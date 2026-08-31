@@ -94,6 +94,8 @@ agent/packaging/dist/
 tmp/
 temp/
 *.tmp
+data/agent-buffer/
+**/data/agent-buffer/
 
 # OS
 Thumbs.db
@@ -102,3 +104,6 @@ Thumbs.db
 # SSL certificates (except example)
 server/ssl/*.pem
 !server/ssl/*.example
+
+# Agent runtime identity (per-machine, never shared)
+agent/.machine_id
