@@ -1,0 +1,51 @@
+# Production overlay for Lot 1.
+# Usage (from repo root):
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
+#
+# Turns off lab-only load-test shortcuts. Keep CBC Mail API keys in a real .env.
+
+# Attention : Compose CONCATÈNE les listes `ports` entre fichiers. `ports: []`
+# ne retirait donc rien — Postgres, Redis, VictoriaMetrics et Loki restaient
+# publiés. `!reset []` est le seul mécanisme qui supprime réellement la valeur
+# de base (Compose >= 2.24). Le fichier de base les lie en outre à 127.0.0.1,
+# de sorte qu'une version plus ancienne de Compose ne les expose pas au LAN.
+#
+# Vérification attendue avant toute mise en production :
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml config
+#   -> aucune section `ports` sur postgres/redis/victoria-metrics/loki
+#   -> aucune variable BOOTSTRAP_*
+
+services:
+  redis:
+    ports: !reset []
+
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+  victoria-metrics:
+    ports: !reset []
+
+  loki:
+    ports: !reset []
+
+  server:
+    environment:
+      ALLOW_LOAD_SIM: "false"
+      RATE_LIMIT_DISABLED: "false"
+      MESSAGING_ENABLED: "true"
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      CBC_MAIL_API_KEY: ${CBC_MAIL_API_KEY:-}
+      CBC_MAIL_API_URL: ${CBC_MAIL_API_URL:-}
+      # Les maps `environment` fusionnent : sans ces deux lignes, le jeton
+      # d'amorçage réutilisable du fichier de laboratoire reste actif en
+      # production et n'importe quel hôte peut enrôler un agent.
+      BOOTSTRAP_ENROLLMENT_TOKEN: ""
+      BOOTSTRAP_TOKEN_REUSABLE: "false"
+      # Le mot de passe de laboratoire `cbc_password` est publié dans ce dépôt :
+      # exiger une valeur explicite plutôt que de laisser jouer le repli.
+      DATABASE_URL: postgresql://cbc_user:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/cbc_supervision
+
+  agent:
+    restart: unless-stopped

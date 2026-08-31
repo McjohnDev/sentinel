@@ -1,34 +1,155 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: sentinel-postgres
     environment:
       POSTGRES_DB: cbc_supervision
       POSTGRES_USER: cbc_user
-      POSTGRES_PASSWORD: cbc_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cbc_password}
     ports:
-      - "5432:5432"
+      # Boucle locale uniquement : jamais exposé sur le LAN.
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cbc_user -d cbc_supervision"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinel-redis
+    ports:
+      # Publication décalée sur 6380 : le port 6379 est souvent déjà pris par
+      # un redis-server installé sur le poste (Laragon, WSL, service Windows),
+      # et la pile refusait alors de démarrer. Seul l'accès depuis l'hôte est
+      # concerné — le serveur joint le conteneur par le réseau Docker sur
+      # 6379 (voir REDIS_PORT du service `server`), donc rien d'autre ne bouge.
+      # Surchargeable : REDIS_HOST_PORT=6390 docker compose up -d
+      - "127.0.0.1:${REDIS_HOST_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ADR-001: VictoriaMetrics as Lot 1 TSDB (STO-001)
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.106.1
+    container_name: sentinel-victoria-metrics
+    ports:
+      - "127.0.0.1:8428:8428"
+    command:
+      - "--storageDataPath=/victoria-metrics-data"
+      - "--httpListenAddr=:8428"
+      # Rétention globale et unique : VictoriaMetrics OSS ne sait pas
+      # appliquer une rétention par série (voir ADR-002). Exprimée en
+      # mois ; à confirmer au regard des obligations COBAC.
+      - "--retentionPeriod=${VM_RETENTION_PERIOD:-13}"
+    volumes:
+      - victoria_metrics_data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8428/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  # ADR-001: Grafana Loki for logs (STO-003) — wired in FS3
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: sentinel-loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - loki_data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   server:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.server
+    container_name: sentinel-server
     ports:
-      - "8000:8000"
+      - "8443:8000"
+    # Configuration hors dépôt (annuaire LDAP, SMTP, secrets). Sans ceci, le
+    # serveur conteneurisé ne voyait jamais server/.env : pydantic cherche
+    # « .env » dans /app, que l'image ne contient pas — LDAP_ENABLED restait
+    # donc à false même une fois l'annuaire renseigné.
+    # `required: false` : la pile démarre aussi sur un poste sans ce fichier.
+    # Les clés du bloc `environment:` ci-dessous restent prioritaires (elles
+    # portent les coordonnées réseau internes à Docker).
+    env_file:
+      - path: ../server/.env
+        required: false
     environment:
-      DATABASE_URL: postgresql://cbc_user:cbc_password@postgres:5432/cbc_supervision
-      SECRET_KEY: your-secret-key-change-in-production
+      DATABASE_URL: postgresql://cbc_user:${POSTGRES_PASSWORD:-cbc_password}@postgres:5432/cbc_supervision
+      SECRET_KEY: local-dev-secret-key-change-in-production-32
+      MESSAGING_ENABLED: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      VICTORIA_METRICS_URL: http://victoria-metrics:8428
+      LOKI_URL: http://loki:3100
+      # Jeton d'amorçage de laboratoire : réutilisable pour que l'agent Docker
+      # et un agent hôte puissent tous deux s'enrôler pendant une démo.
+      # Ne jamais définir ces deux variables en production (voir
+      # docker-compose.prod.yml) : les jetons y sont émis par un administrateur
+      # et sont à usage unique.
+      BOOTSTRAP_ENROLLMENT_TOKEN: demo-token-123
+      BOOTSTRAP_TOKEN_REUSABLE: "true"
+      # FS7 load drills only — keep false in normal use
+      ALLOW_LOAD_SIM: "true"
+      RATE_LIMIT_DISABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      victoria-metrics:
+        condition: service_started
+      loki:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: sentinel-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      server:
+        condition: service_healthy
+
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    container_name: sentinel-agent
+    hostname: sentinel-agent
+    environment:
+      AGENT_MACHINE_ID_FILE: /var/lib/cbc-agent/machine_id
+    volumes:
+      - agent_state:/var/lib/cbc-agent
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  victoria_metrics_data:
+  loki_data:
+  agent_state:

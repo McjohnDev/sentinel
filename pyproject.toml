@@ -1,0 +1,30 @@
+# Ruff configuration.
+#
+# Deliberately narrow to start: the codebase had no linter at all, so a broad
+# rule set would produce thousands of findings and the gate would be switched
+# off. These rules catch real defects (undefined names, unused imports,
+# mutable default arguments) rather than style preferences. Tighten over time.
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".venv",
+    "server/.venv",
+    "node_modules",
+    "build",
+    "dist",
+    "agent/packaging/build",
+    "agent/packaging/dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "F",    # pyflakes: undefined names, unused imports, f-string bugs
+    "E9",   # syntax / IO errors
+    "B002", "B003", "B004", "B006", "B007", "B017",  # common bugbears
+    "T100", # forgotten breakpoint()
+]
+ignore = [
+    "F401",  # unused imports: many modules re-export deliberately
+    "F841",  # unused locals: frequent in the current code, not a defect
+]

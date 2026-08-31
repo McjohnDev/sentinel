@@ -2,11 +2,21 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY server/requirements.txt .
+# Toutes les dépendances sont déclarées et épinglées dans requirements.txt.
+# Elles étaient auparavant installées ici sans version, si bien que l'image et
+# `pip install -r server/requirements.txt` n'installaient pas le même serveur.
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server/src ./src
 COPY shared ./shared
+COPY server/init_users.py ./init_users.py
+
+RUN mkdir -p logs ssl
 
 EXPOSE 8000
 

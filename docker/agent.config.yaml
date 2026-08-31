@@ -1,0 +1,51 @@
+server:
+  url: "http://server:8000"
+  enrollment_token: "demo-token-123"
+
+agent:
+  heartbeat_interval: 15
+  ping_interval: 10
+  retry_interval: 30
+  max_retries: 3
+  machine_type: "server"
+
+metrics:
+  cpu:
+    enabled: true
+    interval: 1
+  memory:
+    enabled: true
+  disk:
+    enabled: true
+    path: "/"
+    alert_mounts: []   # empty = alert on path only; e.g. ["/", "/var", "C:\\"]
+  uptime:
+    enabled: true
+
+availability:
+  enabled: false
+  time_windows: {}
+  offline_threshold_seconds: null
+
+services_monitoring:
+  enabled: false
+  interval: 60
+  services: []
+
+files_monitoring:
+  enabled: false
+  interval: 300
+  files: []
+
+degraded_mode:
+  enabled: true
+  buffer_size: 100
+  retry_on_recovery: true
+
+logging:
+  level: "INFO"
+  file: "/tmp/agent.log"
+  rotation:
+    enabled: true
+    max_size_mb: 10
+    backup_count: 3
