@@ -1,0 +1,102 @@
+{
+  "story": "FS7-01",
+  "started_at": "2026-08-13T15:56:55.225078+00:00",
+  "base_url": "http://localhost:8443",
+  "agents_requested": 128,
+  "agents_created": 128,
+  "duration_s": 40,
+  "interval_s": 15.0,
+  "wall_s": 65.6,
+  "heartbeats": {
+    "ok": 33,
+    "fail": 0,
+    "p95_s": 12.9649
+  },
+  "metrics": {
+    "ok": 33,
+    "fail": 0,
+    "p95_s": 0.2667
+  },
+  "data_loss_suspect": false,
+  "errors_sample": [],
+  "platform_status_http": 200,
+  "platform": {
+    "status": "healthy",
+    "checked_at": "2026-08-13T15:56:55.224361+00:00",
+    "components": {
+      "api": {
+        "status": "healthy",
+        "component": "api",
+        "version": "1.1.0",
+        "name": "CBC Supervision Platform"
+      },
+      "postgres": {
+        "status": "healthy",
+        "component": "postgres"
+      },
+      "redis": {
+        "status": "healthy",
+        "component": "redis",
+        "host": "redis",
+        "port": 6379
+      },
+      "victoria_metrics": {
+        "status": "healthy",
+        "url": "http://victoria-metrics:8428",
+        "http_status": 200,
+        "component": "victoria_metrics"
+      },
+      "loki": {
+        "status": "healthy",
+        "url": "http://loki:3100",
+        "http_status": 200,
+        "component": "loki"
+      }
+    },
+    "unhealthy_count": 0,
+    "latency": {
+      "collect_to_ingest": {
+        "count": 161,
+        "p50_s": 0.0693,
+        "p95_s": 0.1703,
+        "max_s": 0.2741,
+        "budget_s": 60.0,
+        "within_budget": true
+      },
+      "detect_to_notify": {
+        "count": 0,
+        "p50_s": null,
+        "p95_s": null,
+        "max_s": null,
+        "budget_s": 30.0,
+        "within_budget": null
+      },
+      "page_load": {
+        "count": 0,
+        "p50_s": null,
+        "p95_s": null,
+        "max_s": null,
+        "budget_s": 3.0,
+        "within_budget": null
+      },
+      "api_rtt": {
+        "count": 0,
+        "p50_s": null,
+        "p95_s": null,
+        "max_s": null,
+        "budget_s": 3.0,
+        "within_budget": null
+      },
+      "budgets": {
+        "collect_to_ui_s": 60.0,
+        "detect_to_notify_s": 30.0,
+        "page_load_s": 3.0
+      },
+      "observed_at": 1786636615.224454
+    }
+  },
+  "pass_criteria": {
+    "nfr004_agents": true,
+    "no_data_loss": true
+  }
+}

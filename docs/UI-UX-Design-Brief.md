@@ -184,39 +184,40 @@ CBC Supervision Platform apporte une réponse structurée à ces défis en offra
 
 ### Arborescence complète
 
+**Source of truth:** DES-003. Mockup handoff (give this file to Claude): `docs/architecture/DES-003-MOCKUP-BRIEF.md`.
+
 ```
 Connexion
     ↓
-Dashboard (Page d'accueil)
+Tableau de bord (situation room)
     ↓
-├── Agents
-│   ├── Liste des agents
-│   ├── Détail d'un agent
-│   └── Recherche / Filtres
-│
-├── Alertes
-│   ├── Liste des alertes
-│   ├── Détail d'une alerte
-│   └── Filtres (gravité, type, statut)
-│
-├── Paramètres
-│   ├── Seuils d'alerte
-│   │   ├── Seuils globaux
-│   │   └── Seuils par agent
-│   ├── Notifications
-│   │   └── Configuration email
-│   ├── Rétention des données
-│   └── Génération de jetons d'enrôlement
-│
+EXPLOITER
+├── Parc (hôtes)
+│   └── Détail hôte (Vue, Métriques, Journaux, Alertes, Configuration, Actions)
+├── Alertes (liste + tiroir timeline)
+└── Journaux
+
+ANALYSER
+├── Tableaux personnalisés
+├── Tendances
+├── Rapports
+└── Réseau (SNMP/ICMP)
+
+AUTOMATISER (Lot 2)
+├── Scénarios (n8n playbooks — pas l’éditeur n8n)
+├── Approbations
+└── Actions à distance
+
+CONFIGURER
+├── Studio Agent (Intention / Guidé / Expert + modèles CBC)
+├── Règles (durée, maintenance ≠ présence)
+└── Intégrations (Mail, HMAC, n8n, SMS, ITSM)
+
+ADMINISTRER
 ├── Utilisateurs
-│   ├── Liste des utilisateurs
-│   ├── Créer un utilisateur
-│   ├── Modifier un utilisateur
-│   └── Supprimer un utilisateur
-│
-└── Profil utilisateur
-    ├── Informations personnelles
-    └── Changer le mot de passe
+├── Audit
+├── Paramètres (rétention, langue, flags — plus les seuils)
+└── Profil
 ```
 
 ### Navigation principale
