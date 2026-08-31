@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { GlobalThresholds, MessagingNotificationConfig, ServicesMonitoringConfig, FilesMonitoringConfig, DataRetentionConfig } from '../types';
+import { GlobalThresholds, MessagingNotificationConfig, ServicesMonitoringConfig, FilesMonitoringConfig, DataRetentionConfig, AvailabilityPolicy } from '../types';
 import { Modal } from '../components/common/Modal';
+import { groupsService, MachineGroup, ConfigRevision, CoverageRow, CoverageOverlap } from '../services/api/groups.service';
 import {
-  Settings,
   Sliders,
   MessageSquare,
   Clock,
@@ -34,42 +35,160 @@ import {
   Sparkles,
   Layers,
   File,
+  Users,
+  Map,
+  Activity,
+  RefreshCw,
 } from 'lucide-react';
+import { settingsService } from '../services/api/settings.service';
+import { PageHeader } from '../components/layout/PageHeader';
+import { LdapPanel } from '../components/settings/LdapPanel';
+import type { LucideIcon } from 'lucide-react';
+
+type SettingsTab =
+  | 'thresholds'
+  | 'messaging'
+  | 'groups'
+  | 'coverage'
+  | 'services'
+  | 'files'
+  | 'availability'
+  | 'retention'
+  | 'tokens'
+  | 'platform'
+  | 'ldap'
+  | 'compliance';
+
+const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
+  { id: 'thresholds', label: "Seuils d'alerte", icon: Sliders },
+  { id: 'messaging', label: 'Notifications API CBC', icon: MessageSquare },
+  { id: 'groups', label: 'Groupes & config', icon: Users },
+  { id: 'coverage', label: 'Couverture PS', icon: Map },
+  { id: 'services', label: 'Supervision services', icon: Layers },
+  { id: 'files', label: 'Supervision fichiers', icon: File },
+  { id: 'availability', label: 'Fenêtres horaires', icon: Clock },
+  { id: 'retention', label: 'Rétention des données', icon: Clock },
+  { id: 'tokens', label: "Jetons d'enrôlement", icon: Key },
+  { id: 'platform', label: 'Plateforme', icon: Activity },
+  { id: 'ldap', label: 'Annuaire (LDAP)', icon: ShieldCheck },
+  { id: 'compliance', label: 'Conformité banking', icon: Award },
+];
 
 export const SettingsView: React.FC = () => {
+  const navigate = useNavigate();
   const {
     globalThresholds,
     messagingConfig,
-    servicesMonitoringConfig,
-    filesMonitoringConfig,
     availabilityPolicy,
     retentionConfig,
     enrollmentTokens,
     currentRole,
     updateGlobalThresholds,
     updateMessagingConfig,
-    updateServicesMonitoringConfig,
-    updateFilesMonitoringConfig,
     updateAvailabilityPolicy,
     updateRetentionConfig,
     generateEnrollmentToken,
     addToast,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'thresholds' | 'messaging' | 'services' | 'files' | 'availability' | 'retention' | 'tokens' | 'compliance'>('thresholds');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('thresholds');
+  const [platformStatus, setPlatformStatus] = useState<{
+    status: string;
+    checked_at?: string;
+    unhealthy_count?: number;
+    components?: Record<string, { status: string; error?: string }>;
+    latency?: Record<string, { count?: number; p95_s?: number | null; budget_s?: number; within_budget?: boolean | null }>;
+  } | null>(null);
 
   // Form states
-  const [thresholdsForm, setThresholdsForm] = useState<GlobalThresholds>(globalThresholds);
+  const [thresholdsForm, setThresholdsForm] = useState<GlobalThresholds>({
+    ...globalThresholds,
+    diskMountRules: globalThresholds.diskMountRules || [],
+  });
+
+  useEffect(() => {
+    setThresholdsForm({
+      ...globalThresholds,
+      diskMountRules: globalThresholds.diskMountRules || [],
+    });
+  }, [globalThresholds]);
   const [messagingForm, setMessagingForm] = useState<MessagingNotificationConfig>(messagingConfig);
-  const [servicesForm, setServicesForm] = useState<ServicesMonitoringConfig>(servicesMonitoringConfig);
-  const [filesForm, setFilesForm] = useState<FilesMonitoringConfig>(filesMonitoringConfig);
   const [availabilityForm, setAvailabilityForm] = useState<AvailabilityPolicy>(availabilityPolicy);
   const [retentionForm, setRetentionForm] = useState<DataRetentionConfig>(retentionConfig);
   const [newRecipient, setNewRecipient] = useState('');
-  const [newService, setNewService] = useState('');
-  const [newFilePath, setNewFilePath] = useState('');
-  const [newFileSizeMb, setNewFileSizeMb] = useState('');
+  const [testMailTo, setTestMailTo] = useState('');
+  const [testMailBusy, setTestMailBusy] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const [groups, setGroups] = useState<MachineGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [revisions, setRevisions] = useState<ConfigRevision[]>([]);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [assignAgentId, setAssignAgentId] = useState('');
+  const [publishJson, setPublishJson] = useState(
+    '{\n  "services_monitoring": {"enabled": true, "services": []},\n  "files_monitoring": {"enabled": true, "files": []},\n  "metrics": {\n    "processes": {"watched": []},\n    "disk": {"path": "/", "alert_mounts": []}\n  },\n  "agent": {"heartbeat_interval": 30}\n}'
+  );
+  const [publishNote, setPublishNote] = useState('');
+  const [coverageRows, setCoverageRows] = useState<CoverageRow[]>([]);
+  const [overlaps, setOverlaps] = useState<CoverageOverlap[]>([]);
+  const [discoveredPartitions, setDiscoveredPartitions] = useState<
+    Array<{ name: string; mount: string; letter?: string | null; label?: string | null; host_count?: number }>
+  >([]);
+
+  useEffect(() => {
+    if (activeTab !== 'thresholds') return;
+    settingsService
+      .getDiscoveredPartitions()
+      .then(setDiscoveredPartitions)
+      .catch(() => setDiscoveredPartitions([]));
+  }, [activeTab]);
+
+  const refreshGroups = async () => {
+    try {
+      const data = await groupsService.list();
+      setGroups(data);
+      if (!selectedGroupId && data[0]) setSelectedGroupId(data[0].id);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const refreshCoverage = async () => {
+    try {
+      const [map, ov] = await Promise.all([groupsService.coverageMap(), groupsService.overlaps()]);
+      setCoverageRows(map);
+      setOverlaps(ov);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'groups') {
+      void refreshGroups();
+    }
+    if (activeTab === 'coverage') {
+      void refreshCoverage();
+    }
+    if (activeTab === 'platform') {
+      void settingsService
+        .getPlatformStatus()
+        .then(setPlatformStatus)
+        .catch(() => setPlatformStatus(null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!selectedGroupId) {
+      setRevisions([]);
+      return;
+    }
+    groupsService
+      .revisions(selectedGroupId)
+      .then(setRevisions)
+      .catch(() => setRevisions([]));
+  }, [selectedGroupId]);
 
   // Token Modal
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
@@ -92,8 +211,25 @@ export const SettingsView: React.FC = () => {
       setFormError('Le seuil Disque Warning doit être strictement inférieur au seuil Critique.');
       return;
     }
+    for (const rule of thresholdsForm.diskMountRules || []) {
+      const mount = rule.mount?.trim();
+      if (!mount) {
+        setFormError('Chaque plafond de partition doit avoir un point de montage (ex. /u01).');
+        return;
+      }
+      if (rule.warning >= rule.critical) {
+        setFormError(`Pour ${mount}, le Warning doit être strictement inférieur au Critique.`);
+        return;
+      }
+    }
 
-    updateGlobalThresholds(thresholdsForm);
+    updateGlobalThresholds({
+      ...thresholdsForm,
+      diskMountRules: (thresholdsForm.diskMountRules || []).map((r) => ({
+        ...r,
+        mount: r.mount.trim(),
+      })),
+    });
   };
 
   const handleAddRecipient = () => {
@@ -126,84 +262,58 @@ export const SettingsView: React.FC = () => {
     updateMessagingConfig(messagingForm);
   };
 
-  const handleTestMessaging = () => {
+  const handleTestMessaging = async () => {
+    if (currentRole !== 'Admin') return;
+    const to = (testMailTo || messagingForm.recipients[0] || '').trim();
+    if (!to) {
+      addToast({
+        type: 'error',
+        title: 'Destinataire manquant',
+        message: 'Ajoutez un destinataire ou saisissez une adresse pour le mail de test.',
+      });
+      return;
+    }
+    if (!messagingForm.enabled) {
+      addToast({
+        type: 'warning',
+        title: 'Messagerie désactivée',
+        message: 'Cochez « Activer les notifications » et enregistrez avant le test.',
+      });
+      return;
+    }
+    if (!messagingForm.apiEndpoint || !messagingForm.apiKey) {
+      addToast({
+        type: 'error',
+        title: 'API non configurée',
+        message: 'Renseignez endpoint + clé API, puis Enregistrer.',
+      });
+      return;
+    }
+    setTestMailBusy(true);
     addToast({
       type: 'info',
-      title: 'Test API de messagerie en cours',
-      message: `Envoi d'un message de test via l'API CBC...`,
+      title: 'Envoi du mail de test…',
+      message: `Vers ${to}`,
     });
-    setTimeout(() => {
+    try {
+      await settingsService.sendTestMail({ to, subject: 'SENTINEL · Mail de test' });
       addToast({
         type: 'success',
-        title: 'Test API réussi !',
-        message: 'L\'API de messagerie CBC a accepté le message de test avec succès.',
+        title: 'Mail envoyé',
+        message: `Le mail de test a été accepté par l’API CBC pour ${to}.`,
       });
-    }, 1200);
-  };
-
-  const handleAddService = () => {
-    if (!newService.trim()) {
+    } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Échec d’envoi — vérifiez endpoint, clé, réseau et /health de l’API Mail.';
       addToast({
         type: 'error',
-        title: 'Service invalide',
-        message: 'Veuillez renseigner un nom de service valide.',
+        title: 'Échec du mail de test',
+        message: String(detail),
       });
-      return;
+    } finally {
+      setTestMailBusy(false);
     }
-    if (servicesForm.services.includes(newService)) {
-      addToast({
-        type: 'warning',
-        title: 'Service existant',
-        message: 'Ce service fait déjà partie de la liste.',
-      });
-      return;
-    }
-    setServicesForm({ ...servicesForm, services: [...servicesForm.services, newService] });
-    setNewService('');
-  };
-
-  const handleRemoveService = (service: string) => {
-    setServicesForm({ ...servicesForm, services: servicesForm.services.filter(s => s !== service) });
-  };
-
-  const handleSaveServices = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateServicesMonitoringConfig(servicesForm);
-  };
-
-  const handleAddFile = () => {
-    if (!newFilePath.trim()) {
-      addToast({
-        type: 'error',
-        title: 'Fichier invalide',
-        message: 'Veuillez renseigner un chemin de fichier valide.',
-      });
-      return;
-    }
-    const newFile: { path: string; max_size_mb?: number } = { path: newFilePath };
-    if (newFileSizeMb) {
-      newFile.max_size_mb = parseInt(newFileSizeMb);
-    }
-    if (filesForm.files.some(f => f.path === newFilePath)) {
-      addToast({
-        type: 'warning',
-        title: 'Fichier existant',
-        message: 'Ce fichier fait déjà partie de la liste.',
-      });
-      return;
-    }
-    setFilesForm({ ...filesForm, files: [...filesForm.files, newFile] });
-    setNewFilePath('');
-    setNewFileSizeMb('');
-  };
-
-  const handleRemoveFile = (filePath: string) => {
-    setFilesForm({ ...filesForm, files: filesForm.files.filter(f => f.path !== filePath) });
-  };
-
-  const handleSaveFiles = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateFilesMonitoringConfig(filesForm);
   };
 
   const handleSaveRetention = (e: React.FormEvent) => {
@@ -211,9 +321,10 @@ export const SettingsView: React.FC = () => {
     updateRetentionConfig(retentionForm);
   };
 
-  const handleGenerateToken = () => {
-    const tokenObj = generateEnrollmentToken();
-    setCurrentTokenCode(tokenObj.token);
+  const handleGenerateToken = async () => {
+    const created = await generateEnrollmentToken();
+    if (!created) return;
+    setCurrentTokenCode(created.token);
     setTokenModalOpen(true);
   };
 
@@ -224,19 +335,11 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Settings className="w-5 h-5 text-[#D0B335]" />
-            Configuration Globale de la Plateforme
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Paramétrage des seuils d'alerte, notifications SMTP, rétention et jetons d'enrôlement
-          </p>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Paramètres"
+        subtitle="Réglages de plateforme — seuils, notifications, rétention et jetons."
+      />
 
       {currentRole !== 'Admin' && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 font-medium">
@@ -244,98 +347,39 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 space-x-2 bg-white px-4 pt-2 rounded-t-2xl">
-        <button
-          onClick={() => setActiveTab('thresholds')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'thresholds'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          Seuils d'alerte globaux
-        </button>
-        <button
-          onClick={() => setActiveTab('messaging')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'messaging'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          Notifications API CBC
-        </button>
-        <button
-          onClick={() => setActiveTab('services')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'services'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          Supervision Services
-        </button>
-        <button
-          onClick={() => setActiveTab('files')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'files'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <File className="w-4 h-4" />
-          Supervision Fichiers
-        </button>
-        <button
-          onClick={() => setActiveTab('availability')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'availability'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          Fenêtres Horaires
-        </button>
-        <button
-          onClick={() => setActiveTab('retention')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'retention'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          Rétention des données
-        </button>
-        <button
-          onClick={() => setActiveTab('tokens')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'tokens'
-              ? 'border-[#D0B335] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Key className="w-4 h-4" />
-          Jetons d'enrôlement ({enrollmentTokens.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('compliance')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === 'compliance'
-              ? 'border-[#D0B335] text-slate-900 font-extrabold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Award className="w-4 h-4 text-[#D0B335]" />
-          Conformité & Certifications Banking
-        </button>
-      </div>
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+        <aside className="cbc-card w-full lg:w-[240px] shrink-0 overflow-hidden lg:sticky lg:top-6">
+          <div className="px-3.5 py-3 border-b border-slate-200">
+            <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Configuration</div>
+          </div>
+          <nav className="p-2 flex lg:flex-col gap-0.5 overflow-x-auto lg:overflow-visible">
+            {SETTINGS_NAV.map((item) => {
+              const Icon = item.icon;
+              const active = activeTab === item.id;
+              const label =
+                item.id === 'tokens'
+                  ? `${item.label} (${enrollmentTokens.length})`
+                  : item.label;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-[12.5px] font-semibold whitespace-nowrap transition-colors ${
+                    active
+                      ? 'bg-[#D0B335]/10 text-slate-900 border border-[#D0B335]/30'
+                      : 'text-slate-500 border border-transparent hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#A68523]' : 'text-slate-400'}`} />
+                  <span className="leading-snug">{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
+        <div className="flex-1 min-w-0 space-y-5">
       {/* TAB 1: THRESHOLDS */}
       {activeTab === 'thresholds' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
@@ -414,6 +458,9 @@ export const SettingsView: React.FC = () => {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <HardDrive className="w-4 h-4 text-purple-500" /> Seuils Disque (%)
                 </h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Défaut pour les partitions alertées sans plafond dédié.
+                </p>
                 <div>
                   <label className="block text-xs text-slate-600 font-medium mb-1">Warning (%)</label>
                   <input
@@ -438,6 +485,162 @@ export const SettingsView: React.FC = () => {
                     className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-rose-600"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Plafonds par partition (défaut flotte)
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    Défauts pour tout le parc. Pour un hôte précis, préférez{' '}
+                    <strong>Agents → Configuration</strong> (sélection depuis les partitions rapportées par l’agent).
+                  </p>
+                </div>
+                {currentRole === 'Admin' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setThresholdsForm({
+                        ...thresholdsForm,
+                        diskMountRules: [
+                          ...(thresholdsForm.diskMountRules || []),
+                          {
+                            mount:
+                              discoveredPartitions.find(
+                                (p) => !(thresholdsForm.diskMountRules || []).some((r) => r.mount === p.mount)
+                              )?.mount || '',
+                            warning: thresholdsForm.diskWarning,
+                            critical: thresholdsForm.diskCritical,
+                          },
+                        ],
+                      })
+                    }
+                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-[#D0B335]"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Ajouter
+                  </button>
+                )}
+              </div>
+
+              {discoveredPartitions.length === 0 && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  Aucune partition découverte pour l’instant. Les agents envoient la lettre / le nom / le montage à chaque heartbeat.
+                </p>
+              )}
+
+              {(thresholdsForm.diskMountRules || []).length === 0 ? (
+                <p className="text-[11px] text-slate-400 italic">Aucun plafond spécifique — le défaut disque s’applique.</p>
+              ) : (
+                <div className="space-y-2">
+                  {(thresholdsForm.diskMountRules || []).map((rule, idx) => (
+                    <div
+                      key={`mount-rule-${idx}`}
+                      className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_1fr_1fr_auto] gap-2 items-end"
+                    >
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-1">Partition</label>
+                        <select
+                          disabled={currentRole !== 'Admin'}
+                          value={rule.mount}
+                          onChange={(e) => {
+                            const next = [...(thresholdsForm.diskMountRules || [])];
+                            next[idx] = { ...next[idx], mount: e.target.value };
+                            setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
+                          }}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900"
+                        >
+                          <option value="">— Sélectionner —</option>
+                          {discoveredPartitions.map((p) => (
+                            <option key={p.mount} value={p.mount}>
+                              {(p.letter ? `${p.letter}: ` : '') +
+                                (p.label ? `${p.label} · ` : '') +
+                                p.mount +
+                                (p.host_count ? ` (${p.host_count} hôte${p.host_count > 1 ? 's' : ''})` : '')}
+                            </option>
+                          ))}
+                          {rule.mount && !discoveredPartitions.some((p) => p.mount === rule.mount) && (
+                            <option value={rule.mount}>{rule.mount}</option>
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-1">Warning (%)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          disabled={currentRole !== 'Admin'}
+                          value={rule.warning}
+                          onChange={(e) => {
+                            const next = [...(thresholdsForm.diskMountRules || [])];
+                            next[idx] = { ...next[idx], warning: Number(e.target.value) };
+                            setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
+                          }}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-1">Critique (%)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          disabled={currentRole !== 'Admin'}
+                          value={rule.critical}
+                          onChange={(e) => {
+                            const next = [...(thresholdsForm.diskMountRules || [])];
+                            next[idx] = { ...next[idx], critical: Number(e.target.value) };
+                            setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
+                          }}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-rose-600"
+                        />
+                      </div>
+                      {currentRole === 'Admin' && (
+                        <button
+                          type="button"
+                          aria-label="Supprimer"
+                          onClick={() => {
+                            const next = (thresholdsForm.diskMountRules || []).filter((_, i) => i !== idx);
+                            setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
+                          }}
+                          className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 bg-white"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Durée avant alerte (secondes)</label>
+                <p className="text-[11px] text-slate-500 mb-2">La métrique doit rester au-dessus du seuil pendant cette durée — un pic isolé n’alerte pas.</p>
+                <input
+                  type="number"
+                  min="0"
+                  disabled={currentRole !== 'Admin'}
+                  value={thresholdsForm.durationSeconds ?? 300}
+                  onChange={(e) => setThresholdsForm({ ...thresholdsForm, durationSeconds: Number(e.target.value) })}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                />
+              </div>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Escalade si non acquittée (minutes)</label>
+                <p className="text-[11px] text-slate-500 mb-2">Passe en Critique et re-notifie (mail CBC + webhook HMAC).</p>
+                <input
+                  type="number"
+                  min="1"
+                  disabled={currentRole !== 'Admin'}
+                  value={thresholdsForm.escalateAfterMinutes ?? 15}
+                  onChange={(e) => setThresholdsForm({ ...thresholdsForm, escalateAfterMinutes: Number(e.target.value) })}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                />
               </div>
             </div>
 
@@ -560,6 +763,73 @@ export const SettingsView: React.FC = () => {
                     Activer les notifications
                   </label>
                 </div>
+                <p className="text-[11px] text-slate-500 col-span-full">
+                  Les mails utilisent des gabarits HTML par type d'alerte et par action (plugin + statut),
+                  avec surcharge possible par hôte. Enregistrez endpoint, clé API et au moins un destinataire
+                  ici — c'est cette configuration (pas seulement les variables d'environnement) qui déclenche l'envoi.
+                </p>
+                <div className="col-span-full pt-2 space-y-2">
+                  <label className="block text-xs font-bold text-slate-700">Mail de test — destinataire</label>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <input
+                      type="email"
+                      disabled={currentRole !== 'Admin'}
+                      value={testMailTo}
+                      onChange={(e) => setTestMailTo(e.target.value)}
+                      placeholder={messagingForm.recipients[0] || 'vous@cbcam.cm'}
+                      className="w-full sm:w-80 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+                    />
+                    <span className="text-[11px] text-slate-400">
+                      Vide = premier destinataire de la liste
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Plus tard : chaque hôte aura un propriétaire ; le mail ira au propriétaire, avec la
+                    hiérarchie (manager) en copie.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 space-y-4">
+              <h4 className="text-sm font-bold text-slate-900 tracking-tight">Webhook HMAC (INT-003)</h4>
+              <p className="text-[11px] text-slate-500">POST JSON signé : en-tête X-CBC-Signature = sha256=&lt;hmac&gt;. Aucun compte cloud.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">URL webhook</label>
+                  <input
+                    type="text"
+                    disabled={currentRole !== 'Admin'}
+                    value={messagingForm.webhookUrl || ''}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, webhookUrl: e.target.value })}
+                    placeholder="https://itsm.interne.cbc/hooks/alerts"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Secret HMAC</label>
+                  <input
+                    type="password"
+                    disabled={currentRole !== 'Admin'}
+                    value={messagingForm.webhookSecret || ''}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, webhookSecret: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="webhookEnabled"
+                    disabled={currentRole !== 'Admin'}
+                    checked={Boolean(messagingForm.webhookEnabled)}
+                    onChange={(e) => setMessagingForm({ ...messagingForm, webhookEnabled: e.target.checked })}
+                    className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
+                  />
+                  <label htmlFor="webhookEnabled" className="text-xs font-bold text-slate-700">
+                    Activer le webhook signé
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -575,226 +845,266 @@ export const SettingsView: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  disabled={testMailBusy}
                   onClick={handleTestMessaging}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors border border-slate-200"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors border border-slate-200 disabled:opacity-60"
                 >
                   <Send className="w-4 h-4" />
-                  Tester l'API
+                  {testMailBusy ? 'Envoi…' : 'Envoyer un mail de test'}
                 </button>
               </div>
             )}
           </form>
+        </div>
+      )}
+
+      {activeTab === 'groups' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+          <div>
+            <h3 className="text-sm font-black text-slate-900">Groupes de machines & config distante (AGT-008)</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Publiez une config versionnée. Les agents du groupe la reçoivent au prochain heartbeat (sans SSH).
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-end">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">Nouveau groupe</label>
+              <input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                disabled={currentRole !== 'Admin'}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-xs w-56"
+                placeholder="Agence"
+              />
+            </div>
+            {currentRole === 'Admin' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newGroupName.trim()) return;
+                  await groupsService.create(newGroupName.trim());
+                  setNewGroupName('');
+                  addToast({ type: 'success', title: 'Groupe créé', message: newGroupName });
+                  await refreshGroups();
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+              >
+                Créer
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-700">Groupe</label>
+              <select
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+              >
+                <option value="">—</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} (v{g.current_version}, {g.agent_count} agents)
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Assigner agent (ID)</label>
+                  <input
+                    value={assignAgentId}
+                    onChange={(e) => setAssignAgentId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono"
+                    placeholder="uuid agent"
+                  />
+                </div>
+                {currentRole !== 'ReadOnly' && (
+                  <button
+                    type="button"
+                    disabled={!selectedGroupId || !assignAgentId.trim()}
+                    onClick={async () => {
+                      await groupsService.assign(assignAgentId.trim(), selectedGroupId);
+                      addToast({ type: 'success', title: 'Agent assigné', message: 'Config sera poussée au prochain heartbeat' });
+                      await refreshGroups();
+                    }}
+                    className="px-3 py-2 rounded-xl bg-[#D0B335] text-slate-950 text-xs font-bold disabled:opacity-40"
+                  >
+                    Assigner
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Payload JSON à publier</label>
+                <textarea
+                  rows={12}
+                  value={publishJson}
+                  onChange={(e) => setPublishJson(e.target.value)}
+                  disabled={currentRole !== 'Admin'}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-[11px] font-mono"
+                />
+                <input
+                  value={publishNote}
+                  onChange={(e) => setPublishNote(e.target.value)}
+                  placeholder="Note de version"
+                  disabled={currentRole !== 'Admin'}
+                  className="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                />
+                {currentRole === 'Admin' && (
+                  <button
+                    type="button"
+                    className="mt-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+                    onClick={async () => {
+                      if (!selectedGroupId) return;
+                      try {
+                        const payload = JSON.parse(publishJson);
+                        const res = await groupsService.publish(selectedGroupId, payload, publishNote || undefined);
+                        addToast({ type: 'success', title: 'Config publiée', message: `Version ${res.version}` });
+                        const revs = await groupsService.revisions(selectedGroupId);
+                        setRevisions(revs);
+                        await refreshGroups();
+                      } catch (err) {
+                        addToast({ type: 'error', title: 'Publication échouée', message: String(err) });
+                      }
+                    }}
+                  >
+                    Publier
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-slate-700 mb-2">Historique / rollback</h4>
+              <div className="space-y-2 max-h-[420px] overflow-auto">
+                {revisions.length === 0 ? (
+                  <p className="text-xs text-slate-500">Aucune révision.</p>
+                ) : (
+                  revisions.map((r) => (
+                    <div key={r.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="font-bold">v{r.version}</span>
+                        <span className="text-slate-400">{r.created_by || '—'}</span>
+                      </div>
+                      <p className="text-slate-600 mt-1">{r.note || '—'}</p>
+                      {currentRole === 'Admin' && (
+                        <button
+                          type="button"
+                          className="mt-2 text-[11px] font-bold text-blue-700"
+                          onClick={async () => {
+                            const res = await groupsService.rollback(selectedGroupId, r.version);
+                            addToast({ type: 'success', title: 'Rollback', message: `Nouvelle version ${res.version}` });
+                            setRevisions(await groupsService.revisions(selectedGroupId));
+                            await refreshGroups();
+                          }}
+                        >
+                          Rollback vers cette version
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'coverage' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+          <div>
+            <h3 className="text-sm font-black text-slate-900">Carte de couverture PowerShell (DES-004)</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Plugins livrés vs inventaire CBC. Signalez les chevauchements script+agent (AGT-014).
+            </p>
+          </div>
+          <table className="w-full text-xs">
+            <thead className="text-left text-slate-500 uppercase text-[10px]">
+              <tr>
+                <th className="py-2">Check</th>
+                <th className="py-2">Plugin</th>
+                <th className="py-2">Statut</th>
+                <th className="py-2">Sprint</th>
+                <th className="py-2">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coverageRows.map((row) => (
+                <tr key={row.check_id} className="border-t border-slate-100">
+                  <td className="py-2 font-mono font-bold">{row.check_id}</td>
+                  <td className="py-2">{row.plugin}</td>
+                  <td className="py-2">{row.status}</td>
+                  <td className="py-2">{row.sprint}</td>
+                  <td className="py-2 text-slate-500">{row.notes || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div>
+            <h4 className="text-xs font-bold text-slate-800 mb-2">Chevauchements actifs</h4>
+            {overlaps.length === 0 ? (
+              <p className="text-xs text-slate-500">Aucun chevauchement signalé.</p>
+            ) : (
+              <ul className="space-y-2">
+                {overlaps.map((o) => (
+                  <li key={o.id} className="flex justify-between gap-3 text-xs p-2 rounded-lg bg-amber-50 border border-amber-100">
+                    <span>
+                      {o.hostname || o.agent_id} · {o.check_id} ↔ {o.plugin}
+                    </span>
+                    {currentRole !== 'ReadOnly' && (
+                      <button
+                        type="button"
+                        className="font-bold text-emerald-700"
+                        onClick={async () => {
+                          await groupsService.clearOverlap(o.id);
+                          await refreshCoverage();
+                        }}
+                      >
+                        Lever
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
       {/* TAB 3: SUPERVISION SERVICES */}
-      {activeTab === 'services' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
-          <form onSubmit={handleSaveServices} className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                Configuration de la supervision des services système
-              </h4>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="servicesEnabled"
-                  disabled={currentRole !== 'Admin'}
-                  checked={servicesForm.enabled}
-                  onChange={(e) => setServicesForm({ ...servicesForm, enabled: e.target.checked })}
-                  className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
-                />
-                <label htmlFor="servicesEnabled" className="text-xs font-bold text-slate-700">
-                  Activer la supervision
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                Liste des services à superviser
-              </h4>
-              <p className="text-xs text-slate-500">
-                Ajoutez les services système à superviser (ex: SWIFT AutoClient, SQL Server, IIS)
-              </p>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newService}
-                  onChange={(e) => setNewService(e.target.value)}
-                  placeholder="Nom du service (ex: SWIFT AutoClient)"
-                  disabled={currentRole !== 'Admin'}
-                  className="w-full sm:w-80 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
-                />
-                {currentRole === 'Admin' && (
-                  <button
-                    type="button"
-                    onClick={handleAddService}
-                    className="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-slate-800"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Ajouter
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                {servicesForm.services.map((service) => (
-                  <span
-                    key={service}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200"
-                  >
-                    {service}
-                    {currentRole === 'Admin' && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveService(service)}
-                        className="text-slate-400 hover:text-rose-600"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Intervalle de vérification (secondes)</label>
-              <input
-                type="number"
-                disabled={currentRole !== 'Admin'}
-                value={servicesForm.interval}
-                onChange={(e) => setServicesForm({ ...servicesForm, interval: Number(e.target.value) })}
-                className="w-full sm:w-40 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
-              />
-            </div>
-
-            {/* Actions */}
-            {currentRole === 'Admin' && (
-              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
-                >
-                  <Save className="w-4 h-4" />
-                  Enregistrer la configuration
-                </button>
-              </div>
-            )}
-          </form>
-        </div>
-      )}
-
-      {/* TAB 4: SUPERVISION FICHIERS */}
-      {activeTab === 'files' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
-          <form onSubmit={handleSaveFiles} className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                Configuration de la supervision des fichiers
-              </h4>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="filesEnabled"
-                  disabled={currentRole !== 'Admin'}
-                  checked={filesForm.enabled}
-                  onChange={(e) => setFilesForm({ ...filesForm, enabled: e.target.checked })}
-                  className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
-                />
-                <label htmlFor="filesEnabled" className="text-xs font-bold text-slate-700">
-                  Activer la supervision
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
-                Liste des fichiers à superviser
-              </h4>
-              <p className="text-xs text-slate-500">
-                Ajoutez les fichiers à superviser (ex: fichiers de logs, fichiers de configuration)
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={newFilePath}
-                  onChange={(e) => setNewFilePath(e.target.value)}
-                  placeholder="Chemin du fichier (ex: /var/log/swift.log)"
-                  disabled={currentRole !== 'Admin'}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
-                />
-                <input
-                  type="number"
-                  value={newFileSizeMb}
-                  onChange={(e) => setNewFileSizeMb(e.target.value)}
-                  placeholder="Taille max (Mo, optionnel)"
-                  disabled={currentRole !== 'Admin'}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
-                />
-                {currentRole === 'Admin' && (
-                  <button
-                    type="button"
-                    onClick={handleAddFile}
-                    className="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-slate-800"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Ajouter
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-2 pt-2">
-                {filesForm.files.map((file) => (
-                  <div
-                    key={file.path}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200"
-                  >
-                    <span className="font-mono">{file.path}</span>
-                    {file.max_size_mb && (
-                      <span className="text-slate-500">(max: {file.max_size_mb} Mo)</span>
-                    )}
-                    {currentRole === 'Admin' && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(file.path)}
-                        className="text-slate-400 hover:text-rose-600"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Intervalle de vérification (secondes)</label>
-              <input
-                type="number"
-                disabled={currentRole !== 'Admin'}
-                value={filesForm.interval}
-                onChange={(e) => setFilesForm({ ...filesForm, interval: Number(e.target.value) })}
-                className="w-full sm:w-40 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
-              />
-            </div>
-
-            {/* Actions */}
-            {currentRole === 'Admin' && (
-              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
-                >
-                  <Save className="w-4 h-4" />
-                  Enregistrer la configuration
-                </button>
-              </div>
-            )}
-          </form>
+      {(activeTab === 'services' || activeTab === 'files') && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+          <h4 className="text-sm font-bold text-slate-900 tracking-tight m-0">
+            La supervision se règle désormais par hôte
+          </h4>
+          <p className="text-[13px] leading-relaxed text-slate-600 mt-3">
+            Les services et fichiers à surveiller dépendent de la machine :
+            une passerelle SWIFT et un poste bureautique n'ont ni les mêmes
+            services ni les mêmes fichiers critiques. Un réglage global n'aurait
+            de sens sur aucun des deux.
+          </p>
+          <p className="text-[13px] leading-relaxed text-slate-600">
+            Ouvrez la fiche d'un hôte, onglet <strong>Supervision</strong> : vous
+            y choisissez les partitions et leurs seuils, les services avec leur
+            état attendu, et les fichiers avec leur condition — présence exigée
+            ou présence interdite.
+          </p>
+          <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-[12.5px] text-amber-900">
+            Ces deux écrans annonçaient auparavant « mise à jour avec succès »
+            sans rien enregistrer : ni côté interface, ni côté serveur. Le
+            paramétrage disparaissait au rafraîchissement.
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/agents')}
+            className="cbc-btn-primary mt-5"
+          >
+            Ouvrir le parc
+          </button>
         </div>
       )}
 
@@ -1003,7 +1313,7 @@ export const SettingsView: React.FC = () => {
 
             {currentRole === 'Admin' && (
               <button
-                onClick={handleGenerateToken}
+                onClick={() => void handleGenerateToken()}
                 className="px-4 py-2 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -1115,6 +1425,86 @@ export const SettingsView: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'ldap' && <LdapPanel />}
+
+      {activeTab === 'platform' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black text-slate-900">Santé plateforme (NFR-010)</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Postgres, Redis, VictoriaMetrics, Loki + budgets de latence (FS7).
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+              onClick={async () => {
+                try {
+                  setPlatformStatus(await settingsService.getPlatformStatus());
+                } catch {
+                  setPlatformStatus(null);
+                }
+              }}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Rafraîchir
+            </button>
+          </div>
+          {!platformStatus ? (
+            <p className="text-xs text-slate-500">Impossible de charger le statut.</p>
+          ) : (
+            <>
+              <p className="text-sm font-bold">
+                Statut global:{' '}
+                <span
+                  className={
+                    platformStatus.status === 'healthy'
+                      ? 'text-emerald-700'
+                      : platformStatus.status === 'degraded'
+                        ? 'text-amber-700'
+                        : 'text-rose-700'
+                  }
+                >
+                  {platformStatus.status}
+                </span>
+                {platformStatus.checked_at ? (
+                  <span className="text-xs font-medium text-slate-400 ml-2">{platformStatus.checked_at}</span>
+                ) : null}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Object.entries(
+                  (platformStatus.components || {}) as Record<string, { status?: string; error?: string }>
+                ).map(([name, c]) => (
+                  <div key={name} className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                    <p className="font-bold uppercase tracking-wide text-slate-600">{name}</p>
+                    <p className="mt-1 font-semibold">{c.status}</p>
+                    {c.error ? <p className="text-rose-600 mt-1">{c.error}</p> : null}
+                  </div>
+                ))}
+              </div>
+              {platformStatus.latency && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  {(['collect_to_ingest', 'detect_to_notify', 'page_load', 'api_rtt'] as const).map((key) => {
+                    const row = platformStatus.latency?.[key];
+                    if (!row) return null;
+                    return (
+                      <div key={key} className="p-3 rounded-xl border border-slate-200 text-xs">
+                        <p className="font-bold text-slate-700">{key}</p>
+                        <p className="mt-1">
+                          n={row.count ?? 0} · p95={row.p95_s ?? '—'}s · budget={row.budget_s ?? '—'}s ·{' '}
+                          {row.within_budget == null ? 'n/a' : row.within_budget ? 'OK' : 'BREACH'}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -1331,6 +1721,8 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {/* New Token Modal */}
       <Modal

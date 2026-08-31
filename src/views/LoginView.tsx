@@ -5,13 +5,19 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Info } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
+import { useI18n } from '../i18n';
 
 export const LoginView: React.FC = () => {
-  const { login, users } = useApp();
-  const [email, setEmail] = useState('jp.mbida@cbcam.cm');
-  const [password, setPassword] = useState('Password123!');
+  const { t } = useI18n();
+  const { login } = useApp();
+  // Identifiant : nom de connexion OU adresse email. Le formulaire imposait
+  // un email puis n'envoyait que la partie locale (`email.split('@')[0]`) :
+  // impossible de se connecter avec son seul nom d'utilisateur, et deux
+  // adresses de domaines différents se réduisaient au même identifiant.
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,221 +27,144 @@ export const LoginView: React.FC = () => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!email || !email.includes('@')) {
-      setErrorMsg('Veuillez saisir une adresse email bancaire valide.');
+    const credential = identifier.trim();
+    if (!credential) {
+      setErrorMsg(t('login.errIdentifier'));
       return;
     }
     if (!password) {
-      setErrorMsg('Veuillez saisir votre mot de passe.');
+      setErrorMsg(t('login.errPassword'));
       return;
     }
 
     setLoading(true);
-
     try {
-      // Extraire le username de l'email (partie avant @)
-      const username = email.split('@')[0];
-      await login(username, password);
-    } catch (error) {
-      setErrorMsg('Identifiants invalides ou erreur serveur.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (roleIndex: number) => {
-    const demoUsers = [
-      { email: 'admin@cbc.cm', password: 'Admin12' },
-      { email: 'operator@cbcam.cm', password: 'Operator123!' },
-      { email: 'readonly@cbcam.cm', password: 'Readonly123!' },
-    ];
-
-    const user = demoUsers[roleIndex] || demoUsers[0];
-    setEmail(user.email);
-    setPassword(user.password);
-    setLoading(true);
-
-    try {
-      // Extraire le username de l'email (partie avant @)
-      const username = user.email.split('@')[0];
-      await login(username, user.password);
-    } catch (error) {
-      setErrorMsg('Erreur de connexion.');
+      // Envoyé tel quel : c'est le serveur qui décide s'il s'agit d'un nom de
+      // connexion, d'une adresse email ou d'un compte d'annuaire.
+      await login(credential, password);
+    } catch {
+      setErrorMsg(t('login.errCredentials'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Background Decorative Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#D0B335_1px,transparent_1px)] [background-size:32px_32px] opacity-10 pointer-events-none" />
-
-      {/* Top Banner */}
-      <div className="relative z-10 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E6CA4E] to-[#D0B335] text-slate-950 font-black text-base flex items-center justify-center shadow-lg shadow-[#D0B335]/20 border border-amber-300/40">
-            CBC
-          </div>
-          <div>
-            <h1 className="text-base font-extrabold text-white tracking-tight">
+    <div
+      className="min-h-screen flex items-center justify-center p-10"
+      style={{
+        background: '#020617',
+        backgroundImage: 'radial-gradient(rgba(208,179,53,.10) 1px, transparent 1px)',
+        backgroundSize: '22px 22px',
+      }}
+    >
+      <div className="w-full max-w-[420px]">
+        <div className="bg-white rounded-2xl px-[34px] py-9">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#D0B335] text-[#020617] text-[13px] font-extrabold flex items-center justify-center">
+              CBC
+            </div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#777777]">
               Commercial Bank Cameroun
-            </h1>
-            <p className="text-xs text-[#D0B335] font-semibold tracking-wider uppercase">
-              Supervision Platform v1.0
-            </p>
-          </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400">
-          <ShieldCheck className="w-4 h-4 text-[#D0B335]" />
-          Accès Sécurisé HTTPS / SSL
-        </div>
-      </div>
-
-      {/* Main Login Form Container */}
-      <div className="relative z-10 my-auto p-4 sm:p-6 flex justify-center items-center">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 p-8">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Connexion</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Accédez à la console de supervision centralisée CBC
-            </p>
+            </div>
           </div>
 
-          {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
-              {errorMsg}
-            </div>
-          )}
+          <h1 className="text-[22px] font-extrabold tracking-tight mt-5 mb-0">CBC Supervision</h1>
+          <p className="text-[13px] leading-relaxed text-[#777777] mt-2 mb-6">
+            {t('login.tagline')}
+          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Adresse Email Professionnelle
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nom@cbcam.cm"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D0B335] focus:bg-white transition-all font-medium"
-                  required
-                />
-              </div>
-            </div>
+          <form onSubmit={handleSubmit}>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('login.identifier')}</label>
+            <input
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder={t('login.identifierPlaceholder')}
+              className="cbc-input mb-4"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+            />
 
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="text-xs font-bold text-slate-700">Mot de passe</label>
-                <button
-                  type="button"
-                  onClick={() => setForgotModalOpen(true)}
-                  className="text-[11px] font-semibold text-[#8D771B] hover:underline"
-                >
-                  Mot de passe oublié ?
-                </button>
-              </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D0B335] focus:bg-white transition-all font-medium"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600"
-                  aria-label="Afficher ou masquer le mot de passe"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('login.password')}</label>
+            <div className="relative mb-5">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="cbc-input pr-10"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 rounded-lg"
+                title={t('login.showPassword')}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 group mt-2"
+              className="cbc-btn-primary w-full justify-center py-3 disabled:opacity-60"
             >
-              {loading ? (
-                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Se connecter</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
+              {loading ? t('login.submitting') : t('login.submit')}
             </button>
+
+            {errorMsg && (
+              <p className="mt-3 text-center text-[12.5px] text-rose-600">{errorMsg}</p>
+            )}
           </form>
 
-          {/* Preset Demo Logins for Quick QA Evaluation */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-[11px] font-bold text-slate-400 text-center uppercase tracking-wider mb-3">
-              Démo — Accès direct par rôle
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handleQuickLogin(0)}
-                className="p-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-[11px] font-bold text-slate-900 text-center transition-colors"
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => handleQuickLogin(1)}
-                className="p-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl text-[11px] font-bold text-slate-900 text-center transition-colors"
-              >
-                Opérateur
-              </button>
-              <button
-                onClick={() => handleQuickLogin(2)}
-                className="p-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-[11px] font-bold text-slate-900 text-center transition-colors"
-              >
-                Lecture
-              </button>
-            </div>
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => setForgotModalOpen(true)}
+              className="text-[12.5px] font-medium text-[#A68523] hover:text-[#8A6D1B]"
+            >
+              {t('login.forgot')}
+            </button>
           </div>
+
+          <div className="flex items-center gap-3 my-6">
+            <span className="flex-1 h-px bg-slate-200" />
+            <span className="text-[11px] text-slate-400">{t('login.or')}</span>
+            <span className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          <button
+            type="button"
+            disabled
+            className="w-full py-2.5 border border-slate-200 rounded-lg bg-white text-[13px] font-semibold text-slate-800 flex items-center justify-center gap-2 opacity-90 cursor-not-allowed"
+          >
+            {t('login.sso')}
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10.5px] font-semibold">
+              {t('login.ssoSoon')}
+            </span>
+          </button>
         </div>
+
+        <p className="text-center text-[11px] leading-relaxed text-slate-500 mt-5">
+          Usage interne CBC · ISO 27001 & COBAC
+        </p>
       </div>
 
-      {/* Footer */}
-      <footer className="relative z-10 p-6 text-center text-xs text-slate-500 border-t border-slate-900">
-        Commercial Bank Cameroun © 2026. Tous droits réservés. Direction des Systèmes d'Information.
-      </footer>
-
-      {/* Forgot Password Modal */}
       <Modal
         isOpen={forgotModalOpen}
         onClose={() => setForgotModalOpen(false)}
-        title="Récupération de mot de passe"
+        title="Mot de passe oublié"
         footer={
-          <button
-            onClick={() => setForgotModalOpen(false)}
-            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800"
-          >
+          <button type="button" onClick={() => setForgotModalOpen(false)} className="cbc-btn-secondary">
             Fermer
           </button>
         }
       >
-        <div className="space-y-3">
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
-            <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-900 leading-relaxed">
-              Pour des raisons de sécurité bancaire, la réinitialisation automatique du mot de passe
-              est désactivée en V1.
-            </p>
-          </div>
-          <p className="text-xs text-slate-600">
-            Veuillez contacter l'administrateur système DSI à l'adresse suivante :
-            <strong className="block text-slate-900 font-mono mt-1">sysadmin@cbcam.cm</strong>
-          </p>
-        </div>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Contactez votre administrateur DTDSI pour réinitialiser votre accès CBC Supervision.
+        </p>
       </Modal>
     </div>
   );

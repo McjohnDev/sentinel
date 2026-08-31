@@ -4,12 +4,16 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Badge } from '../components/common/Badge';
 import { ProgressBar } from '../components/common/ProgressBar';
-import { Modal } from '../components/common/Modal';
 import { AcknowledgeModal } from '../components/common/AcknowledgeModal';
-import { Alert } from '../types';
+import { PageHeader } from '../components/layout/PageHeader';
+import { EnrolmentSheet } from '../components/ui/EnrolmentSheet';
+import { PulseStrip } from '../components/layout/PulseStrip';
+import { Alert, AlertSeverity } from '../types';
+import { useI18n } from '../i18n';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,39 +29,53 @@ import {
 } from 'recharts';
 import {
   Server,
-  WifiOff,
   Bell,
-  AlertOctagon,
-  ArrowUpRight,
-  PlusCircle,
+  Plus,
   Download,
-  ExternalLink,
   CheckCircle2,
-  Copy,
-  Check,
   TrendingUp,
   PieChart as PieChartIcon,
-  Signal,
-  XCircle,
-  AlertTriangle,
+  ArrowRight,
+  ServerOff,
 } from 'lucide-react';
 import { BackendNotificationChannelStatus } from '../services/types/api.types';
 
+function severityRank(severity: AlertSeverity): number {
+  if (severity === 'critical') return 0;
+  if (severity === 'major' || severity === 'warning') return 1;
+  if (severity === 'minor') return 2;
+  return 3;
+}
+
+function triageSeverityStyle(severity: AlertSeverity) {
+  if (severity === 'critical') {
+    return { short: 'CRIT', bg: 'bg-rose-50', fg: 'text-rose-700', bd: 'border-rose-200' };
+  }
+  if (severity === 'major' || severity === 'warning') {
+    return { short: 'MAJ', bg: 'bg-amber-50', fg: 'text-amber-800', bd: 'border-amber-200' };
+  }
+  if (severity === 'minor') {
+    return { short: 'MIN', bg: 'bg-orange-50', fg: 'text-orange-800', bd: 'border-orange-200' };
+  }
+  return { short: 'INFO', bg: 'bg-slate-100', fg: 'text-slate-600', bd: 'border-slate-200' };
+}
+
 export const DashboardView: React.FC = () => {
+  const navigate = useNavigate();
+  const { t } = useI18n();
   const {
     agents,
     alerts,
     currentRole,
-    setActiveView,
     navigateToAgentDetail,
     acknowledgeAlert,
     exportCSV,
     generateEnrollmentToken,
   } = useApp();
 
-  const [tokenModalOpen, setTokenModalOpen] = useState(false);
-  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [enrolOpen, setEnrolOpen] = useState(false);
+  const [enrolToken, setEnrolToken] = useState<string | null>(null);
+  const [enrolExpires, setEnrolExpires] = useState<string | undefined>();
   const [pieMode, setPieMode] = useState<'os' | 'status' | 'alerts'>('os');
   const [ackModalOpen, setAckModalOpen] = useState(false);
   const [targetAlertToAck, setTargetAlertToAck] = useState<Alert | null>(null);
@@ -101,13 +119,70 @@ export const DashboardView: React.FC = () => {
   const totalAgents = agents.length;
   const onlineAgents = agents.filter((a) => a.status === 'online').length;
   const offlineAgents = agents.filter((a) => a.status === 'offline').length;
-  const onlineRatio = totalAgents > 0 ? Math.round((onlineAgents / totalAgents) * 100) : 0;
-  const offlineRatio = totalAgents > 0 ? Math.round((offlineAgents / totalAgents) * 100) : 0;
 
   const openAlerts = alerts.filter((a) => a.status === 'open');
   const criticalAlerts = openAlerts.filter((a) => a.severity === 'critical');
-  const warningAlerts = openAlerts.filter((a) => a.severity === 'warning');
+  const warningAlerts = openAlerts.filter(
+    (a) => a.severity === 'major' || a.severity === 'warning' || a.severity === 'minor'
+  );
   const infoAlerts = openAlerts.filter((a) => a.severity === 'info');
+
+  const triageAlerts = useMemo(
+    () =>
+      [...openAlerts]
+        .sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
+        .slice(0, 8),
+    [openAlerts]
+  );
+
+  const pulseItems = useMemo(
+    () => [
+      {
+        id: 'fleet',
+        label: 'Parc',
+        value: `${onlineAgents}/${totalAgents}`,
+        unit: 'en ligne',
+        color: 'text-slate-900',
+        onClick: () => navigate('/agents'),
+      },
+      {
+        id: 'critical',
+        label: 'Critiques',
+        value: criticalAlerts.length,
+        unit: 'ouvertes',
+        color: criticalAlerts.length > 0 ? 'text-rose-600' : 'text-emerald-600',
+        onClick: () => navigate('/alerts'),
+      },
+      {
+        id: 'offline',
+        label: 'Hors ligne',
+        value: offlineAgents,
+        unit: 'hôtes',
+        color: offlineAgents > 0 ? 'text-amber-700' : 'text-slate-900',
+        onClick: () => navigate('/agents?status=offline'),
+      },
+      {
+        id: 'mail',
+        label: 'Canal Mail',
+        value:
+          notificationChannelStatus?.status === 'operational'
+            ? 'OK'
+            : notificationChannelStatus?.status === 'degraded'
+              ? 'Dég.'
+              : notificationChannelStatus?.status === 'error'
+                ? 'Err.'
+                : '—',
+        color:
+          notificationChannelStatus?.status === 'operational'
+            ? 'text-emerald-600'
+            : notificationChannelStatus?.status === 'error'
+              ? 'text-rose-600'
+              : 'text-slate-600',
+        onClick: () => navigate('/settings'),
+      },
+    ],
+    [onlineAgents, totalAgents, criticalAlerts.length, offlineAgents, notificationChannelStatus, navigate]
+  );
 
   // Compute aggregated historical trend for Area Chart (average load across agents)
   const areaChartData = useMemo(() => {
@@ -176,241 +251,132 @@ export const DashboardView: React.FC = () => {
     }
   }, [agents, pieMode, criticalAlerts.length, warningAlerts.length, infoAlerts.length]);
 
-  const handleGenerateToken = () => {
-    const newTokenObj = generateEnrollmentToken();
-    setGeneratedToken(newTokenObj.token);
-    setTokenModalOpen(true);
-  };
-
-  const handleCopyToken = () => {
-    if (generatedToken) {
-      navigator.clipboard.writeText(generatedToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleGenerateToken = async () => {
+    const created = await generateEnrollmentToken();
+    if (!created) return;
+    setEnrolToken(created.token);
+    setEnrolExpires(created.expiresAt);
+    setEnrolOpen(true);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Quick Action Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="flex-1">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            Vue d'ensemble du parc informatique
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Supervision centralisée en temps réel — Commercial Bank Cameroun
-          </p>
-        </div>
-
-        {/* Indicateur visuel du canal de notification (exigence R11) */}
-        <div className="flex items-center gap-2">
-          {notificationChannelStatus && (
-            <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
-                notificationChannelStatus.status === 'operational'
-                  ? 'bg-emerald-50 border-emerald-200'
-                  : notificationChannelStatus.status === 'degraded'
-                  ? 'bg-amber-50 border-amber-200'
-                  : notificationChannelStatus.status === 'error'
-                  ? 'bg-rose-50 border-rose-200'
-                  : 'bg-slate-50 border-slate-200'
-              }`}
-            >
-              {notificationChannelStatus.status === 'operational' ? (
-                <Signal className="w-4 h-4 text-emerald-600" />
-              ) : notificationChannelStatus.status === 'degraded' ? (
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-              ) : notificationChannelStatus.status === 'error' ? (
-                <XCircle className="w-4 h-4 text-rose-600" />
-              ) : (
-                <Signal className="w-4 h-4 text-slate-400" />
-              )}
-              <span
-                className={`text-xs font-bold ${
-                  notificationChannelStatus.status === 'operational'
-                    ? 'text-emerald-800'
-                    : notificationChannelStatus.status === 'degraded'
-                    ? 'text-amber-800'
-                    : notificationChannelStatus.status === 'error'
-                    ? 'text-rose-800'
-                    : 'text-slate-600'
-                }`}
-              >
-                Canal de notification: {notificationChannelStatus.status === 'operational' ? 'Opérationnel' : notificationChannelStatus.status === 'degraded' ? 'Dégradé' : notificationChannelStatus.status === 'error' ? 'Erreur' : 'Inconnu'}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {currentRole === 'Admin' && (
-            <button
-              onClick={handleGenerateToken}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Générer jeton d'enrôlement
+    <div className="space-y-4">
+      <PageHeader
+        title={t('dashboard.title')}
+        subtitle={t('dashboard.subtitle')}
+        primaryAction={
+          currentRole === 'Admin' ? (
+            <button type="button" onClick={() => void handleGenerateToken()} className="cbc-btn-primary">
+              <Plus className="w-4 h-4" />
+              {t('dashboard.enrol')}
             </button>
-          )}
-
-          <button
-            onClick={() => setActiveView('alerts')}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors border border-slate-200/60 cursor-pointer"
-          >
-            <Bell className="w-4 h-4 text-slate-600" />
-            Voir les alertes
-          </button>
-
-          {currentRole !== 'ReadOnly' && (
+          ) : undefined
+        }
+        secondaryActions={
+          currentRole !== 'ReadOnly' ? (
             <button
+              type="button"
               onClick={() => exportCSV('agents')}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+              className="cbc-btn-secondary"
             >
-              <Download className="w-4 h-4 text-slate-300" />
-              Exporter CSV
+              <Download className="w-3.5 h-3.5" />
+              CSV
+            </button>
+          ) : undefined
+        }
+      />
+
+      {totalAgents === 0 ? (
+        <div className="cbc-card py-20 px-8 text-center">
+          <div className="w-24 h-24 rounded-3xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+            <ServerOff className="w-10 h-10" />
+          </div>
+          <h2 className="text-lg font-extrabold mt-5">{t('dashboard.emptyTitle')}</h2>
+          <p className="text-[13px] leading-relaxed text-[#777777] mt-2 max-w-md mx-auto">
+            {t('dashboard.emptyBody')}
+          </p>
+          {currentRole === 'Admin' && (
+            <button type="button" onClick={() => void handleGenerateToken()} className="cbc-btn-primary mt-5">
+              {t('dashboard.enrolFirst')}
             </button>
           )}
         </div>
-      </div>
+      ) : (
+        <>
+          <PulseStrip items={pulseItems} />
 
-      {/* Row 1: 4 Top KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Agents en ligne */}
-        <div
-          onClick={() => setActiveView('agents')}
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#D0B335]/60 hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Agents en ligne
-              </span>
-              <div className="text-3xl font-black text-slate-900 mt-2 flex items-baseline gap-2">
-                {onlineAgents}
-                <span className="text-xs font-semibold text-slate-400">/ {totalAgents}</span>
+          <div className="cbc-card overflow-hidden">
+            <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-sm font-bold m-0">{t('dashboard.triage')}</h2>
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                  {triageAlerts.length}
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={() => navigate('/alerts')}
+                className="text-[12.5px] font-semibold text-[#A68523] hover:text-slate-900 flex items-center gap-1"
+              >
+                {t('dashboard.viewAlerts')}
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 group-hover:scale-110 transition-transform">
-              <Server className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-xs pt-3 border-t border-slate-100">
-            <span
-              className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
-                onlineRatio >= 90
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : onlineRatio >= 70
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-rose-100 text-rose-800'
-              }`}
-            >
-              {onlineRatio}% en ligne
-            </span>
-            <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
-              <ArrowUpRight className="w-3.5 h-3.5" /> +2.4% vs hier
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 2: Agents hors ligne */}
-        <div
-          onClick={() => setActiveView('agents')}
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-300 hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Agents hors ligne
-              </span>
-              <div className="text-3xl font-black text-slate-900 mt-2 flex items-baseline gap-2">
-                {offlineAgents}
-                <span className="text-xs font-semibold text-slate-400">inactifs</span>
+            {triageAlerts.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-500">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                Aucune alerte ouverte à traiter.
               </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100 group-hover:scale-110 transition-transform">
-              <WifiOff className="w-5 h-5" />
-            </div>
+            ) : (
+              <table className="w-full border-collapse">
+                <tbody>
+                  {triageAlerts.map((alt) => {
+                    const style = triageSeverityStyle(alt.severity);
+                    return (
+                      <tr
+                        key={alt.id}
+                        className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer"
+                        onClick={() => navigate('/alerts')}
+                      >
+                        <td className="py-3 px-[18px] w-[104px]">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-md text-[10.5px] font-bold tracking-wide border ${style.bg} ${style.fg} ${style.bd}`}
+                          >
+                            {style.short}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-[13px] font-bold w-32">{alt.agentName}</td>
+                        <td className="py-3 px-2 text-[13px] text-slate-700">{alt.message}</td>
+                        <td className="py-3 px-2 tnum text-[12.5px] text-slate-500 w-16">{alt.timestamp}</td>
+                        <td className="py-3 px-[18px] text-right w-[118px]">
+                          {currentRole !== 'ReadOnly' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAckModal(alt);
+                              }}
+                              className="cbc-btn-secondary py-1.5"
+                            >
+                              Acquitter
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
+        </>
+      )}
 
-          <div className="mt-4 flex items-center justify-between text-xs pt-3 border-t border-slate-100">
-            <span
-              className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
-                offlineRatio > 10
-                  ? 'bg-rose-100 text-rose-800'
-                  : offlineRatio > 5
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-emerald-100 text-emerald-800'
-              }`}
-            >
-              {offlineRatio}% hors ligne
-            </span>
-            <span className="text-slate-400 font-medium">Recherche d'heartbeat...</span>
-          </div>
-        </div>
-
-        {/* KPI 3: Alertes actives */}
-        <div
-          onClick={() => setActiveView('alerts')}
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Alertes non acquittées
-              </span>
-              <div className="text-3xl font-black text-slate-900 mt-2">{openAlerts.length}</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 group-hover:scale-110 transition-transform">
-              <Bell className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2 text-xs pt-3 border-t border-slate-100">
-            <span className="text-rose-600 font-bold">{criticalAlerts.length} Critique</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-amber-600 font-bold">{warningAlerts.length} Warning</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-blue-600 font-bold">{infoAlerts.length} Info</span>
-          </div>
-        </div>
-
-        {/* KPI 4: Alertes critiques */}
-        <div
-          onClick={() => setActiveView('alerts')}
-          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-400 hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Alertes critiques
-              </span>
-              <div className="text-3xl font-black text-rose-600 mt-2 flex items-center gap-2">
-                {criticalAlerts.length}
-                {criticalAlerts.length > 0 && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
-                )}
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-600/20 group-hover:scale-110 transition-transform">
-              <AlertOctagon className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-xs pt-3 border-t border-slate-100">
-            <span className="text-rose-700 font-bold">
-              {criticalAlerts.length > 0 ? 'Action immédiate requise' : 'Aucun incident critique'}
-            </span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: GRAPHICS (Line/Area Chart & Pie Chart side-by-side) */}
+      {totalAgents > 0 && (
+        <>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Chart 1: Évolution de la charge globale (Col-7 on Desktop) */}
-        <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-7 cbc-card p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -468,7 +434,7 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Chart 2: Diagramme Circulaire (Col-5 on Desktop) */}
-        <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-5 cbc-card p-5 flex flex-col justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
             <div>
               <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -547,7 +513,7 @@ export const DashboardView: React.FC = () => {
       {/* Row 3: Agents List Widget (70%) + Recent Alerts Widget (30%) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Agents List Widget (Col-8 on Desktop) */}
-        <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="lg:col-span-8 cbc-card overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -559,7 +525,7 @@ export const DashboardView: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setActiveView('agents')}
+              onClick={() => navigate('/agents')}
               className="text-xs font-bold text-[#8D771B] hover:text-slate-900 transition-colors cursor-pointer"
             >
               Voir tous les agents ({agents.length}) →
@@ -579,6 +545,13 @@ export const DashboardView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {agents.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-8 px-4 text-center text-slate-400">
+                      Aucun agent chargé. Déconnectez-vous, reconnectez-vous, puis rafraîchissez la page.
+                    </td>
+                  </tr>
+                )}
                 {agents.slice(0, 10).map((ag) => (
                   <tr
                     key={ag.id}
@@ -622,7 +595,7 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Recent Alerts Widget (Col-4 on Desktop) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
+        <div className="lg:col-span-4 cbc-card flex flex-col overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -632,7 +605,7 @@ export const DashboardView: React.FC = () => {
               <p className="text-xs text-slate-500 mt-0.5">Alertes système non résolues</p>
             </div>
             <button
-              onClick={() => setActiveView('alerts')}
+              onClick={() => navigate('/alerts')}
               className="text-xs font-bold text-[#8D771B] hover:text-slate-900 cursor-pointer"
             >
               Toutes →
@@ -672,6 +645,8 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Acknowledge Modal */}
       <AcknowledgeModal
@@ -681,41 +656,12 @@ export const DashboardView: React.FC = () => {
         onConfirm={handleConfirmAck}
       />
 
-      {/* Token Modal */}
-      <Modal
-        isOpen={tokenModalOpen}
-        onClose={() => setTokenModalOpen(false)}
-        title="Nouveau jeton d'enrôlement"
-        footer={
-          <button
-            onClick={() => setTokenModalOpen(false)}
-            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 cursor-pointer"
-          >
-            Fermer
-          </button>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Utilisez ce jeton sécurisé à usage unique pour enrôler un nouvel agent (Windows, Linux, macOS) dans le parc CBC.
-          </p>
-
-          <div className="p-4 bg-slate-900 rounded-xl text-center border border-slate-800">
-            <span className="text-xs text-slate-400 block mb-1">Jeton d'enrôlement (Valide 24h)</span>
-            <div className="text-lg font-mono font-bold text-[#D0B335] tracking-wider my-1">
-              {generatedToken}
-            </div>
-          </div>
-
-          <button
-            onClick={handleCopyToken}
-            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-bold rounded-xl border border-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Copié dans le presse-papier !' : 'Copier le jeton'}
-          </button>
-        </div>
-      </Modal>
+      <EnrolmentSheet
+        open={enrolOpen}
+        token={enrolToken}
+        expiresAt={enrolExpires}
+        onClose={() => setEnrolOpen(false)}
+      />
     </div>
   );
 };

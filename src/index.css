@@ -1,15 +1,155 @@
 @import "tailwindcss";
 
+/* CBC Supervision — design tokens (DES-003 / Claude v2 template) */
+:root {
+  --cbc-gold: #d0b335;
+  --cbc-gold-hover: #b89c2c;
+  --cbc-gold-active: #a68523;
+  --cbc-gold-tint: rgba(208, 179, 53, 0.1);
+  --cbc-gold-border: rgba(208, 179, 53, 0.3);
+  --cbc-sidebar: #020617;
+  --cbc-content: #f1f5f9;
+  --cbc-surface: #ffffff;
+  --cbc-stroke: #e2e8f0;
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--cbc-content);
+  color: #0f172a;
 }
 
 #root {
   min-height: 100vh;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulseDot 2.2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.18s ease;
+}
+
+.animate-modal-in {
+  animation: modalIn 0.16s ease;
+}
+
+.cbc-card {
+  background: var(--cbc-surface);
+  border: 1px solid var(--cbc-stroke);
+  border-radius: 12px;
+}
+
+.cbc-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--cbc-gold);
+  color: #020617;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cbc-btn-primary:hover {
+  background: var(--cbc-gold-hover);
+}
+
+.cbc-btn-primary:active {
+  background: var(--cbc-gold-active);
+}
+
+.cbc-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--cbc-stroke);
+  border-radius: 8px;
+  background: #fff;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cbc-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.cbc-input {
+  width: 100%;
+  padding: 0.6875rem 0.8125rem;
+  border: 1px solid var(--cbc-stroke);
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cbc-input:focus {
+  border-color: var(--cbc-gold);
+  box-shadow: 0 0 0 3px var(--cbc-gold-border);
+}
+
+.cbc-nav-active {
+  background: rgba(255, 255, 255, 0.04);
+  color: #f8fafc;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.cbc-nav-item {
+  color: #94a3b8;
+}
+
+.cbc-nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
 }

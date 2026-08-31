@@ -78,11 +78,19 @@ export const Badge: React.FC<BadgeProps> = ({
             Critique
           </span>
         );
+      case 'major':
       case 'warning':
         return (
           <span className={`inline-flex items-center bg-amber-500 text-white shadow-xs font-semibold ${sizeClasses[size]}`}>
             {showIcon && <AlertTriangle className="w-3.5 h-3.5" />}
-            Warning
+            {severity === 'warning' ? 'Warning' : 'Major'}
+          </span>
+        );
+      case 'minor':
+        return (
+          <span className={`inline-flex items-center bg-orange-400 text-white shadow-xs font-semibold ${sizeClasses[size]}`}>
+            {showIcon && <AlertTriangle className="w-3.5 h-3.5" />}
+            Minor
           </span>
         );
       case 'info':
@@ -169,6 +177,12 @@ export const Badge: React.FC<BadgeProps> = ({
         return (
           <span className={`inline-flex items-center bg-blue-50 text-blue-700 border border-blue-200 ${sizeClasses[size]}`}>
             Opérateur
+          </span>
+        );
+      case 'Security':
+        return (
+          <span className={`inline-flex items-center bg-violet-50 text-violet-700 border border-violet-200 ${sizeClasses[size]}`}>
+            Sécurité
           </span>
         );
       case 'ReadOnly':

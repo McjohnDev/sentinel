@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { User, Role } from '../types';
@@ -47,6 +48,7 @@ export const UsersView: React.FC = () => {
   const adminUsersCount = users.filter((u) => u.role === 'Admin').length;
   const operatorUsersCount = users.filter((u) => u.role === 'Operator').length;
   const readOnlyUsersCount = users.filter((u) => u.role === 'ReadOnly').length;
+  const securityUsersCount = users.filter((u) => u.role === 'Security').length;
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -105,10 +107,13 @@ export const UsersView: React.FC = () => {
       return;
     }
 
-    createUser({
+    // Le mot de passe était validé ci-dessus puis absent de l'appel : le
+    // serveur l'exige, la création échouait donc systématiquement.
+    void createUser({
       name: nameInput,
       email: emailInput,
       role: roleInput,
+      password: passwordInput,
     });
     setCreateModalOpen(false);
   };
@@ -116,7 +121,7 @@ export const UsersView: React.FC = () => {
   const handleConfirmEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (targetUser) {
-      updateUser(targetUser.id, {
+      void updateUser(targetUser.id, {
         name: nameInput,
         email: emailInput,
         role: roleInput,
@@ -127,39 +132,29 @@ export const UsersView: React.FC = () => {
 
   const handleConfirmDelete = () => {
     if (targetUser) {
-      deleteUser(targetUser.id);
+      void deleteUser(targetUser.id);
       setDeleteModalOpen(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Users className="w-5 h-5 text-[#D0B335]" />
-            Gestion des Comptes Utilisateurs & Permissions
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Administration des comptes d'accès à la plateforme CBC Supervision
-          </p>
-        </div>
-
-        {currentRole === 'Admin' && (
-          <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
-          >
-            <UserPlus className="w-4 h-4" />
-            Créer un utilisateur
-          </button>
-        )}
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Utilisateurs"
+        subtitle="Comptes et rôles d'accès à la plateforme CBC Supervision."
+        primaryAction={
+          currentRole === 'Admin' ? (
+            <button type="button" onClick={handleOpenCreateModal} className="cbc-btn-primary">
+              <UserPlus className="w-4 h-4" />
+              Créer un utilisateur
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* Contextual KPI Stats Bar */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+        <div className="cbc-card p-3.5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
             <Users className="w-4 h-4" />
           </div>
@@ -169,7 +164,7 @@ export const UsersView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+        <div className="cbc-card p-3.5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-50 text-[#D0B335] flex items-center justify-center font-bold border border-amber-200/60">
             <ShieldCheck className="w-4 h-4" />
           </div>
@@ -179,7 +174,7 @@ export const UsersView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+        <div className="cbc-card p-3.5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
             <UserCheck className="w-4 h-4" />
           </div>
@@ -189,7 +184,16 @@ export const UsersView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+        <div className="cbc-card p-3.5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center font-bold">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Sécurité</p>
+            <p className="text-lg font-black text-violet-700">{securityUsersCount}</p>
+          </div>
+        </div>
+        <div className="cbc-card p-3.5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center font-bold">
             <Eye className="w-4 h-4" />
           </div>
@@ -207,7 +211,7 @@ export const UsersView: React.FC = () => {
       )}
 
       {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="cbc-card p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -229,13 +233,14 @@ export const UsersView: React.FC = () => {
             <option value="all">Tous les rôles</option>
             <option value="Admin">Administrateurs</option>
             <option value="Operator">Opérateurs</option>
+            <option value="Security">Sécurité</option>
             <option value="ReadOnly">Lecture seule</option>
           </select>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="cbc-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -394,6 +399,7 @@ export const UsersView: React.FC = () => {
             >
               <option value="Admin">Administrateur (Tous droits)</option>
               <option value="Operator">Opérateur (Supervision & Ack)</option>
+              <option value="Security">Sécurité (Audit & conformité)</option>
               <option value="ReadOnly">Lecture seule (Consultation)</option>
             </select>
           </div>
@@ -479,6 +485,7 @@ export const UsersView: React.FC = () => {
             >
               <option value="Admin">Administrateur</option>
               <option value="Operator">Opérateur</option>
+              <option value="Security">Sécurité</option>
               <option value="ReadOnly">Lecture seule</option>
             </select>
           </div>

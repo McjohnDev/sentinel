@@ -1,0 +1,551 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, Check, FileWarning, Plus, RotateCcw, Server, Trash2 } from 'lucide-react';
+import {
+  CheckSeverity,
+  FileCondition,
+  MonitoredFileRule,
+  MonitoredServiceRule,
+  MonitoringPlan,
+  PartitionRule,
+  ServiceState,
+  agentsService,
+} from '../../services/api/agents.service';
+
+/**
+ * Onglet « Configuration » d'un hôte : son plan de supervision (points 6-7).
+ *
+ * Unique endroit où se règle ce qu'on surveille sur une machine. Il remplace
+ * trois écrans distincts :
+ *
+ * - l'ancien onglet « Configuration », qui ne portait que les seuils et les
+ *   partitions — désormais couverts ici, et qui aurait présenté les mêmes
+ *   réglages en double sans qu'on sache lequel fait foi ;
+ * - les panneaux « Services surveillés » et « Fichiers surveillés » de la
+ *   vue d'ensemble, dont la liste était inventée en dur dans le composant
+ *   avec une pastille verte fixe ;
+ * - les onglets correspondants de Paramètres, qui annonçaient « mise à jour
+ *   avec succès » sans rien enregistrer, ni côté interface ni côté serveur.
+ */
+
+const SEVERITIES: CheckSeverity[] = ['minor', 'major', 'critical'];
+
+const SEVERITY_LABELS: Record<CheckSeverity, string> = {
+  minor: 'Mineure',
+  major: 'Majeure',
+  critical: 'Critique',
+};
+
+interface Props {
+  agentId: string;
+  /** Partitions réellement remontées par l'hôte, pour ne proposer que l'existant. */
+  discoveredMounts: string[];
+  canEdit: boolean;
+}
+
+export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts, canEdit }) => {
+  const [plan, setPlan] = useState<MonitoringPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPlan(await agentsService.getMonitoringPlan(agentId));
+    } catch {
+      setError("Plan de supervision introuvable pour cet hôte.");
+    } finally {
+      setLoading(false);
+    }
+  }, [agentId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const mutate = (patch: Partial<MonitoringPlan>) => {
+    setPlan((prev) => (prev ? { ...prev, ...patch } : prev));
+    setSaved(false);
+  };
+
+  /** Rend l'hôte aux seuils globaux de la plateforme.
+   *
+   *  Vider les trois paires plutôt que d'y recopier les valeurs globales :
+   *  une copie figerait l'hôte sur les seuils du jour et le déconnecterait
+   *  de toute évolution ultérieure de la politique centrale.
+   */
+  const resetToInherited = () => {
+    if (!plan) return;
+    mutate({
+      cpu: { warning: null, critical: null, inherited: true },
+      ram: { warning: null, critical: null, inherited: true },
+      disk: { ...plan.disk, warning: null, critical: null, inherited: true },
+    });
+  };
+
+  const save = async () => {
+    if (!plan) return;
+    // Contrôle local avant l'aller-retour : le serveur refuse aussi, mais
+    // signaler l'incohérence à la saisie évite un échec inexpliqué.
+    for (const [key, pair] of [
+      ['CPU', plan.cpu],
+      ['RAM', plan.ram],
+      ['Disque', plan.disk],
+    ] as const) {
+      if (pair.warning != null && pair.critical != null && pair.warning >= pair.critical) {
+        setError(`${key} : le seuil d'avertissement doit être inférieur au seuil critique.`);
+        return;
+      }
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await agentsService.updateMonitoringPlan(agentId, {
+        cpu: { warning: plan.cpu.warning, critical: plan.cpu.critical },
+        ram: { warning: plan.ram.warning, critical: plan.ram.critical },
+        disk: {
+          warning: plan.disk.warning,
+          critical: plan.disk.critical,
+          partitions: plan.disk.partitions,
+        },
+        services: plan.services,
+        files: plan.files,
+      });
+      setPlan(updated);
+      setSaved(true);
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Enregistrement impossible.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="cbc-card p-6 text-[13px] text-slate-500">Chargement du plan…</div>;
+  if (!plan) return <div className="cbc-card p-6 text-[13px] text-rose-600">{error}</div>;
+
+  const disabled = !canEdit || saving;
+  const allInherited =
+    plan.cpu.warning == null &&
+    plan.cpu.critical == null &&
+    plan.ram.warning == null &&
+    plan.ram.critical == null &&
+    plan.disk.warning == null &&
+    plan.disk.critical == null;
+
+  const thresholdRow = (
+    label: string,
+    pair: { warning: number | null; critical: number | null; inherited?: boolean },
+    onChange: (next: { warning: number | null; critical: number | null }) => void,
+  ) => (
+    <div className="grid grid-cols-[130px_1fr_1fr] gap-3 items-center py-2">
+      <div className="text-[12.5px] font-semibold text-slate-700">
+        {label}
+        {pair.inherited && (
+          <span className="ml-1.5 text-[10.5px] font-normal text-slate-400">hérité</span>
+        )}
+      </div>
+      <label className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-500 w-20">Avertis.</span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={pair.warning ?? ''}
+          placeholder="global"
+          disabled={disabled}
+          onChange={(e) =>
+            onChange({ warning: e.target.value === '' ? null : Number(e.target.value), critical: pair.critical })
+          }
+          className="cbc-input py-1 text-[13px]"
+        />
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-500 w-20">Critique</span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={pair.critical ?? ''}
+          placeholder="global"
+          disabled={disabled}
+          onChange={(e) =>
+            onChange({ warning: pair.warning, critical: e.target.value === '' ? null : Number(e.target.value) })
+          }
+          className="cbc-input py-1 text-[13px]"
+        />
+      </label>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* --- CPU / RAM / Disque --- */}
+      <div className="cbc-card overflow-hidden">
+        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-bold m-0">Seuils</h2>
+            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+              CPU et mémoire sont supervisés par défaut. Laisser un champ vide
+              pour suivre le seuil global de la plateforme.
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1 mb-0">
+              Héritage : Global → Groupe → Hôte
+            </p>
+          </div>
+          {canEdit && !allInherited && (
+            <button type="button" className="cbc-btn-secondary shrink-0" disabled={disabled} onClick={resetToInherited}>
+              <RotateCcw className="w-3.5 h-3.5" />
+              Rétablir l'héritage
+            </button>
+          )}
+        </div>
+        <div className="px-[18px] py-2">
+          {thresholdRow('Processeur', plan.cpu, (v) => mutate({ cpu: { ...plan.cpu, ...v } }))}
+          {thresholdRow('Mémoire', plan.ram, (v) => mutate({ ram: { ...plan.ram, ...v } }))}
+          {thresholdRow('Disque (défaut)', plan.disk, (v) => mutate({ disk: { ...plan.disk, ...v } }))}
+        </div>
+      </div>
+
+      {/* --- Partitions --- */}
+      <div className="cbc-card overflow-hidden">
+        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold m-0">Partitions surveillées</h2>
+            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+              Sans sélection, seule la partition principale est évaluée.
+            </p>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              className="cbc-btn-secondary"
+              disabled={disabled}
+              onClick={() =>
+                mutate({
+                  disk: {
+                    ...plan.disk,
+                    partitions: [
+                      ...plan.disk.partitions,
+                      { mount: discoveredMounts[0] || '', warning: 85, critical: 95 },
+                    ],
+                  },
+                })
+              }
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Ajouter
+            </button>
+          )}
+        </div>
+        {plan.disk.partitions.length === 0 ? (
+          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">Aucune partition ciblée.</p>
+        ) : (
+          plan.disk.partitions.map((p, i) => (
+            <PartitionRow
+              key={i}
+              rule={p}
+              mounts={discoveredMounts}
+              disabled={disabled}
+              onChange={(next) => {
+                const partitions = [...plan.disk.partitions];
+                partitions[i] = next;
+                mutate({ disk: { ...plan.disk, partitions } });
+              }}
+              onRemove={() =>
+                mutate({
+                  disk: { ...plan.disk, partitions: plan.disk.partitions.filter((_, j) => j !== i) },
+                })
+              }
+            />
+          ))
+        )}
+      </div>
+
+      {/* --- Services --- */}
+      <div className="cbc-card overflow-hidden">
+        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold m-0 flex items-center gap-1.5">
+              <Server className="w-4 h-4 text-slate-400" />
+              Services
+            </h2>
+            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+              L'état attendu se règle par service : on alerte aussi bien sur un
+              service critique arrêté que sur un service qui devrait le rester.
+            </p>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              className="cbc-btn-secondary"
+              disabled={disabled}
+              onClick={() =>
+                mutate({
+                  services: [
+                    ...plan.services,
+                    { name: '', expected_state: 'running', severity: 'major', enabled: true },
+                  ],
+                })
+              }
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Ajouter
+            </button>
+          )}
+        </div>
+        {plan.services.length === 0 ? (
+          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">
+            Aucun service surveillé sur cet hôte — c'est un choix valide.
+          </p>
+        ) : (
+          plan.services.map((svc, i) => (
+            <ServiceRow
+              key={i}
+              rule={svc}
+              disabled={disabled}
+              onChange={(next) => {
+                const services = [...plan.services];
+                services[i] = next;
+                mutate({ services });
+              }}
+              onRemove={() => mutate({ services: plan.services.filter((_, j) => j !== i) })}
+            />
+          ))
+        )}
+      </div>
+
+      {/* --- Fichiers --- */}
+      <div className="cbc-card overflow-hidden">
+        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold m-0 flex items-center gap-1.5">
+              <FileWarning className="w-4 h-4 text-slate-400" />
+              Fichiers
+            </h2>
+            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+              Alerter sur l'absence d'un fichier attendu, ou sur l'apparition
+              d'un fichier qui ne devrait pas être là.
+            </p>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              className="cbc-btn-secondary"
+              disabled={disabled}
+              onClick={() =>
+                mutate({
+                  files: [
+                    ...plan.files,
+                    { path: '', condition: 'must_exist', severity: 'major', max_size_mb: null, enabled: true },
+                  ],
+                })
+              }
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Ajouter
+            </button>
+          )}
+        </div>
+        {plan.files.length === 0 ? (
+          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">Aucun fichier surveillé.</p>
+        ) : (
+          plan.files.map((file, i) => (
+            <FileRow
+              key={i}
+              rule={file}
+              disabled={disabled}
+              onChange={(next) => {
+                const files = [...plan.files];
+                files[i] = next;
+                mutate({ files });
+              }}
+              onRemove={() => mutate({ files: plan.files.filter((_, j) => j !== i) })}
+            />
+          ))
+        )}
+      </div>
+
+      {/* --- Publication --- */}
+      <div className="cbc-card px-[18px] py-3.5 flex items-center justify-between gap-4 flex-wrap">
+        <div className="text-[12px] text-slate-500">
+          Plan v{plan.version}
+          {plan.version_acked >= plan.version ? (
+            <span className="ml-2 inline-flex items-center gap-1 text-emerald-700 font-semibold">
+              <Check className="w-3.5 h-3.5" />
+              appliqué par l'agent
+            </span>
+          ) : (
+            <span className="ml-2 inline-flex items-center gap-1 text-amber-700 font-semibold">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              en attente d'application (v{plan.version_acked} sur l'hôte)
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {error && <span className="text-[12px] text-rose-600">{error}</span>}
+          {saved && !error && <span className="text-[12px] text-emerald-700">Plan publié.</span>}
+          {canEdit && (
+            <button type="button" className="cbc-btn-primary" disabled={disabled} onClick={() => void save()}>
+              {saving ? 'Publication…' : 'Publier le plan'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RemoveButton: React.FC<{ onClick: () => void; disabled: boolean }> = ({ onClick, disabled }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+    title="Retirer"
+  >
+    <Trash2 className="w-3.5 h-3.5" />
+  </button>
+);
+
+const SeveritySelect: React.FC<{
+  value: CheckSeverity;
+  disabled: boolean;
+  onChange: (v: CheckSeverity) => void;
+}> = ({ value, disabled, onChange }) => (
+  <select
+    value={value}
+    disabled={disabled}
+    onChange={(e) => onChange(e.target.value as CheckSeverity)}
+    className="cbc-input py-1 text-[13px]"
+  >
+    {SEVERITIES.map((s) => (
+      <option key={s} value={s}>
+        {SEVERITY_LABELS[s]}
+      </option>
+    ))}
+  </select>
+);
+
+const PartitionRow: React.FC<{
+  rule: PartitionRule;
+  mounts: string[];
+  disabled: boolean;
+  onChange: (r: PartitionRule) => void;
+  onRemove: () => void;
+}> = ({ rule, mounts, disabled, onChange, onRemove }) => (
+  <div className="grid grid-cols-[1fr_110px_110px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
+    <input
+      list="partitions-decouvertes"
+      value={rule.mount}
+      disabled={disabled}
+      placeholder="point de montage"
+      onChange={(e) => onChange({ ...rule, mount: e.target.value })}
+      className="cbc-input py-1 text-[13px] tnum"
+    />
+    <datalist id="partitions-decouvertes">
+      {mounts.map((m) => (
+        <option key={m} value={m} />
+      ))}
+    </datalist>
+    <input
+      type="number"
+      value={rule.warning}
+      disabled={disabled}
+      onChange={(e) => onChange({ ...rule, warning: Number(e.target.value) })}
+      className="cbc-input py-1 text-[13px]"
+    />
+    <input
+      type="number"
+      value={rule.critical}
+      disabled={disabled}
+      onChange={(e) => onChange({ ...rule, critical: Number(e.target.value) })}
+      className="cbc-input py-1 text-[13px]"
+    />
+    <RemoveButton onClick={onRemove} disabled={disabled} />
+  </div>
+);
+
+const ServiceRow: React.FC<{
+  rule: MonitoredServiceRule;
+  disabled: boolean;
+  onChange: (r: MonitoredServiceRule) => void;
+  onRemove: () => void;
+}> = ({ rule, disabled, onChange, onRemove }) => (
+  <div className="grid grid-cols-[1fr_150px_130px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
+    <input
+      value={rule.name}
+      disabled={disabled}
+      placeholder="nom du service (ex. swift-gateway)"
+      onChange={(e) => onChange({ ...rule, name: e.target.value })}
+      className="cbc-input py-1 text-[13px] tnum"
+    />
+    <select
+      value={rule.expected_state}
+      disabled={disabled}
+      onChange={(e) => onChange({ ...rule, expected_state: e.target.value as ServiceState })}
+      className="cbc-input py-1 text-[13px]"
+    >
+      <option value="running">Doit tourner</option>
+      <option value="stopped">Doit être arrêté</option>
+    </select>
+    <SeveritySelect
+      value={rule.severity}
+      disabled={disabled}
+      onChange={(severity) => onChange({ ...rule, severity })}
+    />
+    <RemoveButton onClick={onRemove} disabled={disabled} />
+  </div>
+);
+
+const FileRow: React.FC<{
+  rule: MonitoredFileRule;
+  disabled: boolean;
+  onChange: (r: MonitoredFileRule) => void;
+  onRemove: () => void;
+}> = ({ rule, disabled, onChange, onRemove }) => (
+  <div className="grid grid-cols-[1fr_170px_130px_100px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
+    <input
+      value={rule.path}
+      disabled={disabled}
+      placeholder="/var/log/swift.log"
+      onChange={(e) => onChange({ ...rule, path: e.target.value })}
+      className="cbc-input py-1 text-[13px] tnum"
+    />
+    <select
+      value={rule.condition}
+      disabled={disabled}
+      onChange={(e) => onChange({ ...rule, condition: e.target.value as FileCondition })}
+      className="cbc-input py-1 text-[13px]"
+    >
+      <option value="must_exist">Doit exister</option>
+      <option value="must_not_exist">Ne doit pas exister</option>
+    </select>
+    <SeveritySelect
+      value={rule.severity}
+      disabled={disabled}
+      onChange={(severity) => onChange({ ...rule, severity })}
+    />
+    <input
+      type="number"
+      min={0}
+      value={rule.max_size_mb ?? ''}
+      disabled={disabled || rule.condition === 'must_not_exist'}
+      placeholder="Mo max"
+      title="Plafond de taille en Mo (facultatif)"
+      onChange={(e) =>
+        onChange({ ...rule, max_size_mb: e.target.value === '' ? null : Number(e.target.value) })
+      }
+      className="cbc-input py-1 text-[13px]"
+    />
+    <RemoveButton onClick={onRemove} disabled={disabled} />
+  </div>
+);

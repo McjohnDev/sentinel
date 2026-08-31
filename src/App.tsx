@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/layout/Header';
@@ -17,35 +17,35 @@ import { AgentDetailView } from './views/AgentDetailView';
 import { AlertsListView } from './views/AlertsListView';
 import { SettingsView } from './views/SettingsView';
 import { UsersView } from './views/UsersView';
+import { LogsView } from './views/LogsView';
+import { CustomDashboardsView } from './views/CustomDashboardsView';
+import { NetworkView } from './views/NetworkView';
+import { ReportsView } from './views/ReportsView';
+import { PilotUatView } from './views/PilotUatView';
+import { ActionsView } from './views/ActionsView';
+import { ApprovalsView } from './views/ApprovalsView';
+import { StudioView } from './views/StudioView';
+import { RulesView } from './views/RulesView';
+import { IntegrationsView } from './views/IntegrationsView';
+import { AutomationView } from './views/AutomationView';
+import { AuditView } from './views/AuditView';
+import { TrendsView } from './views/TrendsView';
+import { ProfileView } from './views/ProfileView';
+import { I18nProvider } from './i18n';
 
-// Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useApp();
-
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-// Login Route Component
 const LoginRoute: React.FC = () => {
   const { currentUser } = useApp();
-
-  if (currentUser) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  if (currentUser) return <Navigate to="/dashboard" replace />;
   return <LoginView />;
 };
 
 const MainLayout: React.FC = () => {
   const { currentUser } = useApp();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-900 font-sans antialiased">
+      <div className="min-h-screen font-sans antialiased">
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
@@ -56,22 +56,43 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100/70 font-sans text-slate-900 antialiased flex flex-col">
-      <Header />
+    <div className="flex min-h-screen font-sans text-slate-900 antialiased" style={{ background: '#F1F5F9' }}>
+      <Sidebar
+        isMobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
 
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <Header onToggleSidebarMobile={() => setMobileSidebarOpen(true)} />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
-          <Routes>
-            <Route path="/dashboard" element={<DashboardView />} />
-            <Route path="/agents" element={<AgentsListView />} />
-            <Route path="/agents/:id" element={<AgentDetailView />} />
-            <Route path="/alerts" element={<AlertsListView />} />
-            <Route path="/settings" element={<SettingsView />} />
-            <Route path="/users" element={<UsersView />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+        <main className="flex-1 px-4 sm:px-7 lg:px-8 py-6 lg:py-7 overflow-y-auto animate-fade-in">
+          <div className="max-w-[1280px] mx-auto space-y-6">
+            <Routes>
+              <Route path="/dashboard" element={<DashboardView />} />
+              <Route path="/agents" element={<AgentsListView />} />
+              <Route path="/fleet" element={<AgentsListView />} />
+              <Route path="/agents/:id" element={<AgentDetailView />} />
+              <Route path="/fleet/:id" element={<AgentDetailView />} />
+              <Route path="/alerts" element={<AlertsListView />} />
+              <Route path="/logs" element={<LogsView />} />
+              <Route path="/dashboards" element={<CustomDashboardsView />} />
+              <Route path="/trends" element={<TrendsView />} />
+              <Route path="/network" element={<NetworkView />} />
+              <Route path="/reports" element={<ReportsView />} />
+              <Route path="/pilot-uat" element={<PilotUatView />} />
+              <Route path="/automation" element={<AutomationView />} />
+              <Route path="/actions" element={<ActionsView />} />
+              <Route path="/approvals" element={<ApprovalsView />} />
+              <Route path="/studio" element={<StudioView />} />
+              <Route path="/rules" element={<RulesView />} />
+              <Route path="/integrations" element={<IntegrationsView />} />
+              <Route path="/settings" element={<SettingsView />} />
+              <Route path="/users" element={<UsersView />} />
+              <Route path="/audit" element={<AuditView />} />
+              <Route path="/profile" element={<ProfileView />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </div>
         </main>
       </div>
 
@@ -83,9 +104,11 @@ const MainLayout: React.FC = () => {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
-        <MainLayout />
-      </AppProvider>
+      <I18nProvider>
+        <AppProvider>
+          <MainLayout />
+        </AppProvider>
+      </I18nProvider>
     </BrowserRouter>
   );
 }

@@ -4,7 +4,7 @@
  */
 
 import axiosInstance from './axios.config';
-import { User, Role } from '../../types';
+import { AuthSource, Role, User } from '../../types';
 
 export interface CreateUserRequest {
   username: string;
@@ -18,19 +18,58 @@ export interface UpdateUserRequest {
   email?: string;
   role?: string;
   is_active?: boolean;
+  manager_id?: string | null;
+}
+
+/**
+ * Correspondance explicite des rôles.
+ *
+ * Le code dérivait auparavant le rôle par manipulation de chaîne
+ * (`charAt(0).toUpperCase() + slice(1)`), ce qui transformait `read_only` en
+ * `Read_only` — une valeur absente du type `Role` — et renvoyait `readonly`
+ * au serveur, qui attend `read_only`. Toute modification de rôle échouait
+ * donc silencieusement.
+ */
+const BACKEND_TO_ROLE: Record<string, Role> = {
+  admin: 'Admin',
+  operator: 'Operator',
+  read_only: 'ReadOnly',
+  security: 'Security',
+};
+
+const ROLE_TO_BACKEND: Record<Role, string> = {
+  Admin: 'admin',
+  Operator: 'operator',
+  ReadOnly: 'read_only',
+  Security: 'security',
+};
+
+export function toBackendRole(role: Role): string {
+  return ROLE_TO_BACKEND[role] ?? 'read_only';
+}
+
+export function fromBackendRole(role: string): Role {
+  return BACKEND_TO_ROLE[(role || '').toLowerCase()] ?? 'ReadOnly';
+}
+
+function mapUser(raw: any): User {
+  return {
+    id: raw.id,
+    name: raw.username,
+    email: raw.email,
+    role: fromBackendRole(raw.role),
+    createdAt: raw.created_at || new Date().toISOString().split('T')[0],
+    status: raw.is_active ? 'active' : 'inactive',
+    authSource: (raw.auth_source || 'local') as AuthSource,
+    lastLoginAt: raw.last_login_at ?? null,
+    permissions: raw.permissions ?? [],
+  };
 }
 
 export const usersService = {
   async getUsers(): Promise<User[]> {
     const response = await axiosInstance.get('/auth/users');
-    return response.data.map((user: any) => ({
-      id: user.id,
-      name: user.username,
-      email: user.email,
-      role: user.role.charAt(0).toUpperCase() + user.role.slice(1) as Role,
-      createdAt: user.created_at || new Date().toISOString().split('T')[0],
-      status: user.is_active ? 'active' : 'inactive',
-    }));
+    return (response.data as any[]).map(mapUser);
   },
 
   async createUser(userData: { name: string; email: string; role: Role; password: string }): Promise<User> {
@@ -38,31 +77,43 @@ export const usersService = {
       username: userData.name,
       email: userData.email,
       password: userData.password,
-      role: userData.role.toLowerCase(),
+      role: toBackendRole(userData.role),
     });
-
-    const user = response.data;
-    return {
-      id: user.id,
-      name: user.username,
-      email: user.email,
-      role: user.role.charAt(0).toUpperCase() + user.role.slice(1) as Role,
-      createdAt: user.created_at || new Date().toISOString().split('T')[0],
-      status: user.is_active ? 'active' : 'inactive',
-    };
+    return mapUser(response.data);
   },
 
-  async updateUser(id: string, updates: Partial<User>): Promise<void> {
-    const updateData: UpdateUserRequest = {};
-    if (updates.name) updateData.username = updates.name;
-    if (updates.email) updateData.email = updates.email;
-    if (updates.role) updateData.role = updates.role.toLowerCase();
-    if (updates.status !== undefined) updateData.is_active = updates.status === 'active';
+  /** Retourne l'utilisateur tel que le serveur l'a enregistré. */
+  async updateUser(id: string, updates: Partial<User>): Promise<Partial<User>> {
+    const payload: UpdateUserRequest = {};
+    if (updates.name) payload.username = updates.name;
+    if (updates.email) payload.email = updates.email;
+    if (updates.role) payload.role = toBackendRole(updates.role);
+    if (updates.status !== undefined) payload.is_active = updates.status === 'active';
 
-    await axiosInstance.put(`/auth/users/${id}`, updateData);
+    const response = await axiosInstance.put(`/auth/users/${id}`, payload);
+    return mapUser(response.data);
+  },
+
+  async setPassword(id: string, password: string): Promise<void> {
+    await axiosInstance.post(`/auth/users/${id}/password`, { password });
   },
 
   async deleteUser(id: string): Promise<void> {
     await axiosInstance.delete(`/auth/users/${id}`);
+  },
+
+  /** Permissions du compte connecté — l'UI n'a pas à réimplémenter la règle. */
+  async getMyPermissions(): Promise<{ role: string; permissions: string[] }> {
+    const response = await axiosInstance.get('/auth/permissions');
+    return response.data;
+  },
+
+  /** Matrice complète rôle -> permissions, pour l'écran d'administration. */
+  async getRoleMatrix(): Promise<{
+    roles: Array<{ value: string; permissions: string[] }>;
+    permissions: string[];
+  }> {
+    const response = await axiosInstance.get('/auth/roles');
+    return response.data;
   },
 };

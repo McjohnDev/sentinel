@@ -15,6 +15,11 @@ interface AcknowledgeModalProps {
   onClose: () => void;
   alert: Alert | null;
   onConfirm: (alertId: string, comment: string, operatorName: string) => void;
+  /**
+   * Même formulaire pour l'acquittement et la clôture : les deux collectent
+   * un intervenant et un compte rendu. Seuls les libellés changent.
+   */
+  mode?: 'acknowledge' | 'resolve';
 }
 
 export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
@@ -22,6 +27,7 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
   onClose,
   alert,
   onConfirm,
+  mode = 'acknowledge',
 }) => {
   const { currentUser, users } = useApp();
   const [operatorName, setOperatorName] = useState('');
@@ -47,7 +53,7 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Prise en charge & Acquittement de l'alerte"
+      title={mode === 'resolve' ? "Clôture de l'alerte" : "Prise en charge & Acquittement de l'alerte"}
       footer={
         <>
           <button
@@ -64,7 +70,7 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <UserCheck className="w-4 h-4" />
-            Confirmer l'acquittement
+            {mode === 'resolve' ? 'Confirmer la résolution' : "Confirmer l'acquittement"}
           </button>
         </>
       }

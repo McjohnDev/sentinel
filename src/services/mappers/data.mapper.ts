@@ -16,7 +16,6 @@ import {
   AgentMetrics,
   CustomThresholds,
   GlobalThresholds,
-  EmailNotificationConfig,
   DataRetentionConfig,
   EnrollmentToken,
 } from '../../types';
@@ -26,7 +25,6 @@ import {
   BackendUser,
   BackendHeartbeat,
   BackendGlobalSettings,
-  BackendEmailConfig,
   BackendRetentionConfig,
   BackendEnrollmentToken,
 } from '../types/api.types';
@@ -38,6 +36,7 @@ export class DataMapper {
       admin: 'Admin',
       operator: 'Operator',
       read_only: 'ReadOnly',
+      security: 'Security',
     };
     return roleMap[backendRole.toLowerCase()] || 'ReadOnly';
   }
@@ -47,6 +46,7 @@ export class DataMapper {
       Admin: 'admin',
       Operator: 'operator',
       ReadOnly: 'read_only',
+      Security: 'security',
     };
     return roleMap[frontendRole];
   }
@@ -54,9 +54,11 @@ export class DataMapper {
   // Agent Status Mapping
   static mapBackendAgentStatus(backendStatus: string): AgentStatus {
     const statusMap: Record<string, AgentStatus> = {
+      offline: 'offline',
       active: 'online',
       revoked: 'revoked',
       deleted: 'offline',
+      uninstalled: 'uninstalled',
     };
     return statusMap[backendStatus.toLowerCase()] || 'offline';
   }
@@ -67,6 +69,7 @@ export class DataMapper {
       offline: 'deleted',
       obsolete: 'active',
       revoked: 'revoked',
+      uninstalled: 'uninstalled',
     };
     return statusMap[frontendStatus];
   }
@@ -75,7 +78,9 @@ export class DataMapper {
   static mapBackendAlertSeverity(backendSeverity: string): AlertSeverity {
     const severityMap: Record<string, AlertSeverity> = {
       critical: 'critical',
-      warning: 'warning',
+      major: 'major',
+      warning: 'major',
+      minor: 'minor',
       info: 'info',
     };
     return severityMap[backendSeverity.toLowerCase()] || 'info';
@@ -84,7 +89,9 @@ export class DataMapper {
   static mapFrontendAlertSeverity(frontendSeverity: AlertSeverity): string {
     const severityMap: Record<AlertSeverity, string> = {
       critical: 'CRITICAL',
-      warning: 'WARNING',
+      major: 'MAJOR',
+      warning: 'MAJOR',
+      minor: 'MINOR',
       info: 'INFO',
     };
     return severityMap[frontendSeverity];
@@ -98,8 +105,10 @@ export class DataMapper {
       ram_high: 'ram',
       disk_high: 'disk',
       back_online: 'offline',
+      log_pattern: 'log',
+      rate_limit: 'log',
     };
-    return typeMap[backendType.toLowerCase()] || 'offline';
+    return typeMap[backendType.toLowerCase()] || 'other';
   }
 
   static mapFrontendAlertType(frontendType: AlertType): string {
@@ -108,6 +117,8 @@ export class DataMapper {
       ram: 'RAM_HIGH',
       disk: 'DISK_HIGH',
       offline: 'AGENT_OFFLINE',
+      log: 'LOG_PATTERN',
+      other: 'FILE_ANOMALY',
     };
     return typeMap[frontendType];
   }
@@ -143,45 +154,132 @@ export class DataMapper {
     return osMap[backendOS.toLowerCase()] || 'linux';
   }
 
+  static formatLastSeen(ageSeconds?: number | null, fallback?: string): string {
+    if (ageSeconds == null) return fallback || '—';
+    if (ageSeconds < 20) return "À l'instant";
+    if (ageSeconds < 60) return `Il y a ${ageSeconds}s`;
+    if (ageSeconds < 3600) return `Il y a ${Math.floor(ageSeconds / 60)} min`;
+    if (ageSeconds < 86400) return `Il y a ${Math.floor(ageSeconds / 3600)} h`;
+    return `Il y a ${Math.floor(ageSeconds / 86400)} j`;
+  }
+
   // Agent Mapping
   static mapBackendAgent(backendAgent: BackendAgent): Agent {
+    // `last_heartbeat` peut être une chaîne (horodatage seul) ou l'objet
+    // complet selon l'endpoint. Rétrécir une fois évite huit accès non typés.
+    const rawHeartbeat = backendAgent.last_heartbeat;
+    const hb = typeof rawHeartbeat === 'string' ? undefined : rawHeartbeat;
+    const lastSeen =
+      (typeof rawHeartbeat === 'string' ? rawHeartbeat : hb?.timestamp) ||
+      backendAgent.last_communication ||
+      new Date().toISOString();
+    const age = backendAgent.last_seen_age_seconds;
+    const uptimeSeconds = backendAgent.uptime_seconds ?? hb?.uptime_seconds ?? 0;
+    const days = Math.floor(uptimeSeconds / 86400);
+    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+
+    const diskRows = backendAgent.disks ?? hb?.disks ?? [];
     const metrics: AgentMetrics = {
-      cpu: 0,
-      ram: 0,
-      ramUsedGb: 0,
-      ramTotalGb: 16,
-      disk: 0,
-      diskUsedGb: 0,
-      diskTotalGb: 500,
-      uptime: '0j 0h 0m',
+      cpu: backendAgent.cpu_percent ?? hb?.cpu_percent ?? 0,
+      ram: backendAgent.ram_percent ?? hb?.ram_percent ?? 0,
+      ramUsedGb: backendAgent.ram_used_gb ?? 0,
+      ramTotalGb: backendAgent.ram_total_gb ?? 16,
+      disk: backendAgent.disk_percent ?? hb?.disk_percent ?? 0,
+      diskUsedGb: backendAgent.disk_used_gb ?? hb?.disk_used_gb ?? 0,
+      diskTotalGb: backendAgent.disk_total_gb ?? hb?.disk_total_gb ?? 500,
+      uptime: `${days}j ${hours}h ${minutes}m`,
       cpuHistory: [],
       ramHistory: [],
       diskHistory: [],
     };
 
-    const customThresholds: CustomThresholds = {
-      cpuWarning: backendAgent.cpu_threshold_warning || 80,
-      cpuCritical: backendAgent.cpu_threshold_critical || 90,
-      ramWarning: backendAgent.ram_threshold_warning || 80,
-      ramCritical: backendAgent.ram_threshold_critical || 90,
-      diskWarning: backendAgent.disk_threshold_warning || 85,
-      diskCritical: backendAgent.disk_threshold_critical || 95,
+    if (diskRows.length > 0) {
+      metrics.partitions = diskRows.map((d) => ({
+        name: d.name || d.mount || 'disk',
+        mountPoint: d.mount || '',
+        letter: d.letter ?? null,
+        label: d.label ?? null,
+        fstype: (d as { fstype?: string }).fstype,
+        totalGb: d.total_gb ?? 0,
+        usedGb: d.used_gb ?? 0,
+        usedPercent: d.percent ?? 0,
+      }));
+    }
+
+    // Un seuil surchargé se distingue d'un seuil hérité par la présence
+    // d'une valeur, pas par une valeur de repli. L'ancienne version comblait
+    // chaque champ absent avec 80/90/85/95 : `customThresholds` n'était donc
+    // jamais indéfini et TOUS les hôtes s'affichaient « Surcharge », y
+    // compris ceux qui suivaient sagement les seuils globaux.
+    const thresholdValues = {
+      cpuWarning: backendAgent.cpu_warning_threshold ?? backendAgent.cpu_threshold_warning,
+      cpuCritical: backendAgent.cpu_critical_threshold ?? backendAgent.cpu_threshold_critical,
+      ramWarning: backendAgent.ram_warning_threshold ?? backendAgent.ram_threshold_warning,
+      ramCritical: backendAgent.ram_critical_threshold ?? backendAgent.ram_threshold_critical,
+      diskWarning: backendAgent.disk_warning_threshold ?? backendAgent.disk_threshold_warning,
+      diskCritical: backendAgent.disk_critical_threshold ?? backendAgent.disk_threshold_critical,
     };
+    const mountRules = Array.isArray(backendAgent.disk_mount_rules)
+      ? backendAgent.disk_mount_rules.map((r: { mount?: string; warning?: number; critical?: number }) => ({
+          mount: String(r.mount || ''),
+          warning: Number(r.warning ?? 85),
+          critical: Number(r.critical ?? 95),
+        }))
+      : [];
+
+    const hasOverride =
+      Object.values(thresholdValues).some((v) => v !== undefined && v !== null) ||
+      mountRules.length > 0;
+
+    const customThresholds: CustomThresholds | undefined = hasOverride
+      ? {
+          cpuWarning: thresholdValues.cpuWarning ?? 80,
+          cpuCritical: thresholdValues.cpuCritical ?? 90,
+          ramWarning: thresholdValues.ramWarning ?? 80,
+          ramCritical: thresholdValues.ramCritical ?? 90,
+          diskWarning: thresholdValues.diskWarning ?? 85,
+          diskCritical: thresholdValues.diskCritical ?? 95,
+          diskMountRules: mountRules,
+        }
+      : undefined;
 
     return {
       id: backendAgent.id,
       name: backendAgent.name || backendAgent.hostname,
       hostname: backendAgent.hostname,
-      os: this.mapBackendOS(backendAgent.os),
-      osVersion: 'Unknown',
-      agentVersion: 'v1.0',
-      ipAddress: backendAgent.ip_address,
+      os: this.mapBackendOS(backendAgent.os || 'linux'),
+      osVersion: backendAgent.os_version || 'Unknown',
+      agentVersion: backendAgent.agent_version || 'v1.1.0',
+      ipAddress: backendAgent.ip_address || '',
       status: this.mapBackendAgentStatus(backendAgent.status),
       metrics,
-      activeAlertsCount: 0,
-      lastHeartbeat: backendAgent.last_heartbeat,
-      enrollmentDate: new Date().toISOString().split('T')[0],
-      location: backendAgent.location || 'Unknown',
+      // Servi par la liste quand le serveur le calcule ; sinon recalculé par
+      // le contexte à partir des alertes réellement chargées. Le zéro codé
+      // en dur rendait la colonne « Alertes » et son filtre inertes.
+      activeAlertsCount: backendAgent.active_alerts_count ?? 0,
+      lastHeartbeat: this.formatLastSeen(age, lastSeen),
+      lastSeenAgeSeconds: age,
+      // Date réelle d'enrôlement. Elle était remplacée par la date du jour,
+      // ce qui faisait de chaque hôte un hôte enrôlé aujourd'hui.
+      enrollmentDate: backendAgent.enrolled_at
+        ? String(backendAgent.enrolled_at).split('T')[0]
+        : '',
+      location: backendAgent.location || '',
+      machineType: backendAgent.machine_type,
+      // Cycle de vie et responsabilité (lot A)
+      retired: backendAgent.retired ?? false,
+      uninstalled: backendAgent.uninstalled ?? false,
+      uninstalledAt: backendAgent.uninstalled_at ?? null,
+      ownerUserId: backendAgent.owner_user_id ?? null,
+      ownerUsername: backendAgent.owner_username ?? null,
+      adminGroupId: backendAgent.admin_group_id ?? null,
+      adminGroupName: backendAgent.admin_group_name ?? null,
+      cpuCores: backendAgent.cpu_cores ?? null,
+      ramTotalGb: backendAgent.ram_total_gb ?? null,
+      runtime: backendAgent.runtime ?? null,
+      runMode: backendAgent.run_mode ?? null,
+      editableFields: backendAgent.editable_fields ?? [],
       customThresholds,
     };
   }
@@ -196,10 +294,12 @@ export class DataMapper {
       severity: this.mapBackendAlertSeverity(backendAlert.severity),
       status: this.mapBackendAlertStatus(backendAlert.status),
       message: backendAlert.message,
-      timestamp: backendAlert.created_at,
+      timestamp: backendAlert.created_at || backendAlert.started_at,
       acknowledgedBy: backendAlert.acknowledged_by,
       acknowledgedAt: backendAlert.acknowledged_at,
       comment: backendAlert.comment,
+      mailStatus: backendAlert.mail_status,
+      webhookStatus: backendAlert.webhook_status,
     };
   }
 
@@ -217,6 +317,28 @@ export class DataMapper {
 
   // Global Settings Mapping
   static mapBackendGlobalSettings(backendSettings: BackendGlobalSettings): GlobalThresholds {
+    let rules: GlobalThresholds['diskMountRules'] = [];
+    const raw = backendSettings.disk_mount_rules;
+    if (Array.isArray(raw)) {
+      rules = raw.map((r) => ({
+        mount: String(r.mount || ''),
+        warning: Number(r.warning ?? 85),
+        critical: Number(r.critical ?? 95),
+      }));
+    } else if (typeof raw === 'string' && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          rules = parsed.map((r: { mount?: string; warning?: number; critical?: number }) => ({
+            mount: String(r.mount || ''),
+            warning: Number(r.warning ?? 85),
+            critical: Number(r.critical ?? 95),
+          }));
+        }
+      } catch {
+        rules = [];
+      }
+    }
     return {
       cpuWarning: backendSettings.cpu_warning_threshold,
       cpuCritical: backendSettings.cpu_critical_threshold,
@@ -224,17 +346,9 @@ export class DataMapper {
       ramCritical: backendSettings.ram_critical_threshold,
       diskWarning: backendSettings.disk_warning_threshold,
       diskCritical: backendSettings.disk_critical_threshold,
-    };
-  }
-
-  // Email Config Mapping
-  static mapBackendEmailConfig(backendConfig: BackendEmailConfig): EmailNotificationConfig {
-    return {
-      recipients: JSON.parse(backendConfig.recipients || '[]'),
-      smtpHost: backendConfig.smtp_host,
-      smtpPort: backendConfig.smtp_port,
-      smtpSecure: backendConfig.smtp_secure,
-      smtpUser: backendConfig.smtp_user,
+      durationSeconds: backendSettings.threshold_duration_seconds ?? backendSettings.duration_seconds ?? 300,
+      escalateAfterMinutes: backendSettings.escalate_after_minutes ?? 15,
+      diskMountRules: rules,
     };
   }
 

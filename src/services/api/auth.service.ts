@@ -5,6 +5,7 @@
 
 import axiosInstance from './axios.config';
 import { User, Role } from '../../types';
+import { DataMapper } from '../mappers/data.mapper';
 
 export interface LoginRequest {
   username: string;
@@ -51,7 +52,9 @@ export const authService = {
       id: user_id,
       name: returnedUsername,
       email: email,
-      role: role.charAt(0).toUpperCase() + role.slice(1) as Role,
+      // `read_only` deviendrait « Read_only » avec une capitalisation
+      // maison — une valeur absente du type Role. Le mappeur fait foi.
+      role: DataMapper.mapBackendRole(role),
       createdAt: new Date().toISOString().split('T')[0],
       status: 'active',
     };
@@ -85,7 +88,7 @@ export const authService = {
         id: user.id,
         name: user.username,
         email: user.email,
-        role: user.role.charAt(0).toUpperCase() + user.role.slice(1) as Role,
+        role: DataMapper.mapBackendRole(user.role),
         createdAt: user.created_at || new Date().toISOString().split('T')[0],
         status: user.is_active ? 'active' : 'inactive',
       };
