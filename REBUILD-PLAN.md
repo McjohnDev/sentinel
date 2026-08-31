@@ -55,8 +55,8 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 
 | # | Point | Serveur | Agent | UI | État |
 |---|---|---|---|---|---|
-| 1 | Enrôlement après installation | `POST /api/agents/enroll` + `enrollment_tokens` | supprimé | jetons dans Paramètres | serveur seul |
-| 2 | Champs modifiables / non modifiables | `AGENT_EDITABLE_FIELDS`, `PUT .../name`, `.../location` | supprimé | détail hôte | à revoir |
+| 1 | Enrôlement après installation | `POST /api/agents/enroll` + `enrollment_tokens` | **réécrit** | jetons dans Paramètres | **livré** |
+| 2 | Champs modifiables / non modifiables | `AGENT_EDITABLE_FIELDS`, `PUT .../name`, `.../location` | constats déclarés | détail hôte | à revoir |
 | 3 | Attribution d'un administrateur ou groupe | `admin_groups`, `admin_group_members` | — | Utilisateurs | à revoir |
 | 4 | Désinstallation + signalement | `POST /api/agents/deregister`, `PUT .../revoke` | supprimé | détail hôte | serveur seul |
 | 5 | Resynchronisation après coupure | `POST /api/agents/heartbeat`, `POST /api/agents/ping` | supprimé | bandeau hors ligne | serveur seul |
@@ -69,6 +69,49 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 
 > Les points 9 et 10 portent ici les deux entrées numérotées « 8 » et « 9 » de
 > la demande initiale, qui comportait deux fois le chiffre 7.
+
+### Point 1 — livré le 31 août 2026
+
+L'agent est réécrit à partir de rien, réduit à ce que le point 1 demande.
+Six modules dans `agent/src` :
+
+| Module | Rôle |
+|---|---|
+| `agent_paths.py` | où l'état vit sur l'hôte (ProgramData / /var/lib), repli sur le profil utilisateur si les droits manquent |
+| `identity.py` | `machine_id` stable, tiré une fois puis relu |
+| `config.py` | configuration ; priorité ligne de commande > environnement > fichier |
+| `facts.py` | ce qui est **constaté** de l'hôte, sans aucune métrique |
+| `enrollment.py` | appel d'enrôlement et conservation des jetons |
+| `cli.py` | `enroll`, `status`, `version` |
+
+```bash
+python agent/src/cli.py enroll --token <jeton> --server-url https://plateforme:8443
+python agent/src/cli.py status
+```
+
+**40 tests passent**, dont 4 d'intégration qui enrôlent contre
+`POST /api/agents/enroll` réellement montée — le seul moyen de prouver que la
+charge utile satisfait les contraintes de la plateforme plutôt que ma lecture
+de celles-ci. Ce sont eux qui échoueront si les deux moitiés dérivent.
+
+Ce qui est garanti par test :
+
+- l'identité survit à un redémarrage, et une identité corrompue est retirée
+  plutôt que propagée vers un enrôlement voué au rejet ;
+- le même hôte réenrôlé **met à jour** sa ligne au lieu d'en créer une
+  seconde — c'est la reprise après réinstallation ;
+- un jeton déjà consommé est refusé, et un refus **n'écrit rien** sur le
+  disque de l'hôte ;
+- un nom de poste accentué (« PC-Comptabilité ») est ramené à ce que la
+  plateforme accepte, au lieu de partir en 422 devant l'installateur ;
+- le matériel non mesuré est **omis**, jamais mis à zéro : un 0 dans
+  l'inventaire se lirait comme une mesure ;
+- le fichier de configuration livré ne porte aucun jeton — il est embarqué
+  dans chaque installation.
+
+Restent hors périmètre du point 1, donc absents : heartbeat, collecte,
+service système, mise à jour. Le service `agent` de Compose reste commenté
+tant qu'il n'y a pas de boucle d'exécution (points 5 et 7).
 
 ### Déjà acquis, à ne pas réécrire
 
@@ -105,9 +148,11 @@ Audit, Paramètres, Profil, Connexion.
 
 ## Points ouverts
 
-1. **Longueur de l'identifiant.** La demande dit « un chiffre de 1-F sur 6
-   12caractères ». L'implémentation fait **6** caractères hexadécimaux.
-   Confirmer 6, ou passer à 12.
+1. ~~**Longueur de l'identifiant.**~~ **Tranché le 31 août : 6 caractères
+   hexadécimaux majuscules** (`A3F09C`), comme déjà implémenté. Aucun
+   changement. Le « 12 » de la demande initiale venait probablement de
+   `MAX_GENERATION_ATTEMPTS = 12`, voisin dans le même fichier. Le format est
+   désormais vérifié de bout en bout par les tests d'intégration du point 1.
 2. **Point 9 sans écran.** Le workflow de validation existe côté serveur
    (`action_approvals`) mais l'écran Approbations a été retiré. Il faudra le
    réécrire au moment du point 9.

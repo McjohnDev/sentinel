@@ -1,121 +1,27 @@
 # Configuration de l'agent CBC Supervision
+#
+# Ce fichier ne couvre que ce que l'agent sait faire aujourd'hui : s'enrôler
+# (point 1). Il grandit avec chaque point livré. Les réglages de métriques, de
+# journaux et de fenêtres horaires reviendront quand le code qui les lit
+# existera — une clé de configuration sans lecteur est une promesse fausse.
 
-# Configuration du serveur
 server:
+  # URL de la plateforme. Surchargeable par CBC_SERVER_URL ou --server-url.
   url: "https://localhost:8443"
-  # Jeton d'enrôlement à usage unique émis par un administrateur depuis
-  # Paramètres → Agents. Laisser vide ici : ce fichier est embarqué tel quel
-  # dans le binaire distribué (voir packaging/agent.spec), un jeton codé en
-  # dur y serait donc diffusé avec chaque installation.
+
+  # Jeton d'enrôlement à usage unique, émis depuis Paramètres → Jetons.
+  # Laisser vide : ce fichier est embarqué tel quel dans le binaire distribué
+  # (voir packaging/agent.spec), un jeton écrit ici serait diffusé avec chaque
+  # installation. Le passer par --token ou CBC_ENROLLMENT_TOKEN.
   enrollment_token: ""
-  # Vérification TLS. Ne passer à false que pour un laboratoire servant du
-  # HTTP en clair — utiliser config.lab.yaml pour cela, jamais ce fichier.
+
+  # Vérification du certificat TLS. Ne jamais passer à false ici : utiliser
+  # config.lab.yaml pour un laboratoire en HTTP clair.
   tls_verify: true
 
-# Configuration de l'agent
 agent:
-  heartbeat_interval: 30  # secondes entre chaque heartbeat
-  ping_interval: 10       # présence légère (session live)
-  retry_interval: 60      # secondes avant de réessayer en cas d'échec
-  max_retries: 3          # nombre maximum de tentatives de connexion
-  machine_type: "workstation"  # "server" ou "workstation" (À DÉFINIR selon la machine)
+  # "server" ou "workstation" — détermine le seuil de mise hors ligne.
+  machine_type: "workstation"
 
-# Configuration des métriques
-metrics:
-  cpu:
-    enabled: true
-    interval: 1  # secondes pour la mesure CPU
-  memory:
-    enabled: true
-  disk:
-    enabled: true
-    path: "/"  # chemin du disque à surveiller
-  uptime:
-    enabled: true
-  processes:
-    watched: []  # e.g. ["nginx", "sqlservr"]
-
-# Configuration de la disponibilité (fenêtres horaires pour les postes de travail)
-availability:
-  enabled: false  # Activer pour utiliser les fenêtres horaires
-  # Format: jour: [{start: "HH:MM", end: "HH:MM"}, ...]
-  # Exemple pour un poste de travail 8h-12h et 14h-18h du lundi au vendredi:
-  time_windows:
-    monday:
-      - start: "08:00"
-        end: "12:00"
-      - start: "14:00"
-        end: "18:00"
-    tuesday:
-      - start: "08:00"
-        end: "12:00"
-      - start: "14:00"
-        end: "18:00"
-    wednesday:
-      - start: "08:00"
-        end: "12:00"
-      - start: "14:00"
-        end: "18:00"
-    thursday:
-      - start: "08:00"
-        end: "12:00"
-      - start: "14:00"
-        end: "18:00"
-    friday:
-      - start: "08:00"
-        end: "12:00"
-      - start: "14:00"
-        end: "18:00"
-  # Seuil offline personnalisé en secondes (optionnel, remplace le seuil par défaut si défini)
-  offline_threshold_seconds: null  # null = utiliser le seuil par défaut selon le type de machine
-
-# Configuration de la supervision des services système (paramétrable)
-services_monitoring:
-  enabled: false  # À ACTIVER par CBC si nécessaire
-  interval: 60  # Intervalle de vérification en secondes
-  services: []  # Liste des services à superviser (ex: ["SWIFT AutoClient", "SQL Server"])
-  # À DÉFINIR: liste officielle des services à superviser par CBC
-
-# Configuration de la supervision des fichiers (paramétrable)
-files_monitoring:
-  enabled: false  # À ACTIVER par CBC si nécessaire
-  interval: 300  # Intervalle de vérification en secondes
-  files: []  # Liste des fichiers à superviser (ex: [{"path": "/var/log/swift.log", "max_size_mb": 100}])
-  # À DÉFINIR: liste officielle des fichiers à superviser par CBC
-
-# Configuration du mode dégradé (AGT-005)
-degraded_mode:
-  enabled: true
-  retry_on_recovery: true
-  buffer_dir: "data/agent-buffer"
-  max_size_mb: 500   # 500 MB cap
-  max_age_hours: 24  # 24 h cap
-
-# Collecte de journaux (FS3 / AGT-030–031) — Loki local, pas de compte cloud
-logs:
-  enabled: false
-  files: []  # ex: ["/var/log/syslog", "C:\\\\ProgramData\\\\CBC Agent\\\\*.log"]
-  parser: raw  # raw | json | syslog
-  severity_floor: debug
-  max_bytes_per_min: 5242880
-  offset_path: data/agent-buffer/log-offsets.json
-  spill_path: data/agent-buffer/log-spill.log
-  alert_patterns: []  # regex → event immédiat (AGT-036)
-  # journald (Linux) / Windows Event Log — enabled: auto | true | false
-  journald:
-    enabled: auto
-    units: []  # vide = journal système; ex: ["nginx.service"]
-    max_entries: 200
-  winevt:
-    enabled: auto
-    channels: ["System", "Application"]  # ajouter "Security" si l'agent tourne en admin
-    max_entries: 200
-
-# Configuration des logs agent (fichier agent.log)
-logging:
-  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-  file: "agent.log"
-  rotation:
-    enabled: true
-    max_size_mb: 10
-    backup_count: 5
+  # Délai maximum d'une requête vers la plateforme, en secondes.
+  timeout_seconds: 15

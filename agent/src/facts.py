@@ -1,0 +1,162 @@
+"""Ce que l'agent constate de son hôte.
+
+Ces champs sont *constatés*, pas *attribués* : la plateforme les enregistre et
+refuse qu'on les corrige depuis l'interface (point 2). Un inventaire qui
+contredit la machine réelle ne vaut rien, donc tout ce qui est ici vient du
+système et de rien d'autre.
+
+Aucune collecte de métrique ici : la mesure du CPU, de la mémoire et des
+disques appartient au point 7. On ne relève que les caractéristiques stables
+nécessaires à l'enrôlement.
+"""
+
+from __future__ import annotations
+
+import platform
+import re
+import socket
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
+
+try:  # psutil est une dépendance déclarée, mais l'agent doit rester diagnosticable sans elle.
+    import psutil
+except ImportError:  # pragma: no cover - chemin de repli
+    psutil = None
+
+#: La plateforme valide `^[a-zA-Z0-9\-_\.]+$` sur le nom de machine.
+_HOSTNAME_ALLOWED = re.compile(r"[^A-Za-z0-9\-_.]")
+
+_BYTES_PER_GB = 1024 ** 3
+
+
+def sanitize_hostname(raw: str) -> str:
+    """Ramène un nom de machine à ce que la plateforme accepte.
+
+    Un poste nommé « PC-Comptabilité » serait refusé en 422 à l'enrôlement, ce
+    qui est un échec incompréhensible pour celui qui installe l'agent. On
+    remplace le caractère fautif au lieu de laisser l'enrôlement échouer.
+    """
+    cleaned = _HOSTNAME_ALLOWED.sub("-", (raw or "").strip())
+    cleaned = cleaned.strip("-.") or "hote-inconnu"
+    return cleaned[:255]
+
+
+def detect_os() -> str:
+    """Famille de système, dans le vocabulaire de la plateforme."""
+    system = platform.system()
+    return system or "Inconnu"
+
+
+def detect_os_version() -> str:
+    """Version lisible du système."""
+    system = platform.system()
+    if system == "Windows":
+        version = platform.version()
+        release = platform.release()
+        detail = ("%s %s" % (release, version)).strip()
+    elif system == "Darwin":
+        detail = platform.mac_ver()[0] or platform.release()
+    else:
+        detail = platform.release()
+    return (detail or "inconnue")[:50]
+
+
+def detect_ip_address() -> Optional[str]:
+    """Adresse IP par laquelle l'hôte sort vers le réseau.
+
+    On n'ouvre pas de connexion : un socket UDP « connecté » ne fait que
+    choisir une route, ce qui suffit à connaître l'interface sortante sans
+    dépendre d'un DNS ni joindre quoi que ce soit.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("192.0.2.1", 1))  # TEST-NET-1, jamais routé
+        return sock.getsockname()[0]
+    except OSError:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except OSError:
+            return None
+    finally:
+        sock.close()
+
+
+@dataclass(frozen=True)
+class HostFacts:
+    hostname: str
+    os: str
+    os_version: str
+    ip_address: Optional[str]
+    cpu_cores: Optional[int]
+    ram_total_gb: Optional[float]
+    disk_total_gb: Optional[float]
+    runtime: Dict[str, Any] = field(default_factory=dict)
+
+
+def _hardware() -> Dict[str, Optional[float]]:
+    """Caractéristiques matérielles, ou None si psutil est absent.
+
+    None signifie « non mesuré ». Renvoyer 0 laisserait croire à une machine
+    sans processeur ni mémoire, ce qui est pire qu'une case vide.
+    """
+    if psutil is None:
+        return {"cpu_cores": None, "ram_total_gb": None, "disk_total_gb": None}
+
+    cores = psutil.cpu_count(logical=True)
+    try:
+        ram = round(psutil.virtual_memory().total / _BYTES_PER_GB, 2)
+    except Exception:
+        ram = None
+
+    total = 0
+    for part in psutil.disk_partitions(all=False):
+        try:
+            total += psutil.disk_usage(part.mountpoint).total
+        except (PermissionError, OSError):
+            # Lecteur amovible vide ou volume chiffré non monté : il ne compte
+            # pas, et ce n'est pas une raison d'échouer l'enrôlement.
+            continue
+    return {
+        "cpu_cores": cores,
+        "ram_total_gb": ram,
+        "disk_total_gb": round(total / _BYTES_PER_GB, 2) if total else None,
+    }
+
+
+def runtime_info(agent_version: str) -> Dict[str, Any]:
+    """Comment et où l'agent s'exécute (préparation du point 10)."""
+    import os
+    import sys
+
+    return {
+        "executable": sys.executable,
+        "frozen": bool(getattr(sys, "frozen", False)),
+        "pid": os.getpid(),
+        "python": platform.python_version(),
+        "agent_version": agent_version,
+        "user": _current_user(),
+    }
+
+
+def _current_user() -> Optional[str]:
+    import getpass
+
+    try:
+        return getpass.getuser()
+    except Exception:
+        return None
+
+
+def collect(agent_version: str) -> HostFacts:
+    """Relève l'état de l'hôte au moment de l'enrôlement."""
+    hardware = _hardware()
+    return HostFacts(
+        hostname=sanitize_hostname(socket.gethostname()),
+        os=detect_os(),
+        os_version=detect_os_version(),
+        ip_address=detect_ip_address(),
+        cpu_cores=hardware["cpu_cores"],
+        ram_total_gb=hardware["ram_total_gb"],
+        disk_total_gb=hardware["disk_total_gb"],
+        runtime=runtime_info(agent_version),
+    )
