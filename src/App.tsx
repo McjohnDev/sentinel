@@ -17,18 +17,8 @@ import { AgentDetailView } from './views/AgentDetailView';
 import { AlertsListView } from './views/AlertsListView';
 import { SettingsView } from './views/SettingsView';
 import { UsersView } from './views/UsersView';
-import { LogsView } from './views/LogsView';
-import { CustomDashboardsView } from './views/CustomDashboardsView';
-import { NetworkView } from './views/NetworkView';
-import { ReportsView } from './views/ReportsView';
-import { PilotUatView } from './views/PilotUatView';
-import { ActionsView } from './views/ActionsView';
-import { ApprovalsView } from './views/ApprovalsView';
-import { RulesView } from './views/RulesView';
 import { IntegrationsView } from './views/IntegrationsView';
-import { AutomationView } from './views/AutomationView';
 import { AuditView } from './views/AuditView';
-import { TrendsView } from './views/TrendsView';
 import { ProfileView } from './views/ProfileView';
 import { I18nProvider } from './i18n';
 
@@ -73,16 +63,6 @@ const MainLayout: React.FC = () => {
               <Route path="/agents/:id" element={<AgentDetailView />} />
               <Route path="/fleet/:id" element={<AgentDetailView />} />
               <Route path="/alerts" element={<AlertsListView />} />
-              <Route path="/logs" element={<LogsView />} />
-              <Route path="/dashboards" element={<CustomDashboardsView />} />
-              <Route path="/trends" element={<TrendsView />} />
-              <Route path="/network" element={<NetworkView />} />
-              <Route path="/reports" element={<ReportsView />} />
-              <Route path="/pilot-uat" element={<PilotUatView />} />
-              <Route path="/automation" element={<AutomationView />} />
-              <Route path="/actions" element={<ActionsView />} />
-              <Route path="/approvals" element={<ApprovalsView />} />
-              <Route path="/rules" element={<RulesView />} />
               <Route path="/integrations" element={<IntegrationsView />} />
               <Route path="/settings" element={<SettingsView />} />
               <Route path="/users" element={<UsersView />} />

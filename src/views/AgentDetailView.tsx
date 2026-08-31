@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Info, Lock, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Lock, RefreshCw } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { agentsService } from '../services/api/agents.service';
@@ -21,16 +21,12 @@ import { agentStatusMeta, gaugeColor, sevMeta } from '../components/ui/tones';
 const TABS = [
   { id: 'vue', label: 'Vue' },
   { id: 'metriques', label: 'Métriques' },
-  { id: 'journaux', label: 'Journaux' },
-  { id: 'evenements', label: 'Événements' },
   { id: 'alertes', label: 'Alertes' },
   // Un seul onglet de configuration. L'ancien ne portait que les seuils et
   // les partitions, que le plan de supervision couvre désormais entièrement :
   // deux onglets auraient présenté les mêmes réglages à deux endroits, sans
   // qu'on sache lequel fait foi.
   { id: 'config', label: 'Configuration' },
-  { id: 'actions', label: 'Actions' },
-  { id: 'audit', label: 'Audit' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -67,10 +63,8 @@ export const AgentDetailView: React.FC = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [history, setHistory] = useState<Array<{ t: string; cpu?: number; ram?: number; disk?: number }>>([]);
-  const [dryRun, setDryRun] = useState(true);
   // Pas de valeur par défaut : pré-remplir avec un nom de service inventé
   // laissait croire que cet hôte l'héberge. L'opérateur saisit le sien.
-  const [serviceName, setServiceName] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -114,7 +108,6 @@ export const AgentDetailView: React.FC = () => {
       /* la fiche reste sur les dernières valeurs connues */
     }
   }, [id]);
-
 
   useEffect(() => {
     let cancelled = false;
@@ -458,52 +451,6 @@ export const AgentDetailView: React.FC = () => {
           discoveredMounts={partitionOptions.map((p) => p.mount).filter(Boolean)}
           canEdit={currentRole === 'Admin' || currentRole === 'Operator'}
         />
-      )}
-
-
-      {tab === 'actions' && (
-        <>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
-            <Info className="w-4 h-4 text-blue-600 shrink-0" />
-            <span className="text-[12.5px] font-semibold text-blue-700">Lot 2 — aperçu. Dry-run par défaut ; exécution réelle selon capability L1.</span>
-          </div>
-          <div className="cbc-card p-5 max-w-[660px]">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-50">
-              <div>
-                <div className="text-[13px] font-bold">Mode simulation (dry-run)</div>
-                <div className="text-xs text-[#777] mt-1">Activé par défaut — l'action est évaluée sans être appliquée.</div>
-              </div>
-              <button type="button" onClick={() => setDryRun(!dryRun)} className={`w-10 h-[23px] rounded-xl relative shrink-0 ${dryRun ? 'bg-[#D0B335]' : 'bg-slate-300'}`}>
-                <span className={`absolute top-[3px] w-[17px] h-[17px] rounded-full bg-white ${dryRun ? 'left-5' : 'left-[3px]'}`} />
-              </button>
-            </div>
-            <label className="block text-xs font-semibold text-slate-700 mt-4 mb-1.5">Plugin</label>
-            <div className="tnum px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-[13px]">
-              service.manage <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10.5px] font-semibold">L1</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3.5 mt-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Service</label>
-                <input value={serviceName} onChange={(e) => setServiceName(e.target.value)} placeholder="nom du service" className="cbc-input" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Opération</label>
-                <input defaultValue="restart" className="cbc-input" />
-              </div>
-            </div>
-            <button type="button" className="cbc-btn-primary mt-5" onClick={() => navigate('/approvals')}>
-              Soumettre pour approbation
-            </button>
-            <p className="text-[11.5px] leading-relaxed text-slate-400 mt-3.5 mb-0">Chaîne : RBAC → approbation → signature → allow-list → exécution → audit</p>
-          </div>
-        </>
-      )}
-
-      {['journaux', 'evenements', 'audit'].includes(tab) && (
-        <div className="cbc-card py-14 px-8 text-center">
-          <div className="text-[15px] font-bold">Onglet « {TABS.find((t) => t.id === tab)?.label} »</div>
-          <p className="text-[12.5px] text-[#777] mt-2 max-w-md mx-auto">Contenu FS3/Lot 2 — les onglets Vue, Métriques, Alertes, Configuration et Actions portent le périmètre actuel.</p>
-        </div>
       )}
 
       <AlertDrawer
