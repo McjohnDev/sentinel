@@ -11,6 +11,26 @@ Ce guide explique comment distribuer l'agent CBC Supervision et configurer les m
 3. **Système de Mise à Jour** - Module intégré pour les mises à jour automatiques
 4. **Fichier de Version** - Informations sur les versions disponibles
 
+## Installation silencieuse (FS2-06)
+
+Aucune interaction n’est requise pour le déploiement de masse :
+
+```bash
+# Debian / Ubuntu
+sudo DEBIAN_FRONTEND=noninteractive dpkg -i cbc-agent_1.0.0_amd64.deb
+
+# RHEL / Rocky
+sudo rpm -Uvh --quiet cbc-agent-1.0.0-1.x86_64.rpm
+
+# macOS
+sudo installer -pkg cbc-agent-1.0.0.pkg -target / -quiet
+
+# Windows (cmd / GPO / Intune)
+msiexec /i cbc-agent-1.0.0.msi /qn /norestart
+```
+
+Puis déposer `config.yaml` (URL serveur + jeton d’enrôlement) dans le répertoire de l’agent.
+
 ## Configuration du Serveur de Distribution
 
 ### Structure du Serveur

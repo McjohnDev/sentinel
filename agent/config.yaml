@@ -3,11 +3,19 @@
 # Configuration du serveur
 server:
   url: "https://localhost:8443"
-  enrollment_token: "demo-token-123"
+  # Jeton d'enrôlement à usage unique émis par un administrateur depuis
+  # Paramètres → Agents. Laisser vide ici : ce fichier est embarqué tel quel
+  # dans le binaire distribué (voir packaging/agent.spec), un jeton codé en
+  # dur y serait donc diffusé avec chaque installation.
+  enrollment_token: ""
+  # Vérification TLS. Ne passer à false que pour un laboratoire servant du
+  # HTTP en clair — utiliser config.lab.yaml pour cela, jamais ce fichier.
+  tls_verify: true
 
 # Configuration de l'agent
 agent:
   heartbeat_interval: 30  # secondes entre chaque heartbeat
+  ping_interval: 10       # présence légère (session live)
   retry_interval: 60      # secondes avant de réessayer en cas d'échec
   max_retries: 3          # nombre maximum de tentatives de connexion
   machine_type: "workstation"  # "server" ou "workstation" (À DÉFINIR selon la machine)
@@ -24,6 +32,8 @@ metrics:
     path: "/"  # chemin du disque à surveiller
   uptime:
     enabled: true
+  processes:
+    watched: []  # e.g. ["nginx", "sqlservr"]
 
 # Configuration de la disponibilité (fenêtres horaires pour les postes de travail)
 availability:
@@ -73,13 +83,35 @@ files_monitoring:
   files: []  # Liste des fichiers à superviser (ex: [{"path": "/var/log/swift.log", "max_size_mb": 100}])
   # À DÉFINIR: liste officielle des fichiers à superviser par CBC
 
-# Configuration du mode dégradé
+# Configuration du mode dégradé (AGT-005)
 degraded_mode:
   enabled: true
-  buffer_size: 100  # nombre de heartbeats à stocker en local
   retry_on_recovery: true
+  buffer_dir: "data/agent-buffer"
+  max_size_mb: 500   # 500 MB cap
+  max_age_hours: 24  # 24 h cap
 
-# Configuration des logs
+# Collecte de journaux (FS3 / AGT-030–031) — Loki local, pas de compte cloud
+logs:
+  enabled: false
+  files: []  # ex: ["/var/log/syslog", "C:\\\\ProgramData\\\\CBC Agent\\\\*.log"]
+  parser: raw  # raw | json | syslog
+  severity_floor: debug
+  max_bytes_per_min: 5242880
+  offset_path: data/agent-buffer/log-offsets.json
+  spill_path: data/agent-buffer/log-spill.log
+  alert_patterns: []  # regex → event immédiat (AGT-036)
+  # journald (Linux) / Windows Event Log — enabled: auto | true | false
+  journald:
+    enabled: auto
+    units: []  # vide = journal système; ex: ["nginx.service"]
+    max_entries: 200
+  winevt:
+    enabled: auto
+    channels: ["System", "Application"]  # ajouter "Security" si l'agent tourne en admin
+    max_entries: 200
+
+# Configuration des logs agent (fichier agent.log)
 logging:
   level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
   file: "agent.log"

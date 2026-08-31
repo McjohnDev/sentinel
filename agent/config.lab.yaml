@@ -1,0 +1,87 @@
+# Lab config — run this Windows/host agent against local Docker (port 8443).
+# Usage:
+#   python agent/src/agent.py agent/config.lab.yaml
+# or the frozen exe:
+#   dist\cbc-agent.exe agent\config.lab.yaml
+
+server:
+  url: "http://127.0.0.1:8443"
+  enrollment_token: "demo-token-123"
+  tls_verify: false
+
+agent:
+  heartbeat_interval: 15
+  ping_interval: 10
+  retry_interval: 30
+  max_retries: 3
+  machine_type: "workstation"
+
+metrics:
+  cpu:
+    enabled: true
+    interval: 1
+  memory:
+    enabled: true
+  disk:
+    enabled: true
+    path: "C:\\"
+  uptime:
+    enabled: true
+  processes:
+    watched: ["explorer", "python"]
+
+availability:
+  enabled: false
+  time_windows: {}
+  offline_threshold_seconds: null
+
+services_monitoring:
+  enabled: true
+  interval: 60
+  # Demo placeholders — replace with CBC official list (CBC-A)
+  services:
+    - "Spooler"
+    - "EventLog"
+
+files_monitoring:
+  enabled: true
+  interval: 300
+  # Demo placeholders — replace with CBC official list (CBC-B)
+  files:
+    - path: "C:\\Windows\\Temp"
+      max_size_mb: 2048
+
+degraded_mode:
+  enabled: true
+  retry_on_recovery: true
+  buffer_dir: "data/agent-buffer"
+  max_size_mb: 500
+  max_age_hours: 24
+
+logs:
+  enabled: true
+  files: []
+  parser: raw
+  severity_floor: warning
+  max_bytes_per_min: 5242880
+  offset_path: data/agent-buffer/log-offsets.json
+  spill_path: data/agent-buffer/log-spill.log
+  alert_patterns:
+    - "error"
+    - "failed"
+  journald:
+    enabled: false
+    units: []
+    max_entries: 200
+  winevt:
+    enabled: auto
+    channels: ["System", "Application"]
+    max_entries: 50
+
+logging:
+  level: "INFO"
+  file: "agent.lab.log"
+  rotation:
+    enabled: true
+    max_size_mb: 10
+    backup_count: 5

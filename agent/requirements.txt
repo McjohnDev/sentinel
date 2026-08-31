@@ -1,3 +1,7 @@
 psutil==5.9.8
 requests==2.31.0
-pyyaml==6.0.1
+pyyaml>=6.0.2
+pydantic>=2.5.3,<3
+# Mode service Windows (agent/src/windows_service.py). Windows uniquement :
+# le paquet n'existe pas sur les autres plateformes.
+pywin32>=306; sys_platform == "win32"

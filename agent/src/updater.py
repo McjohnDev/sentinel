@@ -95,7 +95,7 @@ class UpdateManager:
             
             # Vérifier le checksum si fourni
             if update_info.get("checksum"):
-                if not self._verify_checksum(package_file, update_info["checksum"]"):
+                if not self._verify_checksum(package_file, update_info["checksum"]):
                     logger.error("Checksum invalide")
                     shutil.rmtree(temp_dir)
                     return None
