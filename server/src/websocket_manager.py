@@ -1,7 +1,9 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from fastapi import WebSocket
-import json
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -10,6 +12,21 @@ class ConnectionManager:
     def __init__(self):
         # Stocke les connexions actives: {user_id: [WebSocket]}
         self.active_connections: Dict[str, List[WebSocket]] = {}
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Capture the FastAPI event loop so sync handlers can publish."""
+        self._loop = loop
+
+    def broadcast_sync(self, message: dict) -> None:
+        """Schedule broadcast from a threadpool/sync route (heartbeat, ping)."""
+        loop = self._loop
+        if loop is None or not loop.is_running():
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(self.broadcast(message), loop)
+        except Exception:
+            logger.debug("presence broadcast skipped", exc_info=True)
     
     async def connect(self, websocket: WebSocket, user_id: str):
         """Accepte une nouvelle connexion WebSocket."""

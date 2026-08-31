@@ -22,6 +22,12 @@ def init_default_users():
         # Créer les utilisateurs par défaut
         default_users = [
             {
+                "username": "admin",
+                "email": "admin@cbc.cm",
+                "password": "Admin123!",
+                "role": UserRole.ADMIN
+            },
+            {
                 "username": "operator",
                 "email": "operator@cbcam.cm",
                 "password": "Operator123!",

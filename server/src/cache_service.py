@@ -9,10 +9,12 @@ class CacheService:
     
     def __init__(self):
         self.redis_client = redis.Redis(
-            host='localhost',
-            port=6379,
+            host=settings.redis_host,
+            port=settings.redis_port,
             db=0,
-            decode_responses=True
+            decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
         )
     
     def get(self, key: str) -> Optional[Any]:

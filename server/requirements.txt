@@ -7,7 +7,21 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+# passlib (unmaintained) read bcrypt.__about__, removed in bcrypt 4.1, so every
+# password hash raised ValueError depending on the installed version.
+# auth_service now calls bcrypt directly; the $2b$ hash format is unchanged.
+bcrypt>=4.0,<6
 python-dotenv==1.0.0
 pytest==7.4.3
 httpx==0.25.2
+# Imported by server/src but previously declared only in docker/Dockerfile.server,
+# so `pip install -r server/requirements.txt` produced a server that could not
+# start. Keep this file authoritative: CI installs from it.
+redis==5.0.1
+slowapi==0.1.9
+prometheus-client==0.19.0
+email-validator==2.1.0
+requests==2.31.0
+# LDAP / Active Directory authentication (API-003). Optional at runtime:
+# ldap_service degrades to local auth if this is absent.
+ldap3==2.9.1
