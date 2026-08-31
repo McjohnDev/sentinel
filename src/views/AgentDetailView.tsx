@@ -316,11 +316,6 @@ export const AgentDetailView: React.FC = () => {
               <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
               {checking ? 'Vérification…' : 'Actualiser le statut'}
             </button>
-            {currentRole === 'Admin' && (
-              <button type="button" onClick={() => navigate('/studio')} className="cbc-btn-secondary">
-                Ouvrir dans Studio
-              </button>
-            )}
           </div>
         </div>
         <div className="flex gap-0.5 mt-5 -mx-[22px] px-3.5 border-t border-slate-200 bg-slate-50 rounded-b-xl overflow-x-auto">

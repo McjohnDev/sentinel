@@ -16,7 +16,6 @@ import {
   Workflow,
   ShieldCheck,
   Zap,
-  Wand2,
   SlidersHorizontal,
   Plug,
   Users,
@@ -72,7 +71,6 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'configure',
     labelKey: 'nav.group.configure',
     items: [
-      { id: 'studio', path: '/studio', labelKey: 'nav.studio', icon: Wand2 },
       { id: 'rules', path: '/rules', labelKey: 'nav.rules', icon: SlidersHorizontal },
       { id: 'integrations', path: '/integrations', labelKey: 'nav.integrations', icon: Plug, healthDot: true },
     ],
@@ -92,6 +90,5 @@ export function isNavActive(path: string, item: NavItem): boolean {
   if (item.id === 'agents') {
     return path === '/agents' || path === '/fleet' || path.startsWith('/agents/') || path.startsWith('/fleet/');
   }
-  if (item.id === 'studio') return path.startsWith('/studio');
   return path === item.path;
 }

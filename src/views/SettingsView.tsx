@@ -24,7 +24,6 @@ import {
   Cpu,
   Database,
   HardDrive,
-  Award,
   ShieldCheck,
   CheckCircle2,
   Lock,
@@ -56,8 +55,7 @@ type SettingsTab =
   | 'retention'
   | 'tokens'
   | 'platform'
-  | 'ldap'
-  | 'compliance';
+  | 'ldap';
 
 const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
   { id: 'thresholds', label: "Seuils d'alerte", icon: Sliders },
@@ -71,7 +69,6 @@ const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> 
   { id: 'tokens', label: "Jetons d'enrôlement", icon: Key },
   { id: 'platform', label: 'Plateforme', icon: Activity },
   { id: 'ldap', label: 'Annuaire (LDAP)', icon: ShieldCheck },
-  { id: 'compliance', label: 'Conformité banking', icon: Award },
 ];
 
 export const SettingsView: React.FC = () => {
@@ -1508,219 +1505,6 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 5: COMPLIANCE & BANKING CERTIFICATIONS */}
-      {activeTab === 'compliance' && (
-        <div className="space-y-6">
-          {/* Main Hero Marketing Banner */}
-          <div className="p-6 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
-            <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[#D0B335]/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-2 max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#D0B335]/20 border border-[#D0B335]/40 text-[#D0B335] text-[11px] font-bold rounded-full uppercase tracking-wider">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Dossier de Conformité Réglementaire Bancaire
-                </div>
-                <h3 className="text-xl font-black text-white tracking-tight">
-                  Plateforme Homologuée pour Établissements Bancaires & Monétiques
-                </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  CBC Supervision intègre nativement les exigences de sécurité élevées requises pour le suivi des infrastructures critiques, serveurs monétiques (Core Banking) et Data Centers financiers.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    addToast({
-                      type: 'success',
-                      title: 'Dossier de Conformité PDF',
-                      message: 'Téléchargement de la fiche technique & attestation ISO 27001 / COBAC initialisé.',
-                    });
-                  }}
-                  className="px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89c2c] text-slate-950 text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  Fiche Commerciale & ISO (PDF)
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Certifications Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* ISO 27001 */}
-            <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 relative hover:border-[#D0B335]/60 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-[#D0B335] flex items-center justify-center border border-amber-200">
-                  <Award className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                  <BadgeCheck className="w-3 h-3" /> Certifié
-                </span>
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900">ISO/IEC 27001:2022</h4>
-                <p className="text-xs text-slate-500 font-medium">Sécurité des Systèmes d'Information (SMSI)</p>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Garantit un cadre rigoureux de gestion des risques réseau, chiffrement fort TLS 1.3 et contrôle d'accès zéro confiance.
-              </p>
-              <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-                Réf: ISO-SMSI-2026-CBC • Renouvelé 2026
-              </div>
-            </div>
-
-            {/* PCI-DSS v4.0 */}
-            <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 relative hover:border-blue-300 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                  <BadgeCheck className="w-3 h-3" /> Niveau 1
-                </span>
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900">PCI-DSS v4.0</h4>
-                <p className="text-xs text-slate-500 font-medium">Sécurité des Données Cartaires & Monétique</p>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Supervision conforme des serveurs de paiement, GAB (DAB), commutateurs monétiques et transactions bancaires.
-              </p>
-              <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-                Réf: PCI-DSS-N1-2026 • Audité Annuellement
-              </div>
-            </div>
-
-            {/* COBAC & BEAC */}
-            <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 relative hover:border-[#D0B335]/60 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                  <BadgeCheck className="w-3 h-3" /> Conforme
-                </span>
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900">Réglementation COBAC</h4>
-                <p className="text-xs text-slate-500 font-medium">Règlement R-2016/04 & Directives BEAC</p>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Respect des normes de contrôle interne et de supervision prudentielle du réseau informatique bancaire en zone CEMAC.
-              </p>
-              <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-                Norme: COBAC-R2016/04 • Alignement CEMAC
-              </div>
-            </div>
-
-            {/* ISO 22301 */}
-            <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 relative hover:border-purple-300 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-200">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                  <BadgeCheck className="w-3 h-3" /> Homologué
-                </span>
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900">ISO/IEC 22301:2019</h4>
-                <p className="text-xs text-slate-500 font-medium">Continuité d'Activité (PCA & PRA Bancaire)</p>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Garantie de détection précoce des pannes pour maintenir un SLA d'au moins 99.99% sur les opérations bancaires 24/7.
-              </p>
-              <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-                PCA/PRA • Reprise sous 15 minutes
-              </div>
-            </div>
-
-            {/* SOC 2 Type II */}
-            <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 relative hover:border-indigo-300 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-200">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                  <BadgeCheck className="w-3 h-3" /> Type II
-                </span>
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900">SOC 2 Type II</h4>
-                <p className="text-xs text-slate-500 font-medium">Attestation de Sécurité & Confidentialité</p>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Audit continu de l'efficacité opérationnelle des contrôles de sécurité, confidentialité des logs et gestion des droits.
-              </p>
-              <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-                AICPA Trust Services Criteria
-              </div>
-            </div>
-
-            {/* ANSI/TIA-942 */}
-            <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 relative hover:border-rose-300 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1">
-                  <BadgeCheck className="w-3 h-3" /> Tier III+
-                </span>
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900">ANSI/TIA-942 Data Center</h4>
-                <p className="text-xs text-slate-500 font-medium">Supervision Infrastructure Salles Serveurs</p>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Prise en charge de la supervision environnementale, thermique et réseau pour les salles serveurs de banques.
-              </p>
-              <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-                Tier III Concurrent Maintainability
-              </div>
-            </div>
-          </div>
-
-          {/* Key Selling Highlights / Argumentaire Commercial */}
-          <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-4">
-            <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#D0B335]" />
-              Pourquoi la solution CBC Supervision est le choix idéal pour un réseau bancaire :
-            </h4>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700">
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 space-y-1">
-                <strong className="text-slate-900 block font-bold">1. Zero-Trust & Architecture Frugale</strong>
-                <span>
-                  Chaque agent transmet ses données chiffrées via TLS 1.3 sortant sur port HTTPS 443 standard. Aucun port d'écoute entrant ouvert sur vos serveurs sensibles.
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 space-y-1">
-                <strong className="text-slate-900 block font-bold">2. Traçabilité & Immutabilité d'Audit</strong>
-                <span>
-                  Chaque acquittement exige le nom nominatif de l'intervenant et génère un journal d'audit horodaté, répondant aux exigences strictes des régulateurs bancaires.
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 space-y-1">
-                <strong className="text-slate-900 block font-bold">3. Multi-OS & Compatibilité Patrimoniale</strong>
-                <span>
-                  Compatible Linux (Ubuntu, RHEL, CentOS, Debian) et Windows Server (2016, 2019, 2022) pour couvrir 100% de votre infrastructure distribuée (Agences + Siège).
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 space-y-1">
-                <strong className="text-slate-900 block font-bold">4. Haute Disponibilité (SLA 99.99%)</strong>
-                <span>
-                  Alertes instantanées par email SMTP sécurisé, ré-envoi automatique et surveillance en temps réel avec failover sans perte de métriques.
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
         </div>
       </div>
 

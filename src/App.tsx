@@ -24,7 +24,6 @@ import { ReportsView } from './views/ReportsView';
 import { PilotUatView } from './views/PilotUatView';
 import { ActionsView } from './views/ActionsView';
 import { ApprovalsView } from './views/ApprovalsView';
-import { StudioView } from './views/StudioView';
 import { RulesView } from './views/RulesView';
 import { IntegrationsView } from './views/IntegrationsView';
 import { AutomationView } from './views/AutomationView';
@@ -83,7 +82,6 @@ const MainLayout: React.FC = () => {
               <Route path="/automation" element={<AutomationView />} />
               <Route path="/actions" element={<ActionsView />} />
               <Route path="/approvals" element={<ApprovalsView />} />
-              <Route path="/studio" element={<StudioView />} />
               <Route path="/rules" element={<RulesView />} />
               <Route path="/integrations" element={<IntegrationsView />} />
               <Route path="/settings" element={<SettingsView />} />
