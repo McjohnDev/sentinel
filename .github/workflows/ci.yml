@@ -23,9 +23,9 @@ jobs:
         run: python -m shared.protocols.export_schemas
       - name: Test shared + agent + server
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
         run: |
-          pytest shared/tests agent/tests server/tests -q --tb=short
+          pytest shared/tests server/tests -q --tb=short
 
   lint:
     name: Python lint
@@ -59,31 +59,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  agent-os-matrix:
-    name: Agent smoke (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install agent deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r shared/requirements.txt -r agent/requirements.txt pytest pyinstaller
-      - name: OS smoke
-        run: pytest agent/tests/test_os_smoke.py agent/tests/test_plugins_and_lock.py -q --tb=short
-      - name: Build PyInstaller bundle
-        run: python -m PyInstaller --clean --noconfirm --distpath agent/packaging/dist --workpath agent/packaging/build agent/packaging/agent.spec
-      - name: Upload agent binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: cbc-agent-${{ matrix.os }}
-          path: |
-            agent/packaging/dist/cbc-agent/**
-            agent/packaging/dist/cbc-agent.exe
-          if-no-files-found: warn
+# Le job « Agent smoke (3 OS) » est retire avec l'implementation de l'agent :
+# ses etapes lancaient agent/tests/test_os_smoke.py et construisaient le
+# bundle PyInstaller a partir de modules qui n'existent plus. Il revient avec
+# la reecriture (points 1 a 9 du plan de reprise, voir REBUILD-PLAN.md).

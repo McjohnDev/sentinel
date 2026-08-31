@@ -133,23 +133,27 @@ services:
       server:
         condition: service_healthy
 
-  agent:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.agent
-    container_name: sentinel-agent
-    hostname: sentinel-agent
-    environment:
-      AGENT_MACHINE_ID_FILE: /var/lib/cbc-agent/machine_id
-    volumes:
-      - agent_state:/var/lib/cbc-agent
-    depends_on:
-      server:
-        condition: service_healthy
-    restart: unless-stopped
+  # Service « agent » desactive : son image se construit depuis agent/src, dont
+  # l'implementation a ete retiree pour la reecriture (points 1 a 9, voir
+  # REBUILD-PLAN.md). `docker compose up` demarre la plateforme sans agent ;
+  # le service est retabli des que l'enrolement (point 1) est livre.
+  #
+  # agent:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.agent
+  #   container_name: sentinel-agent
+  #   hostname: sentinel-agent
+  #   environment:
+  #     AGENT_MACHINE_ID_FILE: /var/lib/cbc-agent/machine_id
+  #   volumes:
+  #     - agent_state:/var/lib/cbc-agent
+  #   depends_on:
+  #     server:
+  #       condition: service_healthy
+  #   restart: unless-stopped
 
 volumes:
   postgres_data:
   victoria_metrics_data:
   loki_data:
-  agent_state:
