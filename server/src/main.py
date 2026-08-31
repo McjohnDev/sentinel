@@ -177,6 +177,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
+        # Poste de developpement sur reseau local (ajoute par BRYAN-1-C, a3dc085).
+        # A externaliser en variable d'environnement avant le pilote.
+        "http://172.20.10.3:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
