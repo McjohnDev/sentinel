@@ -98,6 +98,20 @@ export const usersService = {
     await axiosInstance.post(`/auth/users/${id}/password`, { password });
   },
 
+  /**
+   * Changement de mot de passe par le titulaire du compte.
+   *
+   * `setPassword` ci-dessus est la reinitialisation administrateur : elle
+   * exige la permission USER_MANAGE et ne verifie pas le secret courant. Un
+   * utilisateur ordinaire recevrait un 403.
+   */
+  async changeOwnPassword(currentPassword: string, newPassword: string): Promise<void> {
+    await axiosInstance.post('/auth/me/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
+
   async deleteUser(id: string): Promise<void> {
     await axiosInstance.delete(`/auth/users/${id}`);
   },

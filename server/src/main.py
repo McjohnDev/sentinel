@@ -393,6 +393,18 @@ class SetPasswordRequest(BaseModel):
     password: constr(min_length=8, max_length=128)
 
 
+class ChangeOwnPasswordRequest(BaseModel):
+    """Changement de mot de passe par le titulaire du compte.
+
+    Distinct de `SetPasswordRequest`, qui sert la reinitialisation
+    administrateur : ici le mot de passe courant est exige, car le titulaire
+    n'a pas la permission USER_MANAGE et l'ancien secret doit etre prouve.
+    """
+
+    current_password: constr(min_length=1, max_length=128)
+    new_password: constr(min_length=8, max_length=128)
+
+
 class LdapProbeRequest(BaseModel):
     username: constr(min_length=1, max_length=128)
 
@@ -4120,6 +4132,53 @@ def set_user_password(
         details="user=" + user.username,
     )
     return {"message": "Mot de passe mis à jour"}
+
+
+@app.post("/api/auth/me/password")
+@limiter.limit("5/minute")
+def change_own_password(
+    request: Request,
+    body: ChangeOwnPasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Change le mot de passe du compte appelant.
+
+    L'ecran Profil proposait un formulaire qui validait la saisie et affichait
+    « Changement enregistre » sans rien envoyer : le mot de passe restait
+    inchange. La reinitialisation administrateur
+    (`/api/auth/users/{user_id}/password`) ne peut pas servir ici, car elle
+    exige USER_MANAGE et ne verifie pas le secret courant.
+    """
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouve")
+    if user.auth_source == AuthSource.LDAP:
+        raise HTTPException(
+            status_code=400,
+            detail="Compte d'annuaire : le mot de passe est gere par le LDAP",
+        )
+    if not AuthService.verify_password(body.current_password, user.password_hash):
+        audit_logger.log_action(
+            user_id=user.id,
+            action="CHANGE_OWN_PASSWORD_DENIED",
+            details="mot de passe courant invalide",
+        )
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+    if body.current_password == body.new_password:
+        raise HTTPException(
+            status_code=400, detail="Le nouveau mot de passe doit differer de l'actuel"
+        )
+
+    user.password_hash = AuthService.get_password_hash(body.new_password)
+    db.commit()
+
+    audit_logger.log_action(
+        user_id=user.id,
+        action="CHANGE_OWN_PASSWORD",
+        details="user=" + user.username,
+    )
+    return {"message": "Mot de passe mis a jour"}
 
 
 @app.delete("/api/auth/users/{user_id}")

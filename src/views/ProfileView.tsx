@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { usersService } from '../services/api/users.service';
 import { useI18n } from '../i18n';
 import { PageHeader } from '../components/layout/PageHeader';
 import { SegmentedControl } from '../components/layout/SegmentedControl';
@@ -16,6 +17,7 @@ export const ProfileView: React.FC = () => {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const roleLabel = currentRole === 'Admin' ? 'Administrateur' : currentRole === 'Operator' ? 'Opérateur' : 'Lecture seule';
 
@@ -50,7 +52,7 @@ export const ProfileView: React.FC = () => {
 
       <form
         className="cbc-card p-5 space-y-3"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setError('');
           if (next.length < 8) {
@@ -61,10 +63,32 @@ export const ProfileView: React.FC = () => {
             setError('Les mots de passe ne correspondent pas.');
             return;
           }
-          setCurrent('');
-          setNext('');
-          setConfirm('');
-          addToast({ type: 'success', title: 'Mot de passe', message: 'Changement enregistré localement. Synchronisation annuaire à brancher.' });
+          if (!current) {
+            setError('Le mot de passe actuel est requis.');
+            return;
+          }
+          setSaving(true);
+          try {
+            await usersService.changeOwnPassword(current, next);
+            setCurrent('');
+            setNext('');
+            setConfirm('');
+            addToast({
+              type: 'success',
+              title: 'Mot de passe',
+              message: 'Mot de passe mis à jour.',
+            });
+          } catch (err) {
+            // Le serveur porte la raison du refus (secret courant invalide,
+            // compte d'annuaire, nouveau mot de passe identique) : la relayer
+            // telle quelle plutôt que d'afficher un succès non acquis.
+            const detail =
+              (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+              'Le changement de mot de passe a échoué.';
+            setError(detail);
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         <h2 className="text-sm font-bold m-0">Changement de mot de passe</h2>
@@ -81,8 +105,8 @@ export const ProfileView: React.FC = () => {
           <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="cbc-input mt-1.5" autoComplete="new-password" />
         </label>
         {error && <p className="text-xs text-rose-600">{error}</p>}
-        <button type="submit" className="cbc-btn-primary">
-          Mettre à jour
+        <button type="submit" className="cbc-btn-primary" disabled={saving}>
+          {saving ? 'Mise à jour…' : 'Mettre à jour'}
         </button>
       </form>
     </div>
