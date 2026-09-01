@@ -58,8 +58,8 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 | 1 | Enrôlement après installation | `POST /api/agents/enroll` + `enrollment_tokens` | **réécrit** | jetons dans Paramètres | **livré** |
 | 2 | Champs modifiables / non modifiables | `PATCH /api/agents/{id}` + `AGENT_EDITABLE_FIELDS` | constats déclarés à l'enrôlement | `EditableAgentField` | **livré** |
 | 3 | Attribution d'un administrateur ou groupe | `PATCH` + `admin_groups`, `admin_group_members` | — | `AgentOwnerField` | **livré** |
-| 4 | Désinstallation + signalement | `POST /api/agents/deregister`, `PUT .../revoke` | supprimé | détail hôte | serveur seul |
-| 5 | Resynchronisation après coupure | `POST /api/agents/heartbeat`, `POST /api/agents/ping` | supprimé | bandeau hors ligne | serveur seul |
+| 4 | Désinstallation + signalement | `POST /api/agents/deregister` | `uninstall` | détail hôte | **livré** |
+| 5 | Resynchronisation après coupure | `POST /api/agents/heartbeat` + écho | `run` | bandeau hors ligne | **livré** (voir réserve) |
 | 6 | Métriques paramétrables par hôte | `PUT/GET .../monitoring`, `service_monitoring`, `file_monitoring` | supprimé | onglet Configuration | serveur seul |
 | 7 | Prise en charge des métriques par l'agent | — | **vide** | — | vide |
 | 8 | Alerte mail + n8n, gabarit par vérification | `mail_templates`, `messaging_service`, `webhook_service` | — | Intégrations | à revoir |
@@ -144,6 +144,109 @@ qu'attribuer donne effectivement la main au destinataire, qu'un responsable ou
 une équipe inconnus sont refusés sans rien écrire, qu'un opérateur hors
 périmètre ne peut pas s'attribuer une machine, et que retirer l'attribution
 rend l'hôte aux seuls administrateurs.
+
+### Point 4 — livré le 1er septembre 2026
+
+`cbc-agent uninstall` prévient la plateforme avant de partir.
+
+```bash
+python agent/src/cli.py uninstall --reason "poste réformé"
+```
+
+Ce signalement sépare un retrait *voulu* d'une *panne*. Sans lui, une machine
+désinstallée reste « hors ligne » au parc et continue d'alerter pour une
+absence décidée — un bruit qu'on ne distingue pas d'un vrai incident.
+
+Deux décisions, tenues par des tests :
+
+- **Les jetons ne sont pas effacés tant que la plateforme n'a pas été
+  prévenue.** Si le signalement échoue, l'agent garde ses jetons et le dit,
+  pour qu'on puisse réessayer. `--force` passe outre — une machine mise au
+  rebut ne rejoindra jamais le réseau — et sort en code non nul même en cas de
+  succès, parce que la plateforme reste sur une fausse idée de l'hôte.
+- **L'identité machine est conservée.** La plateforme reconnaît un hôte par
+  `machine_id` : l'effacer ferait d'une réinstallation un *second* hôte, avec
+  un historique coupé en deux.
+
+44 tests d'agent. Trois rejouent le cycle complet contre les vraies routes —
+enrôler, désenrôler, réinstaller — et vérifient que l'hôte est *marqué* et non
+effacé, que sa ligne et son historique survivent, et qu'une réinstallation
+retombe sur le même identifiant. C'est la promesse que la CLI affiche à la
+désinstallation : elle méritait un test plutôt qu'une phrase.
+
+### Point 5 — livré le 1er septembre 2026, avec une réserve
+
+C'est ce qui fait qu'un hôte enrôlé cesse d'être « hors ligne » : la
+plateforme dérive la présence de la fraîcheur de `last_communication`, que
+seul un appel de l'agent rafraîchit.
+
+```bash
+python agent/src/cli.py run --interval 30      # bat jusqu'à interruption
+python agent/src/cli.py run --once             # un seul battement
+python agent/src/cli.py status                 # état de la liaison vu de l'hôte
+```
+
+#### Réserve — l'énoncé ne peut pas être tenu littéralement
+
+Le point 5 dit « **la plateforme qui envoie un echo ping** ». Elle ne le peut
+pas. Toutes les routes qui s'authentifient en tant qu'agent sont des `POST`
+que l'agent émet ; il n'existe ni écoute ni socket côté agent, et
+`server/src/main.py` le dit lui-même :
+
+> « La plateforme ne peut pas ouvrir une connexion vers un hôte derrière NAT :
+> la réponse au battement est donc le seul canal descendant réel. »
+
+Deux pièges de nom entretiennent la confusion : `POST /api/agents/ping` n'est
+pas un ping de la plateforme — c'est l'agent qui l'émet, avec sa propre clé ;
+et `network_probe.icmp_ping` vise bien depuis la plateforme, mais des
+équipements réseau SNMP, jamais un agent.
+
+**L'écho existe pourtant** — il voyage *dans la réponse* au battement, et
+porte ce que l'agent ne peut pas savoir seul : l'identifiant que la plateforme
+lui reconnaît, l'écart entre les deux horloges, et la durée du silence qui
+vient de s'achever. C'est ce qui est implémenté : l'agent frappe, la
+plateforme répond en se faisant connaître.
+
+Un véritable ping plateforme → agent demanderait un transport qui n'existe pas
+dans ce produit (écoute sur l'hôte, WebSocket sortante maintenue, MQTT). Ce
+n'est pas une reconstruction du point 5 : **à arbitrer avant de le bâtir.**
+
+#### Décisions tenues par des tests
+
+- **Pourcentages ramenés dans 0..100.** psutil peut dépasser 100 brièvement ;
+  la plateforme valide la borne et répond 422. Sans ce garde-fou, un pic de
+  mesure fait rejeter le battement et l'hôte bascule hors ligne pour une
+  raison purement arithmétique.
+- **Seul 401 vaut perte d'identité.** L'agent précédent y ajoutait 403 et
+  404. Or 403 est ce que rend le serveur pour un hôte *révoqué par un
+  administrateur* : s'en servir pour se réenrôler fait rentrer par la fenêtre
+  une machine qu'on venait de sortir. Et 404 est ce que rend une URL de base
+  fautive — une faute de frappe devenait une boucle de réenrôlement perpétuelle.
+- **La perte d'identité arrête la boucle** au lieu de réenrôler seule : un
+  réenrôlement automatique consomme un jeton et défait une décision d'admin.
+- **Recul progressif** (5 s, 10 s, 20 s… plafonné), cadence nominale rétablie
+  au premier succès. Un parc entier qui réessaie à la seconde après une
+  coupure suffit à empêcher la plateforme de redémarrer.
+- **`last_success_at` survit aux échecs.** C'est la réponse à « hors ligne
+  depuis quand ? », posée devant la machine.
+- **Les faits d'hôte repartent à chaque battement**, sinon une montée de
+  version reste invisible jusqu'à un réenrôlement qui n'arrive jamais.
+
+84 tests d'agent. Quatre contre les vraies routes, dont celui qui énonce la
+raison d'être : vieillir un hôte jusqu'au hors-ligne, envoyer **un** battement,
+vérifier qu'il se relit « actif ». L'écrire a fait apparaître `ENROLLMENT_GRACE` :
+`is_agent_live` garde vivant un hôte fraîchement enrôlé pendant deux minutes
+quoi que dise `last_communication` — le test doit donc vieillir `enrolled_at`
+aussi.
+
+#### Hors périmètre, assumé
+
+Pas de tampon disque ni de rejeu du retard accumulé. L'énoncé du point 5
+demande la *reprise de contact*, pas le rattrapage de l'historique — et
+l'analyse de l'agent supprimé montre que le rejeu est précisément là où
+étaient ses défauts (perte d'enregistrements sur interruption, rejeu sans
+limite ni cadence, ordre inversé écrasant les faits frais par des faits
+vieux de 24 h). À reprendre proprement, avec une route d'ingestion par lots.
 
 ### Déjà acquis, à ne pas réécrire
 
@@ -234,10 +337,23 @@ raison : `docker compose up` démarre la plateforme sans agent.
 
 ### 3. Dette pré-existante
 
-`ruff` signale 3 erreurs dans `server/src/main.py` (lignes ~1829 et
-2349-2352) : clés de dictionnaire dupliquées, dont `disk_total_gb` écrite
-deux fois. Antérieures à cette reprise, mais la tâche `lint` de la CI
-échouera dessus.
+`ruff` signale 3 erreurs dans `server/src/main.py` : des clés de dictionnaire
+dupliquées. Vérifié par analyse syntaxique (`ast`) plutôt qu'à l'œil :
+
+| Dictionnaire | Clés en double |
+|---|---|
+| ligne 1798 | `ram_total_gb` |
+| ligne 2304 | `disk_total_gb`, `ram_total_gb` |
+
+Python conserve la **dernière** liaison. Conséquence concrète : la fiche
+d'hôte (dict de la ligne 2304) expose `"disk_total_gb": agent.disk_total_gb`
+en 2322, puis la réécrit en 2352 avec la valeur du dernier battement. La
+colonne d'inventaire `agents.disk_total_gb` est donc **écrite mais jamais
+lue** — `grep -rn "agent\.disk_total_gb" server/` ne rend que cette ligne
+masquée. Ce n'est pas visible pour un exploitant aujourd'hui, mais c'est une
+donnée entretenue pour rien et une clé qui ment sur sa source.
+
+Antérieur à cette reprise ; la tâche `lint` de la CI échouera dessus.
 
 ---
 
