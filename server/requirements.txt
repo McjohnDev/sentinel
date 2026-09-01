@@ -25,3 +25,5 @@ requests==2.31.0
 # LDAP / Active Directory authentication (API-003). Optional at runtime:
 # ldap_service degrades to local auth if this is absent.
 ldap3==2.9.1
+# Lecture des classeurs .xlsx fournis par l'equipe reseau (import VLAN).
+openpyxl==3.1.5

@@ -162,6 +162,27 @@ class Agent(Base):
 
 #: Champs qu'un exploitant peut écrire via `PATCH /api/agents/{id}`.
 #: Tout le reste est constaté par l'agent et refusé en écriture.
+class VlanSubnet(Base):
+    """Plan d'adressage fourni par l'équipe réseau : sous-réseau → VLAN.
+
+    Une table de sous-réseaux plutôt qu'une liste d'hôtes : une machine sur
+    port d'accès ne connaît pas son VLAN, mais l'agent remonte son adresse à
+    chaque battement. Le VLAN se déduit donc pour tout le parc, sans saisie
+    par hôte, et la déduction suit quand une machine change d'adresse.
+    """
+
+    __tablename__ = 'vlan_subnets'
+
+    id = Column(String, primary_key=True)
+    #: Notation CIDR normalisée (`10.20.4.0/24`).
+    cidr = Column(String, unique=True, nullable=False, index=True)
+    vlan = Column(String, nullable=False)
+    label = Column(String, nullable=True)
+    imported_at = Column(DateTime, default=func.now())
+    imported_by = Column(String, nullable=True)
+    source_file = Column(String, nullable=True)
+
+
 AGENT_EDITABLE_FIELDS = frozenset(
     {
         "name",

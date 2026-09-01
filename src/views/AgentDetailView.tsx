@@ -295,13 +295,43 @@ export const AgentDetailView: React.FC = () => {
                 className="text-[12.5px] text-slate-700"
                 onSaved={reloadAgent}
               />
+              {/* Provenance du VLAN retenu. Un VLAN déduit du plan d'adressage
+                  et un VLAN saisi à la main n'engagent pas la même confiance :
+                  l'exploitant doit pouvoir les distinguer d'un coup d'œil. */}
+              {!agent.vlan && agent.vlanEffective && (
+                <span
+                  className="text-[12.5px] text-slate-700"
+                  title={
+                    agent.vlanSource === 'derived'
+                      ? `Déduit du plan d'adressage — sous-réseau ${agent.vlanSubnet}`
+                      : "Étiqueté par l'hôte lui-même"
+                  }
+                >
+                  {agent.vlanEffective}
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-bold">
+                    {agent.vlanSource === 'derived' ? 'déduit' : 'hôte'}
+                  </span>
+                </span>
+              )}
+              {agent.vlanSource === 'derived' && agent.vlanLabel && (
+                <span className="text-[12px] text-slate-500">{agent.vlanLabel}</span>
+              )}
               {/* La divergence est le fait intéressant : un hôte rebranché sur
-                  un autre port réseau étiquette un VLAN que la fiche ignore
-                  encore. On la montre plutôt que de choisir laquelle des deux
+                  un autre port étiquette — ou se déduit — un VLAN que la fiche
+                  ignore encore. On la montre plutôt que de choisir laquelle des
                   valeurs est « la bonne ». */}
+              {agent.vlan &&
+                agent.vlanDerived &&
+                agent.vlanDerived !== agent.vlan.replace(/\s/g, '') && (
+                  <span
+                    className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10.5px] font-bold"
+                    title={`Le plan d'adressage place ${agent.ipAddress} dans le VLAN ${agent.vlanDerived} (${agent.vlanSubnet})`}
+                  >
+                    plan : {agent.vlanDerived}
+                  </span>
+                )}
               {agent.vlanObserved &&
-                agent.vlan &&
-                agent.vlanObserved.replace(/\s/g, '') !== agent.vlan.replace(/\s/g, '') && (
+                agent.vlanObserved !== (agent.vlan || agent.vlanDerived || '') && (
                   <span
                     className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10.5px] font-bold"
                     title={`L'hôte étiquette le VLAN ${agent.vlanObserved}`}

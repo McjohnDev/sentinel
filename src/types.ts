@@ -114,6 +114,16 @@ export interface Agent {
   vlanObserved?: string | null;
   /** VLAN déclaré par l'exploitation — modifiable. */
   vlan?: string | null;
+  /** VLAN déduit du plan d'adressage importé, d'après l'IP constatée. */
+  vlanDerived?: string | null;
+  /** Sous-réseau du plan ayant produit la déduction. */
+  vlanSubnet?: string | null;
+  /** Libellé porté par ce sous-réseau dans le plan. */
+  vlanLabel?: string | null;
+  /** VLAN retenu, toutes sources confondues. */
+  vlanEffective?: string | null;
+  /** D'où vient le VLAN retenu. */
+  vlanSource?: 'declared' | 'derived' | 'observed' | null;
   ownerUserId?: string | null;
   ownerUsername?: string | null;
   adminGroupId?: string | null;

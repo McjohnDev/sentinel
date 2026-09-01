@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, status, Request, WebSocket, WebSocketDisconnect, Response
+from fastapi import FastAPI, File, HTTPException, Depends, Header, status, Request, UploadFile, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,10 +47,12 @@ from src.agent_purge import (
 )
 from src.presence import publish_agent_presence
 from src import monitoring_plan
+from src import vlan_service
 from src.agent_identity import AgentIdExhaustedError, generate_agent_id, normalize_agent_id
 from src.agent_rejections import ledger as agent_rejection_ledger
 from src.models import (
     AGENT_EDITABLE_FIELDS, AGENT_IMMUTABLE_FIELDS, AdminGroup, AdminGroupMember,
+    VlanSubnet,
     Agent, Heartbeat, Alert, AlertType, User, GlobalSettings, 
     MessagingConfig, RetentionConfig, EnrollmentToken, MachineType,
     UserRole, AuthSource, AuditLog, LdapRoleMapping,
@@ -1772,6 +1774,9 @@ def list_agents(
     agents = db.query(Agent).order_by(Agent.enrolled_at.desc()).all()
 
     now = datetime.utcnow()
+    # Le plan d'adressage est lu une fois pour tout le parc : le relire par
+    # hôte ferait une requête par ligne de la liste.
+    vlan_rows = _vlan_rows(db)
     rows = []
     for agent in agents:
         last_hb = (
@@ -1813,8 +1818,7 @@ def list_agents(
             "uninstalled_at": agent.uninstalled_at,
             "cpu_cores": agent.cpu_cores,
             "ram_total_gb": agent.ram_total_gb,
-            "vlan": agent.vlan,
-            "vlan_observed": agent.vlan_observed,
+            **resolve_vlan(agent, vlan_rows),
             "owner_user_id": agent.owner_user_id,
             "admin_group_id": agent.admin_group_id,
             "run_mode": agent.run_mode,
@@ -2283,6 +2287,54 @@ def patch_agent(
     return {"message": "Hôte mis à jour", "id": agent.id, "changes": changes}
 
 
+def _vlan_rows(db: Session):
+    """Plan d'adressage importé, sous la forme attendue par `vlan_service`."""
+    return [
+        vlan_service.SubnetRow(cidr=r.cidr, vlan=r.vlan, label=r.label)
+        for r in db.query(VlanSubnet).all()
+    ]
+
+
+def resolve_vlan(agent: Agent, rows) -> Dict[str, Any]:
+    """VLAN retenu pour un hôte, et d'où il vient.
+
+    Trois sources, par ordre d'autorité décroissante :
+
+    1. `vlan` — saisi par l'exploitation sur cette fiche. Une saisie explicite
+       l'emporte : elle sert justement à traiter l'exception que le plan
+       d'adressage ne décrit pas.
+    2. le plan d'adressage — déduit de l'adresse IP constatée. Couvre le parc
+       entier sans saisie, et suit l'hôte quand il change d'adresse.
+    3. `vlan_observed` — ce que l'hôte étiquette lui-même. Rare, mais c'est la
+       seule source que la machine connaisse de première main.
+
+    La provenance est rendue avec la valeur : un VLAN déduit et un VLAN saisi
+    n'engagent pas la même confiance, et l'exploitant doit pouvoir les
+    distinguer.
+    """
+    match = vlan_service.match_ip(agent.ip_address, rows) if rows else None
+    derived = match.vlan if match else None
+
+    if agent.vlan:
+        effective, source = agent.vlan, "declared"
+    elif derived:
+        effective, source = derived, "derived"
+    elif agent.vlan_observed:
+        effective, source = agent.vlan_observed, "observed"
+    else:
+        effective, source = None, None
+
+    return {
+        "vlan": agent.vlan,
+        "vlan_observed": agent.vlan_observed,
+        "vlan_derived": derived,
+        "vlan_subnet": match.cidr if match else None,
+        "vlan_label": match.label if match else None,
+        "vlan_effective": effective,
+        "vlan_source": source,
+    }
+
+
 def _parse_runtime(raw: Optional[str]) -> Optional[Dict[str, Any]]:
     """Bloc d'exécution stocké en JSON — illisible ne doit pas casser la fiche."""
     if not raw:
@@ -2327,11 +2379,11 @@ def get_agent(request: Request, agent_id: str, current_user: User = Depends(requ
         "cpu_cores": agent.cpu_cores,
         "ram_total_gb": agent.ram_total_gb,
         "disk_total_gb": agent.disk_total_gb,
-        # Segmentation réseau : constaté par l'hôte, et déclaré par
-        # l'exploitation. Les deux, parce qu'ils peuvent diverger — et cette
-        # divergence est justement ce qu'on veut voir.
-        "vlan_observed": agent.vlan_observed,
-        "vlan": agent.vlan,
+        # Segmentation réseau : constaté par l'hôte, déclaré par
+        # l'exploitation, déduit du plan d'adressage. Les trois, parce qu'ils
+        # peuvent diverger — et cette divergence est justement ce qu'on veut
+        # voir.
+        **resolve_vlan(agent, _vlan_rows(db)),
         # Responsabilité (point 3)
         "owner_user_id": agent.owner_user_id,
         "owner_username": agent.owner.username if agent.owner else None,
@@ -4857,6 +4909,110 @@ def get_notification_channel_status(request: Request, current_user: User = Depen
     """
     status = MessagingService.health_check(db)
     return status
+
+
+@app.get("/api/vlan-subnets")
+@limiter.limit("60/minute")
+def list_vlan_subnets(
+    request: Request,
+    current_user: User = Depends(require_operator_or_admin()),
+    db: Session = Depends(get_db),
+):
+    """Plan d'adressage importé : sous-réseau → VLAN."""
+    rows = db.query(VlanSubnet).order_by(VlanSubnet.cidr).all()
+    return {
+        "data": [
+            {
+                "id": r.id,
+                "cidr": r.cidr,
+                "vlan": r.vlan,
+                "label": r.label,
+                "imported_at": r.imported_at,
+                "imported_by": r.imported_by,
+                "source_file": r.source_file,
+            }
+            for r in rows
+        ],
+        "count": len(rows),
+    }
+
+
+@app.post("/api/vlan-subnets/import")
+@limiter.limit("10/minute")
+async def import_vlan_subnets(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Importe le plan d'adressage de l'équipe réseau (CSV ou .xlsx).
+
+    L'import **remplace** la table au lieu de la compléter : un plan
+    d'adressage est un document entier, et fusionner laisserait vivre
+    indéfiniment des sous-réseaux supprimés du fichier — donc des hôtes
+    rattachés à un VLAN qui n'existe plus.
+
+    Les lignes fautives sont rendues à l'appelant, ligne par ligne. Un import
+    à moitié appliqué en silence rattacherait des hôtes au mauvais VLAN sans
+    que personne ne le sache.
+    """
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (2 Mo maximum).")
+
+    try:
+        report = vlan_service.parse(content, file.filename or "")
+    except vlan_service.VlanImportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    db.query(VlanSubnet).delete()
+    now = datetime.utcnow()
+    for row in report.rows:
+        db.add(
+            VlanSubnet(
+                id=str(uuid.uuid4()),
+                cidr=row.cidr,
+                vlan=row.vlan,
+                label=row.label,
+                imported_at=now,
+                imported_by=current_user.username,
+                source_file=(file.filename or "")[:255],
+            )
+        )
+    db.commit()
+    cache_service.delete_pattern("agents:*")
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="IMPORT_VLAN_SUBNETS",
+        details="fichier=%s acceptees=%d rejetees=%d"
+        % (file.filename, report.accepted_count, len(report.rejected)),
+    )
+
+    return {
+        "imported": report.accepted_count,
+        "rejected": report.rejected,
+        "message": "%d sous-réseau(x) importé(s)" % report.accepted_count,
+    }
+
+
+@app.delete("/api/vlan-subnets")
+@limiter.limit("10/minute")
+def clear_vlan_subnets(
+    request: Request,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Vide le plan d'adressage. Les VLAN déduits disparaissent avec lui."""
+    removed = db.query(VlanSubnet).delete()
+    db.commit()
+    cache_service.delete_pattern("agents:*")
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="CLEAR_VLAN_SUBNETS",
+        details="supprimes=%d" % removed,
+    )
+    return {"removed": removed}
 
 
 @app.get("/api/settings/retention")

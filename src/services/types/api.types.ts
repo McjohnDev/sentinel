@@ -25,6 +25,11 @@ export interface BackendAgent {
   cpu_cores?: number | null;
   vlan_observed?: string | null;
   vlan?: string | null;
+  vlan_derived?: string | null;
+  vlan_subnet?: string | null;
+  vlan_label?: string | null;
+  vlan_effective?: string | null;
+  vlan_source?: 'declared' | 'derived' | 'observed' | null;
   disk_total_gb_host?: number | null;
   /** Responsabilité de l'hôte (point 3). */
   owner_user_id?: string | null;

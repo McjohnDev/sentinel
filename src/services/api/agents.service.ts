@@ -229,6 +229,47 @@ export const agentsService = {
   },
 };
 
+export interface VlanSubnet {
+  id: string;
+  cidr: string;
+  vlan: string;
+  label?: string | null;
+  imported_at?: string | null;
+  imported_by?: string | null;
+  source_file?: string | null;
+}
+
+export interface VlanImportResult {
+  imported: number;
+  rejected: Array<{ line: number; reason: string; value?: string }>;
+  message: string;
+}
+
+/**
+ * Plan d'adressage fourni par l'équipe réseau.
+ *
+ * Une table de sous-réseaux plutôt qu'une liste d'hôtes : l'agent remonte son
+ * IP à chaque battement, le VLAN se déduit donc pour tout le parc sans saisie,
+ * et la déduction suit quand une machine change d'adresse.
+ */
+export const vlanSubnetsService = {
+  async list(): Promise<VlanSubnet[]> {
+    const { data } = await axiosInstance.get('/vlan-subnets');
+    return unwrapList<VlanSubnet>(data);
+  },
+
+  async import(file: File): Promise<VlanImportResult> {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await axiosInstance.post('/vlan-subnets/import', form);
+    return data;
+  },
+
+  async clear(): Promise<void> {
+    await axiosInstance.delete('/vlan-subnets');
+  },
+};
+
 /** Équipes responsables d'hôtes (point 3). */
 export const adminGroupsService = {
   async list(): Promise<AdminGroup[]> {

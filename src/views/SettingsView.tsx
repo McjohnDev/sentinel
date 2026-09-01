@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { GlobalThresholds, MessagingNotificationConfig, ServicesMonitoringConfig, FilesMonitoringConfig, DataRetentionConfig, AvailabilityPolicy } from '../types';
 import { Modal } from '../components/common/Modal';
+import { VlanPlanPanel } from '../components/settings/VlanPlanPanel';
 import { groupsService, MachineGroup, ConfigRevision, CoverageRow, CoverageOverlap } from '../services/api/groups.service';
 import {
   Sliders,
@@ -38,6 +39,7 @@ import {
   Map,
   Activity,
   RefreshCw,
+  Network,
 } from 'lucide-react';
 import { settingsService } from '../services/api/settings.service';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -55,7 +57,8 @@ type SettingsTab =
   | 'retention'
   | 'tokens'
   | 'platform'
-  | 'ldap';
+  | 'ldap'
+  | 'vlan';
 
 const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
   { id: 'thresholds', label: "Seuils d'alerte", icon: Sliders },
@@ -69,6 +72,7 @@ const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> 
   { id: 'tokens', label: "Jetons d'enrôlement", icon: Key },
   { id: 'platform', label: 'Plateforme', icon: Activity },
   { id: 'ldap', label: 'Annuaire (LDAP)', icon: ShieldCheck },
+  { id: 'vlan', label: 'Plan d’adressage', icon: Network },
 ];
 
 export const SettingsView: React.FC = () => {
@@ -1426,6 +1430,8 @@ export const SettingsView: React.FC = () => {
       )}
 
       {activeTab === 'ldap' && <LdapPanel />}
+
+      {activeTab === 'vlan' && <VlanPlanPanel />}
 
       {activeTab === 'platform' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
