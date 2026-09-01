@@ -42,6 +42,8 @@ _COLUMNS = [
     # Segmentation réseau : VLAN constaté par l'hôte, VLAN déclaré par
     # l'exploitation. Deux champs parce que la plupart des hôtes ne peuvent
     # pas connaître leur VLAN — voir models.Agent.
+    ("vlan_subnets", "range_start", "VARCHAR"),
+    ("vlan_subnets", "range_end", "VARCHAR"),
     ("agents", "vlan_observed", "VARCHAR"),
     ("agents", "vlan", "VARCHAR"),
     # AGT-012 / point 9 — comment et où l'agent s'exécute sur l'hôte.

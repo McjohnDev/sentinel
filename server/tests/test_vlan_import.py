@@ -29,6 +29,7 @@ for p in (str(ROOT), str(SERVER)):
 
 from src.vlan_service import (  # noqa: E402
     SubnetRow,
+    parse_span,
     VlanImportError,
     match_ip,
     normalise_cidr,
@@ -87,7 +88,11 @@ def test_a_french_excel_export_is_read():
     report = parse(content, "plan.csv")
 
     assert report.accepted_count == 2
-    assert report.rows[0] == SubnetRow("10.20.4.0/24", "20", "Monétique")
+    row = report.rows[0]
+    assert (row.cidr, row.vlan, row.label) == ("10.20.4.0/24", "20", "Monétique")
+    # Les bornes sont calculées même pour un CIDR : c'est sur elles que se
+    # fait la comparaison, la notation n'étant qu'une forme d'écriture.
+    assert (row.range_start, row.range_end) == ("10.20.4.0", "10.20.4.255")
     assert report.rows[1].vlan == "30"
     assert report.rejected == []
 
@@ -133,7 +138,7 @@ def test_a_bad_line_is_named_not_swallowed():
     assert report.accepted_count == 1
     assert len(report.rejected) == 2
     assert report.rejected[0]["line"] == 3
-    assert "sous-réseau" in report.rejected[0]["reason"]
+    assert "plage" in report.rejected[0]["reason"]
     assert report.rejected[1]["line"] == 4
     assert "4094" in report.rejected[1]["reason"]
 
@@ -209,3 +214,121 @@ def test_an_address_only_in_the_broad_range_falls_back_to_it():
 @pytest.mark.parametrize("value", [None, "", "pas une adresse", "10.20.4"])
 def test_an_unusable_address_matches_nothing(value):
     assert match_ip(value, ROWS) is None
+
+
+NL_REAL = chr(10)
+
+
+# ------------------------------------------- plages d'adresses (equipe reseau)
+
+
+@pytest.mark.parametrize(
+    "raw,first,last",
+    [
+        ("10.20.4.1 - 10.20.4.254", "10.20.4.1", "10.20.4.254"),
+        ("10.20.4.1-10.20.4.254", "10.20.4.1", "10.20.4.254"),
+        ("10.20.4.1 a 10.20.4.254", "10.20.4.1", "10.20.4.254"),
+        ("10.20.4.1 – 10.20.4.254", "10.20.4.1", "10.20.4.254"),
+        ("10.20.4.1 to 10.20.4.254", "10.20.4.1", "10.20.4.254"),
+        ("10.20.4.254 - 10.20.4.1", "10.20.4.1", "10.20.4.254"),
+    ],
+)
+def test_the_range_forms_a_network_team_writes(raw, first, last):
+    """Les formes que les equipes reseau ecrivent reellement."""
+    import ipaddress
+
+    parsed = parse_span(raw)
+    assert parsed is not None, raw
+    assert str(ipaddress.ip_address(parsed[0])) == first
+    assert str(ipaddress.ip_address(parsed[1])) == last
+
+
+def test_a_range_is_not_flattened_into_a_cidr():
+    """10.20.4.1-10.20.4.254 n'est PAS 10.20.4.0/24.
+
+    Le /24 inclut l'adresse reseau et la diffusion : afficher l'un pour
+    l'autre mentirait sur ce que l'equipe reseau a ecrit, et elargirait la
+    plage de deux adresses.
+    """
+    ranged = parse_span("10.20.4.1-10.20.4.254")
+    block = parse_span("10.20.4.0/24")
+    assert ranged[2] == "10.20.4.1-10.20.4.254"
+    assert block[2] == "10.20.4.0/24"
+    assert ranged[0] != block[0]
+    assert ranged[1] != block[1]
+
+
+def test_a_range_column_is_imported():
+    content = ("Plage;VLAN;Libelle@"
+               "10.20.4.1 - 10.20.4.254;20;Monetique@"
+               "10.20.8.1 - 10.20.8.254;30;Agences@").replace("@", NL_REAL).encode("utf-8")
+
+    report = parse(content, "plan.csv")
+
+    assert report.accepted_count == 2
+    assert report.rows[0].range_start == "10.20.4.1"
+    assert report.rows[0].range_end == "10.20.4.254"
+    assert report.rejected == []
+
+
+def test_two_columns_start_and_end_are_imported():
+    """Certaines equipes livrent la plage en deux colonnes."""
+    content = ("IP debut;IP fin;VLAN;Libelle@"
+               "10.20.4.1;10.20.4.254;20;Monetique@").replace("@", NL_REAL).encode("utf-8")
+
+    report = parse(content, "plan.csv")
+
+    assert report.accepted_count == 1
+    row = report.rows[0]
+    assert row.range_start == "10.20.4.1"
+    assert row.range_end == "10.20.4.254"
+    assert row.vlan == "20"
+
+
+def test_cidr_and_range_coexist_in_one_file():
+    content = ("Plage;VLAN@"
+               "10.20.4.0/24;20@"
+               "10.20.8.1 - 10.20.8.100;30@").replace("@", NL_REAL).encode("utf-8")
+
+    report = parse(content, "plan.csv")
+    assert report.accepted_count == 2
+    assert report.rows[0].cidr == "10.20.4.0/24"
+    assert report.rows[1].cidr == "10.20.8.1-10.20.8.100"
+
+
+def test_a_malformed_range_is_rejected_by_line():
+    content = ("Plage;VLAN@"
+               "10.20.4.1 - pas-une-ip;20@"
+               "10.20.8.1 - 10.20.8.100;30@").replace("@", NL_REAL).encode("utf-8")
+
+    report = parse(content, "plan.csv")
+
+    assert report.accepted_count == 1
+    assert len(report.rejected) == 1
+    assert report.rejected[0]["line"] == 2
+
+
+RANGE_ROWS = [
+    SubnetRow("10.0.0.1-10.255.255.254", "1", "Global", "10.0.0.1", "10.255.255.254"),
+    SubnetRow("10.20.4.1-10.20.4.254", "20", "Monetique", "10.20.4.1", "10.20.4.254"),
+    SubnetRow("10.20.8.1-10.20.8.100", "30", "Agences", "10.20.8.1", "10.20.8.100"),
+]
+
+
+def test_the_narrowest_range_wins_over_the_site_range():
+    assert match_ip("10.20.4.17", RANGE_ROWS).vlan == "20"
+    assert match_ip("10.20.8.50", RANGE_ROWS).vlan == "30"
+
+
+def test_an_address_just_outside_a_range_falls_to_the_wider_one():
+    # .101 sort de la plage Agences mais reste dans la plage globale.
+    assert match_ip("10.20.8.101", RANGE_ROWS).vlan == "1"
+
+
+def test_range_bounds_are_inclusive():
+    assert match_ip("10.20.4.1", RANGE_ROWS).vlan == "20"
+    assert match_ip("10.20.4.254", RANGE_ROWS).vlan == "20"
+
+
+def test_an_address_outside_every_range_matches_nothing():
+    assert match_ip("192.168.1.1", RANGE_ROWS) is None

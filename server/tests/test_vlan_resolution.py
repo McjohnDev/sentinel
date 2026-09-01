@@ -278,3 +278,54 @@ def test_the_fleet_list_carries_the_resolved_vlan(db):
     rows = rows.get("data", rows) if isinstance(rows, dict) else rows
     assert rows[0]["vlan_effective"] == "20"
     assert rows[0]["vlan_source"] == "derived"
+
+
+def test_an_xlsx_of_ip_ranges_gives_every_host_its_vlan(db, tmp_path):
+    """Le fichier tel que l'equipe reseau va le livrer : des plages, en .xlsx."""
+    openpyxl = pytest.importorskip("openpyxl")
+    path = tmp_path / "plan-vlan.xlsx"
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["Plage", "VLAN", "Libelle"])
+    sheet.append(["10.20.4.1 - 10.20.4.254", 20, "Monetique"])
+    sheet.append(["10.20.8.1 - 10.20.8.254", "VLAN 30", "Agences"])
+    book.save(path)
+
+    client = _Client(_user(db))
+    monetique = _agent(db, agent_id="A11111", ip="10.20.4.17")
+    agence = _agent(db, agent_id="B22222", ip="10.20.8.9")
+    ailleurs = _agent(db, agent_id="C33333", ip="192.168.1.4")
+
+    response = client.client.post(
+        "/api/vlan-subnets/import",
+        files={
+            "file": (
+                "plan-vlan.xlsx",
+                io.BytesIO(path.read_bytes()),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+        headers=client.headers,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["imported"] == 2
+
+    assert _detail(client, monetique.id)["vlan_effective"] == "20"
+    assert _detail(client, monetique.id)["vlan_label"] == "Monetique"
+    assert _detail(client, agence.id)["vlan_effective"] == "30"
+    # Hors plan : rien n'est invente.
+    assert _detail(client, ailleurs.id)["vlan_effective"] is None
+
+
+def test_a_range_excludes_the_network_and_broadcast_addresses(db):
+    """Une plage 1-254 n'est pas un /24 : .0 et .255 en sont dehors."""
+    client = _Client(_user(db))
+    inside = _agent(db, agent_id="D44444", ip="10.20.4.1")
+    outside = _agent(db, agent_id="E55555", ip="10.20.4.255")
+
+    plan = ("Plage;VLAN@10.20.4.1 - 10.20.4.254;20@").replace("@", chr(10)).encode("utf-8")
+    client.upload(plan, "plage.csv")
+
+    assert _detail(client, inside.id)["vlan_effective"] == "20"
+    assert _detail(client, outside.id)["vlan_effective"] is None

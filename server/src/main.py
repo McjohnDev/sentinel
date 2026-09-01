@@ -2290,7 +2290,10 @@ def patch_agent(
 def _vlan_rows(db: Session):
     """Plan d'adressage importé, sous la forme attendue par `vlan_service`."""
     return [
-        vlan_service.SubnetRow(cidr=r.cidr, vlan=r.vlan, label=r.label)
+        vlan_service.SubnetRow(
+            cidr=r.cidr, vlan=r.vlan, label=r.label,
+            range_start=r.range_start, range_end=r.range_end,
+        )
         for r in db.query(VlanSubnet).all()
     ]
 
@@ -4925,6 +4928,8 @@ def list_vlan_subnets(
             {
                 "id": r.id,
                 "cidr": r.cidr,
+                "range_start": r.range_start,
+                "range_end": r.range_end,
                 "vlan": r.vlan,
                 "label": r.label,
                 "imported_at": r.imported_at,
@@ -4972,6 +4977,8 @@ async def import_vlan_subnets(
             VlanSubnet(
                 id=str(uuid.uuid4()),
                 cidr=row.cidr,
+                range_start=row.range_start,
+                range_end=row.range_end,
                 vlan=row.vlan,
                 label=row.label,
                 imported_at=now,

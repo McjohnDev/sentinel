@@ -174,8 +174,15 @@ class VlanSubnet(Base):
     __tablename__ = 'vlan_subnets'
 
     id = Column(String, primary_key=True)
-    #: Notation CIDR normalisée (`10.20.4.0/24`).
+    #: Forme lisible telle que l'équipe réseau l'a écrite, et identité de la
+    #: ligne : `10.20.4.1-10.20.4.254` ou `10.20.4.0/24`.
     cidr = Column(String, unique=True, nullable=False, index=True)
+    #: Bornes sur lesquelles se fait la comparaison. Stockées parce qu'une
+    #: plage n'est pas toujours exprimable en CIDR sans la déformer :
+    #: `10.20.4.1-10.20.4.254` n'est pas `10.20.4.0/24`, qui inclut l'adresse
+    #: réseau et la diffusion.
+    range_start = Column(String, nullable=True)
+    range_end = Column(String, nullable=True)
     vlan = Column(String, nullable=False)
     label = Column(String, nullable=True)
     imported_at = Column(DateTime, default=func.now())
