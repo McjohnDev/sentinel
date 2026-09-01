@@ -56,8 +56,8 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 | # | Point | Serveur | Agent | UI | État |
 |---|---|---|---|---|---|
 | 1 | Enrôlement après installation | `POST /api/agents/enroll` + `enrollment_tokens` | **réécrit** | jetons dans Paramètres | **livré** |
-| 2 | Champs modifiables / non modifiables | `AGENT_EDITABLE_FIELDS`, `PUT .../name`, `.../location` | constats déclarés | détail hôte | à revoir |
-| 3 | Attribution d'un administrateur ou groupe | `admin_groups`, `admin_group_members` | — | Utilisateurs | à revoir |
+| 2 | Champs modifiables / non modifiables | `PATCH /api/agents/{id}` + `AGENT_EDITABLE_FIELDS` | constats déclarés à l'enrôlement | `EditableAgentField` | **livré** |
+| 3 | Attribution d'un administrateur ou groupe | `PATCH` + `admin_groups`, `admin_group_members` | — | `AgentOwnerField` | **livré** |
 | 4 | Désinstallation + signalement | `POST /api/agents/deregister`, `PUT .../revoke` | supprimé | détail hôte | serveur seul |
 | 5 | Resynchronisation après coupure | `POST /api/agents/heartbeat`, `POST /api/agents/ping` | supprimé | bandeau hors ligne | serveur seul |
 | 6 | Métriques paramétrables par hôte | `PUT/GET .../monitoring`, `service_monitoring`, `file_monitoring` | supprimé | onglet Configuration | serveur seul |
@@ -112,6 +112,38 @@ Ce qui est garanti par test :
 Restent hors périmètre du point 1, donc absents : heartbeat, collecte,
 service système, mise à jour. Le service `agent` de Compose reste commenté
 tant qu'il n'y a pas de boucle d'exécution (points 5 et 7).
+
+### Points 2 et 3 — livrés le 1er septembre 2026
+
+**Point 2 — champs modifiables.** Trouvé déjà en place, et vérifié plutôt que
+réécrit. `PATCH /api/agents/{id}` refuse toute écriture sur un champ constaté
+**en le nommant**, au lieu de l'ignorer en silence — sans quoi l'utilisateur
+croit avoir renommé la machine. Côté interface, `EditableAgentField` tire sa
+liste de champs modifiables de `editable_fields`, servi par le serveur avec la
+fiche : l'interface ne peut donc ni proposer une modification que l'API
+refusera, ni verrouiller un champ qu'elle accepte. 20 tests.
+
+Une note de méthode : le premier relevé d'API avait manqué cette route, faute
+d'avoir cherché `@app.patch`. Point 2 était classé « à revoir » alors qu'il
+était complet.
+
+**Point 3 — attribution.** Le serveur savait déjà attribuer ; **aucun écran ne
+le faisait**. Le détail d'hôte se contentait d'afficher « Non attribué » en
+lecture seule. Ajout de `AgentOwnerField` : choix d'un responsable nommé et/ou
+d'une équipe d'administration, réservé aux administrateurs.
+
+Les deux voies sont proposées **ensemble**, pas en exclusion : le serveur les
+traite en union (`user_administers_agent`), donc un choix exclusif dans
+l'interface décrirait faussement qui a la main. L'écran dit aussi ce que
+signifie l'absence d'attribution — l'hôte n'est pas « à tout le monde », il ne
+reste accessible qu'aux administrateurs globaux.
+
+8 tests couvrent le chemin d'attribution lui-même, qui n'était pas testé : les
+tests existants posaient `owner_user_id` à la main sur le modèle. Ils vérifient
+qu'attribuer donne effectivement la main au destinataire, qu'un responsable ou
+une équipe inconnus sont refusés sans rien écrire, qu'un opérateur hors
+périmètre ne peut pas s'attribuer une machine, et que retirer l'attribution
+rend l'hôte aux seuls administrateurs.
 
 ### Déjà acquis, à ne pas réécrire
 

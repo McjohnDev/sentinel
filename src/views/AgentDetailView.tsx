@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import { agentsService } from '../services/api/agents.service';
 import { AgentRuntimePanel } from '../components/agents/AgentRuntimePanel';
 import { EditableAgentField } from '../components/agents/EditableAgentField';
+import { AgentOwnerField } from '../components/agents/AgentOwnerField';
 import { MonitoringPlanPanel } from '../components/agents/MonitoringPlanPanel';
 import { Agent, Alert } from '../types';
 import { AcknowledgeModal } from '../components/common/AcknowledgeModal';
@@ -285,11 +286,11 @@ export const AgentDetailView: React.FC = () => {
               />
               <span className="text-slate-300">·</span>
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Responsable</span>
-              <span className="text-[12.5px] text-slate-700">
-                {agent.ownerUsername || agent.adminGroupName || (
-                  <span className="text-amber-700">Non attribué</span>
-                )}
-              </span>
+              <AgentOwnerField
+                agent={agent}
+                canEdit={currentRole === 'Admin'}
+                onSaved={reloadAgent}
+              />
               <span className="text-slate-300">·</span>
               <span className="tnum text-xs text-slate-600">
                 {agent.customThresholds ? 'Seuils surchargés' : 'Seuils hérités'}
