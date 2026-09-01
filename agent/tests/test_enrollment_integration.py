@@ -366,3 +366,77 @@ def test_an_untagged_host_leaves_the_observed_vlan_empty(db, monkeypatch):
     )
 
     assert db.query(Agent).filter(Agent.id == creds.agent_id).first().vlan_observed is None
+
+
+# ------------------------------------------- point 6 : plan de supervision
+
+
+def test_a_plan_set_on_the_platform_reaches_the_agent_and_is_acknowledged(db):
+    """Boucle complete du point 6 : la plateforme decide, l'agent recoit,
+    range, acquitte — et la plateforme cesse de republier."""
+    import plan as plan_module
+    import heartbeat as hb
+    from metrics import collect as collect_metrics
+    from src import monitoring_plan
+
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+    row = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+
+    # L'exploitant pose un plan depuis l'interface.
+    monitoring_plan.replace_plan(
+        db, row,
+        {
+            "services": [{"name": "swift-alliance", "expected_state": "running"}],
+            "files": [{"path": "/var/lock/cbc.flag", "condition": "must_not_exist"}],
+        },
+    )
+    db.commit()
+
+    def beat():
+        payload = hb.build_payload(
+            collect_metrics(), collect(AGENT_VERSION),
+            taken_at=datetime.now(timezone.utc),
+            config_version=plan_module.current_version(),
+        )
+        return hb.send(_config(""), creds, payload, session=session)
+
+    first = beat()
+    assert first.config is not None, "le plan doit descendre dans la reponse au battement"
+
+    applied = plan_module.apply_offered(_config(""), creds, first.config, session=session)
+    assert applied is not None
+    assert plan_module.current_version() == applied
+
+    # Le plan est range sur l'hote : services et fichiers demandes.
+    stored = plan_module.read_plan().payload
+    assert stored is not None
+
+    # Acquitte : la plateforme ne le repousse plus.
+    db.expire_all()
+    second = beat()
+    assert second.config is None, "un plan acquitte ne doit plus etre republie"
+
+
+def test_an_unacknowledged_plan_keeps_being_offered(db):
+    """Sans accuse, la plateforme republie indefiniment — c'est ce qui rend
+    l'acquittement obligatoire et non optionnel."""
+    import heartbeat as hb
+    from metrics import collect as collect_metrics
+    from src import monitoring_plan
+
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+    row = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    monitoring_plan.replace_plan(db, row, {"services": [{"name": "nginx"}]})
+    db.commit()
+
+    def beat():
+        payload = hb.build_payload(
+            collect_metrics(), collect(AGENT_VERSION), taken_at=datetime.now(timezone.utc)
+        )
+        return hb.send(_config(""), creds, payload, session=session)
+
+    assert beat().config is not None
+    db.expire_all()
+    assert beat().config is not None, "sans accuse, le plan doit revenir"

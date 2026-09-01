@@ -24,6 +24,7 @@ from typing import Callable, Optional
 import requests
 
 import heartbeat as heartbeat_module
+import plan as plan_module
 import session as session_module
 from config import AgentConfig
 from enrollment import AGENT_VERSION, Credentials, write_credentials
@@ -49,6 +50,7 @@ class RunnerOutcome:
     beats_sent: int = 0
     failures: int = 0
     resumed: int = 0
+    plan_version: Optional[int] = None
     last_error: Optional[str] = None
     credentials: Optional[Credentials] = None
 
@@ -109,8 +111,12 @@ def run(
             logger.error("%s", exc)
             return outcome
 
+        # Version *appliquée*, relue du disque : annoncer celle qu'on vient de
+        # recevoir ferait croire à la plateforme qu'un plan est en vigueur
+        # alors qu'un arrêt au mauvais moment l'aurait perdu.
+        announced = config_version if config_version is not None else plan_module.current_version()
         payload = heartbeat_module.build_payload(
-            sample, host, taken_at=taken_at, config_version=config_version
+            sample, host, taken_at=taken_at, config_version=announced
         )
 
         try:
@@ -152,6 +158,14 @@ def run(
             credentials = adopted
             write_credentials(credentials)
             outcome.credentials = credentials
+
+        # Le plan voyage dans la réponse au battement : c'est le seul canal
+        # descendant. Le laisser passer entretiendrait une republication
+        # perpétuelle, la plateforme le considérant jamais appliqué.
+        if result.config is not None:
+            applied = plan_module.apply_offered(config, credentials, result.config, session=http)
+            if applied is not None:
+                outcome.plan_version = applied
 
         if result.echo.resumed_after_outage:
             outcome.resumed += 1

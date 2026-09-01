@@ -60,7 +60,7 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 | 3 | Attribution d'un administrateur ou groupe | `PATCH` + `admin_groups`, `admin_group_members` | — | `AgentOwnerField` | **livré** |
 | 4 | Désinstallation + signalement | `POST /api/agents/deregister` | `uninstall` | détail hôte | **livré** |
 | 5 | Resynchronisation après coupure | `POST /api/agents/heartbeat` + écho | `run` | bandeau hors ligne | **livré** (voir réserve) |
-| 6 | Métriques paramétrables par hôte | `PUT/GET .../monitoring`, `service_monitoring`, `file_monitoring` | supprimé | onglet Configuration | serveur seul |
+| 6 | Métriques paramétrables par hôte | plan d'hôte + poussée au battement | réception + accusé | onglet Configuration | **livré** |
 | 7 | Prise en charge des métriques par l'agent | — | **vide** | — | vide |
 | 8 | Alerte mail + n8n, gabarit par vérification | `mail_templates`, `messaging_service`, `webhook_service` | — | Intégrations | à revoir |
 | 9 | Workflow de vérification, validation, prise en charge | `action_approvals`, `/api/approvals` | — | **retirée** | à revoir |
@@ -314,6 +314,48 @@ parc sans saisie par hôte. À demander sous cette forme.
 Rien n'est encore développé : il n'existe aucun import dans le produit (seul
 l'**export** CSV existe) et aucune notion de sous-réseau. À arbitrer avant de
 le bâtir.
+
+### Point 6 — livré le 1er septembre 2026
+
+Trouvé **déjà construit** côté plateforme, et vérifié plutôt que réécrit.
+`monitoring_plan.py` couvre les quatre demandes du point 6, et son propre
+en-tête raconte ce qu'il a remplacé : des écrans de paramétrage qui
+affichaient « mise à jour réussie » sans rien écrire, pendant que le moteur
+d'alerte comparait à une liste vide codée en dur.
+
+| Demande | État |
+|---|---|
+| CPU et RAM par défaut | seuils sur `Agent`, vide = suit la politique globale |
+| disque + choix des partitions et de leurs seuils | `disk_mount_rules` |
+| liste de services (peut être vide) | `MonitoredService` + état attendu *running* ou *stopped* |
+| fichier dont l'existence — ou l'absence — alerte | `FileCondition.MUST_EXIST` / `MUST_NOT_EXIST` |
+
+Le second sens compte dans les deux cas : alerter quand un service critique
+s'arrête, mais aussi quand un service qui devait rester à l'arrêt se remet à
+tourner ; alerter sur un journal manquant, mais aussi sur un fichier
+sentinelle qui apparaît.
+
+**Ce qui manquait était côté agent.** Le plan descend dans la réponse au
+battement — seul canal vers un hôte derrière NAT — et l'agent reconstruit le
+laissait passer. Ajout de `plan.py` : il range le plan sur l'hôte, puis
+l'acquitte.
+
+L'ordre est imposé et tenu par un test : **écrire d'abord, acquitter
+ensuite**. Acquitter une version non rangée la ferait disparaître — la
+plateforme cesserait de la pousser alors que l'hôte ne l'a jamais reçue, et
+l'écart ne se découvrirait qu'au prochain incident. À l'inverse, un accusé
+perdu n'interrompt pas le battement : la plateforme repoussera, alors que
+priver l'hôte de sa présence serait bien plus lourd.
+
+La version annoncée dans chaque battement est celle **appliquée**, relue du
+disque, jamais celle qui vient d'arriver.
+
+17 tests unitaires, plus deux de bout en bout : un plan posé sur la
+plateforme descend, se range et s'acquitte, après quoi la plateforme cesse de
+le republier — et, sans accusé, il revient à chaque battement, ce qui est
+précisément la raison pour laquelle l'acquittement n'est pas facultatif.
+
+**Hors périmètre :** mesurer d'après ce plan. C'est le point 7.
 
 ### Déjà acquis, à ne pas réécrire
 
