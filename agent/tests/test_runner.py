@@ -199,3 +199,125 @@ def test_a_recovery_clears_the_failure_count():
     state = session_module.read_state()
     assert state.consecutive_failures == 0
     assert state.last_error is None
+
+
+# ------------------------------------------- faits d'hote rafraichis (revue)
+
+
+def test_host_facts_are_re_read_on_every_beat():
+    """Les relever une seule fois au lancement fige l'inventaire.
+
+    Un agent installe en service tourne des mois. Un poste en DHCP change
+    d'adresse et la plateforme continuerait d'afficher l'ancienne jusqu'au
+    prochain redemarrage de l'agent.
+    """
+    seen = []
+    versions = iter(["5.15.0", "5.15.1", "6.1.0"])
+
+    def provider(previous):
+        return HostFacts(
+            previous.hostname, previous.os, next(versions), "10.0.0.99",
+            previous.cpu_cores, previous.ram_total_gb, previous.disk_total_gb, {},
+        )
+
+    class _Capture:
+        def post(self, url, json=None, headers=None, timeout=None, verify=None):
+            seen.append(json["os_version"])
+            return _ok()
+
+    runner.run(
+        CONFIG, CREDS, HOST, interval_seconds=30.0, max_beats=3,
+        session=_Capture(), sleeper=lambda _s: None, clock=_Clock(),
+        sampler=lambda: SAMPLE, host_provider=provider,
+    )
+
+    assert seen == ["5.15.0", "5.15.1", "6.1.0"]
+
+
+def test_an_ip_change_reaches_the_platform():
+    sent = []
+
+    def provider(previous):
+        return HostFacts(
+            previous.hostname, previous.os, previous.os_version, "192.168.5.5",
+            previous.cpu_cores, previous.ram_total_gb, previous.disk_total_gb, {},
+        )
+
+    class _Capture:
+        def post(self, url, json=None, headers=None, timeout=None, verify=None):
+            sent.append(json.get("ip_address"))
+            return _ok()
+
+    runner.run(
+        CONFIG, CREDS, HOST, max_beats=1, session=_Capture(),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=provider,
+    )
+    assert sent == ["192.168.5.5"]
+
+
+def test_a_failed_host_reading_keeps_the_previous_facts():
+    # Un releve rate ne doit pas rompre la liaison : mieux vaut des faits
+    # legerement anciens qu'un hote qui cesse de donner signe de vie.
+    sent = []
+
+    def provider(_previous):
+        raise OSError("interface indisponible")
+
+    class _Capture:
+        def post(self, url, json=None, headers=None, timeout=None, verify=None):
+            sent.append(json["hostname"])
+            return _ok()
+
+    outcome = runner.run(
+        CONFIG, CREDS, HOST, max_beats=2, session=_Capture(),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=provider,
+    )
+    assert outcome.beats_sent == 2
+    assert sent == ["web-01", "web-01"]
+
+
+def test_an_unmeasurable_host_is_recorded_for_the_operator():
+    # Sinon `status` affiche une liaison etablie alors que l'agent s'est
+    # arrete faute de pouvoir mesurer.
+    def broken():
+        raise MetricsUnavailable("psutil absent")
+
+    _run([_ok()], max_beats=2, sampler=broken)
+    state = session_module.read_state()
+    assert state.connected is False
+    assert "psutil" in state.last_error
+
+
+def test_the_observed_vlan_rides_on_the_beat():
+    sent = []
+    tagged = HostFacts("web-01", "Linux", "5.15", "10.0.0.12", 4, 15.5, 200.0, {}, "100,250")
+
+    class _Capture:
+        def post(self, url, json=None, headers=None, timeout=None, verify=None):
+            sent.append(json.get("vlan_observed"))
+            return _ok()
+
+    runner.run(
+        CONFIG, CREDS, tagged, max_beats=1, session=_Capture(),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=lambda previous: previous,
+    )
+    assert sent == ["100,250"]
+
+
+def test_an_untagged_host_omits_the_vlan_rather_than_sending_empty():
+    sent = []
+
+    class _Capture:
+        def post(self, url, json=None, headers=None, timeout=None, verify=None):
+            sent.append("vlan_observed" in json)
+            return _ok()
+
+    runner.run(
+        CONFIG, CREDS, HOST, max_beats=1, session=_Capture(),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=lambda previous: previous,
+    )
+    assert sent == [False]

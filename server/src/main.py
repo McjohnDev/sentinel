@@ -207,6 +207,8 @@ class EnrollRequest(BaseModel):
     disk_total_gb: Optional[float] = None
     # Comment et où l'agent s'exécute sur l'hôte (point 9).
     runtime: Optional[Dict[str, Any]] = None
+    #: VLAN que l'hôte étiquette lui-même, s'il en étiquette un.
+    vlan_observed: Optional[constr(max_length=64)] = None
     
     @validator('token')
     def validate_token(cls, v):
@@ -269,6 +271,7 @@ class HeartbeatRequest(BaseModel):
     agent_version: Optional[constr(max_length=50)] = None
     hostname: Optional[constr(max_length=255)] = None
     runtime: Optional[Dict[str, Any]] = None
+    vlan_observed: Optional[constr(max_length=64)] = None
     
     @validator('cpu_percent', 'ram_percent', 'disk_percent')
     def validate_percent(cls, v):
@@ -727,7 +730,7 @@ def apply_reported_facts(agent: Agent, payload) -> None:
     version antérieure, qui n'envoie pas encore ces clés, ne doit pas effacer
     ce que la plateforme sait déjà.
     """
-    for field in ("hostname", "os", "os_version", "agent_version", "ip_address"):
+    for field in ("hostname", "os", "os_version", "agent_version", "ip_address", "vlan_observed"):
         value = getattr(payload, field, None)
         if value:
             setattr(agent, field, value)
@@ -1810,6 +1813,8 @@ def list_agents(
             "uninstalled_at": agent.uninstalled_at,
             "cpu_cores": agent.cpu_cores,
             "ram_total_gb": agent.ram_total_gb,
+            "vlan": agent.vlan,
+            "vlan_observed": agent.vlan_observed,
             "owner_user_id": agent.owner_user_id,
             "admin_group_id": agent.admin_group_id,
             "run_mode": agent.run_mode,
@@ -2186,6 +2191,8 @@ class PatchAgentRequest(BaseModel):
 
     name: Optional[constr(max_length=120)] = None
     location: Optional[constr(max_length=120)] = None
+    #: VLAN déclaré par l'exploitation — voir models.Agent.vlan.
+    vlan: Optional[constr(max_length=64)] = None
     machine_type: Optional[constr(max_length=20)] = None
     owner_user_id: Optional[constr(max_length=64)] = None
     admin_group_id: Optional[constr(max_length=64)] = None
@@ -2320,6 +2327,11 @@ def get_agent(request: Request, agent_id: str, current_user: User = Depends(requ
         "cpu_cores": agent.cpu_cores,
         "ram_total_gb": agent.ram_total_gb,
         "disk_total_gb": agent.disk_total_gb,
+        # Segmentation réseau : constaté par l'hôte, et déclaré par
+        # l'exploitation. Les deux, parce qu'ils peuvent diverger — et cette
+        # divergence est justement ce qu'on veut voir.
+        "vlan_observed": agent.vlan_observed,
+        "vlan": agent.vlan,
         # Responsabilité (point 3)
         "owner_user_id": agent.owner_user_id,
         "owner_username": agent.owner.username if agent.owner else None,

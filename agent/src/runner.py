@@ -26,8 +26,9 @@ import requests
 import heartbeat as heartbeat_module
 import session as session_module
 from config import AgentConfig
-from enrollment import Credentials, write_credentials
+from enrollment import AGENT_VERSION, Credentials, write_credentials
 from facts import HostFacts
+from facts import refreshed as refresh_facts
 from metrics import MetricsUnavailable, SystemSample
 from metrics import collect as collect_metrics
 
@@ -67,14 +68,16 @@ def run(
     sleeper: Callable[[float], None] = time.sleep,
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     sampler: Callable[[], SystemSample] = collect_metrics,
+    host_provider: Optional[Callable[[HostFacts], HostFacts]] = None,
     config_version: Optional[int] = None,
 ) -> RunnerOutcome:
     """Bat jusqu'à `max_beats` battements (ou indéfiniment si None).
 
-    `sleeper`, `clock` et `sampler` sont injectables : la reprise après
-    indisponibilité doit pouvoir être éprouvée sans attendre réellement, et
-    sans dépendre de la machine qui exécute les tests.
+    `sleeper`, `clock`, `sampler` et `host_provider` sont injectables : la
+    reprise après indisponibilité doit pouvoir être éprouvée sans attendre
+    réellement, et sans dépendre de la machine qui exécute les tests.
     """
+    provider = host_provider or (lambda previous: refresh_facts(previous, AGENT_VERSION))
     http = session or requests.Session()
     outcome = RunnerOutcome(credentials=credentials)
     backoff = BACKOFF_START
@@ -84,12 +87,25 @@ def run(
         beats += 1
         taken_at = clock()
 
+        # Les faits volatils sont repris à chaque battement : sans cela un
+        # poste en DHCP garderait à jamais l'adresse qu'il avait au démarrage
+        # de l'agent.
+        try:
+            host = provider(host)
+        except Exception:  # noqa: BLE001 - un relevé raté ne doit pas rompre la liaison
+            logger.debug("Relevé d'hôte impossible ; on conserve le précédent.", exc_info=True)
+
         try:
             sample = sampler()
         except MetricsUnavailable as exc:
             # Sans mesure il n'y a pas de battement possible : réessayer ne
             # changera rien tant que l'hôte est dans cet état.
             outcome.last_error = str(exc)
+            session_module.record_failure(
+                server_url=config.server_url,
+                agent_id=credentials.agent_id,
+                error=str(exc),
+            )
             logger.error("%s", exc)
             return outcome
 

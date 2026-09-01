@@ -81,6 +81,79 @@ def detect_ip_address() -> Optional[str]:
         sock.close()
 
 
+#: Interface porteuse d'une étiquette 802.1Q : `eth0.100`, `bond0.20`.
+_TAGGED_INTERFACE = re.compile(r"^(?P<link>[^.]+)\.(?P<vlan>\d{1,4})$")
+
+#: Table des VLAN du noyau Linux, quand le module 8021q est chargé.
+_PROC_VLAN = "/proc/net/vlan/config"
+
+
+def detect_vlan() -> Optional[str]:
+    """VLAN que l'hôte *étiquette lui-même*, s'il en étiquette un.
+
+    Attention à ce que cette valeur signifie. Une machine branchée sur un port
+    d'accès ne voit pas son VLAN : le commutateur pose et retire l'étiquette
+    de façon transparente, et l'hôte n'a aucun moyen de la connaître. `None`
+    veut donc dire « non déterminable depuis l'hôte », pas « aucun VLAN » —
+    ce sera le cas de la plupart des postes.
+
+    Seul un hôte sur port trunk, portant des sous-interfaces étiquetées, peut
+    répondre. C'est pourquoi le VLAN *déclaré* par l'exploitation reste un
+    champ distinct : lui existe pour tous les hôtes.
+    """
+    found = _vlan_from_proc() or _vlan_from_interface_names()
+    return found
+
+
+def _vlan_from_proc() -> Optional[str]:
+    """Lit la table 802.1Q du noyau — la source la plus sûre sous Linux."""
+    try:
+        with open(_PROC_VLAN, "r", encoding="utf-8", errors="replace") as handle:
+            lines = handle.readlines()
+    except OSError:
+        return None
+
+    ids = []
+    for line in lines:
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) < 2:
+            continue
+        if not parts[1].isdigit():
+            continue  # en-tête du fichier
+        ids.append(parts[1])
+    return _single(ids)
+
+
+def _vlan_from_interface_names() -> Optional[str]:
+    """Repli : déduit le VLAN du nom des interfaces (`eth0.100`)."""
+    if psutil is None:
+        return None
+    try:
+        names = list(psutil.net_if_addrs().keys())
+    except Exception:
+        return None
+
+    ids = []
+    for name in names:
+        match = _TAGGED_INTERFACE.match(name)
+        if match:
+            ids.append(match.group("vlan"))
+    return _single(ids)
+
+
+def _single(ids) -> Optional[str]:
+    """Rend le VLAN observé, ou None si la réponse serait ambiguë.
+
+    Un hôte trunk peut porter plusieurs VLAN. En désigner un seul serait
+    arbitraire et faux dans l'inventaire ; on les rend tous, séparés par des
+    virgules, pour que l'exploitant voie la réalité.
+    """
+    unique = sorted({i for i in ids if i.isdigit() and 0 < int(i) < 4095}, key=int)
+    if not unique:
+        return None
+    return ",".join(unique)[:64]
+
+
 @dataclass(frozen=True)
 class HostFacts:
     hostname: str
@@ -91,6 +164,7 @@ class HostFacts:
     ram_total_gb: Optional[float]
     disk_total_gb: Optional[float]
     runtime: Dict[str, Any] = field(default_factory=dict)
+    vlan_observed: Optional[str] = None
 
 
 def _hardware() -> Dict[str, Optional[float]]:
@@ -148,7 +222,7 @@ def _current_user() -> Optional[str]:
 
 
 def collect(agent_version: str) -> HostFacts:
-    """Relève l'état de l'hôte au moment de l'enrôlement."""
+    """Relève l'état complet de l'hôte, matériel compris."""
     hardware = _hardware()
     return HostFacts(
         hostname=sanitize_hostname(socket.gethostname()),
@@ -159,4 +233,33 @@ def collect(agent_version: str) -> HostFacts:
         ram_total_gb=hardware["ram_total_gb"],
         disk_total_gb=hardware["disk_total_gb"],
         runtime=runtime_info(agent_version),
+        vlan_observed=detect_vlan(),
+    )
+
+
+def refreshed(previous: HostFacts, agent_version: str) -> HostFacts:
+    """Rafraîchit ce qui bouge, en gardant le matériel déjà relevé.
+
+    Un agent installé en service tourne des mois sans redémarrer. Relever les
+    faits une seule fois au lancement fige l'inventaire à cet instant : un
+    poste en DHCP change d'adresse et la plateforme continue d'afficher
+    l'ancienne, une montée de version d'OS reste invisible. Les faits
+    doivent donc être repris à chaque battement, pas seulement embarqués dans
+    chaque battement.
+
+    Le matériel, lui, est repris tel quel : l'énumération des partitions
+    interroge chaque volume monté, et un partage réseau injoignable y bloque.
+    Le faire à chaque battement mettrait la liaison à la merci d'un montage
+    figé — précisément ce que la supervision doit signaler, pas subir.
+    """
+    return HostFacts(
+        hostname=sanitize_hostname(socket.gethostname()),
+        os=detect_os(),
+        os_version=detect_os_version(),
+        ip_address=detect_ip_address(),
+        cpu_cores=previous.cpu_cores,
+        ram_total_gb=previous.ram_total_gb,
+        disk_total_gb=previous.disk_total_gb,
+        runtime=runtime_info(agent_version),
+        vlan_observed=detect_vlan(),
     )

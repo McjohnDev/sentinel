@@ -268,3 +268,60 @@ def test_an_observed_field_is_refused_by_name(db):
     # Nommer le champ : « non modifiable » sans précision laisse deviner.
     assert detail["fields"] == ["hostname"]
     assert _reload(db, agent.id).hostname.startswith("SRV-")
+
+
+# ------------------------------------------------------------------- VLAN
+
+
+def test_the_declared_vlan_is_editable(db):
+    """Le VLAN declare appartient a l'exploitation, pas a la machine."""
+    admin = _user(db, "admin", UserRole.ADMIN)
+    agent = _agent(db)
+
+    response = _as(admin).patch("/api/agents/%s" % agent.id, json={"vlan": "20"})
+
+    assert response.status_code == 200
+    assert _reload(db, agent.id).vlan == "20"
+
+
+def test_the_observed_vlan_cannot_be_edited(db):
+    """Il est constate par l'hote : le corriger a la main produirait un
+    inventaire qui contredit ce que la machine etiquette reellement."""
+    admin = _user(db, "admin", UserRole.ADMIN)
+    agent = _agent(db)
+    agent.vlan_observed = "100"
+    db.commit()
+
+    response = _as(admin).patch("/api/agents/%s" % agent.id, json={"vlan_observed": "200"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["fields"] == ["vlan_observed"]
+    assert _reload(db, agent.id).vlan_observed == "100"
+
+
+def test_the_two_vlans_are_independent(db):
+    """La divergence est le fait interessant : un hote rebranche sur un autre
+    port etiquette un VLAN que la fiche ignore encore. Les deux valeurs
+    doivent pouvoir differer sans que l'une ecrase l'autre."""
+    admin = _user(db, "admin", UserRole.ADMIN)
+    agent = _agent(db)
+    agent.vlan_observed = "100"
+    db.commit()
+
+    _as(admin).patch("/api/agents/%s" % agent.id, json={"vlan": "20"})
+
+    stored = _reload(db, agent.id)
+    assert stored.vlan == "20"
+    assert stored.vlan_observed == "100"
+
+
+def test_clearing_the_declared_vlan_is_allowed(db):
+    admin = _user(db, "admin", UserRole.ADMIN)
+    agent = _agent(db)
+    agent.vlan = "20"
+    db.commit()
+
+    response = _as(admin).patch("/api/agents/%s" % agent.id, json={"vlan": None})
+
+    assert response.status_code == 200
+    assert _reload(db, agent.id).vlan is None

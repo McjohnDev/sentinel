@@ -98,6 +98,18 @@ class Agent(Base):
     ram_total_gb = Column(Float, nullable=True)
     disk_total_gb = Column(Float, nullable=True)
 
+    #: VLAN que l'hôte étiquette lui-même, quand il en étiquette un. Vide pour
+    #: la plupart des machines : sur un port d'accès, le commutateur pose et
+    #: retire l'étiquette de façon transparente et l'hôte ne peut pas la
+    #: connaître. « Vide » veut donc dire *non déterminable depuis l'hôte*,
+    #: jamais *aucun VLAN* — d'où le champ déclaré ci-dessous, qui lui existe
+    #: pour tous les hôtes.
+    vlan_observed = Column(String, nullable=True)
+
+    #: VLAN déclaré par l'exploitation. Attribué, donc modifiable : c'est une
+    #: information que l'équipe réseau détient et que la machine ignore.
+    vlan = Column(String, nullable=True)
+
     # --- Exécution de l'agent sur l'hôte (AGT-012, point 9) ---
     # Bloc JSON : chemin d'installation, mode d'exécution, service, PID,
     # compte, élévation, canal de packaging, plugins chargés… Stocké en JSON
@@ -159,6 +171,7 @@ AGENT_EDITABLE_FIELDS = frozenset(
         "admin_group_id",
         "group_id",
         "capability_level",
+        "vlan",
     }
 )
 
@@ -178,6 +191,7 @@ AGENT_IMMUTABLE_FIELDS = frozenset(
         "cpu_cores",
         "ram_total_gb",
         "disk_total_gb",
+        "vlan_observed",
         "runtime_json",
         "run_mode",
         "run_as_user",

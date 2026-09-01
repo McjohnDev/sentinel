@@ -39,6 +39,11 @@ _COLUMNS = [
     ("agents", "cpu_cores", "INTEGER"),
     ("agents", "ram_total_gb", "REAL"),
     ("agents", "disk_total_gb", "REAL"),
+    # Segmentation réseau : VLAN constaté par l'hôte, VLAN déclaré par
+    # l'exploitation. Deux champs parce que la plupart des hôtes ne peuvent
+    # pas connaître leur VLAN — voir models.Agent.
+    ("agents", "vlan_observed", "VARCHAR"),
+    ("agents", "vlan", "VARCHAR"),
     # AGT-012 / point 9 — comment et où l'agent s'exécute sur l'hôte.
     ("agents", "runtime_json", "TEXT"),
     ("agents", "run_mode", "VARCHAR"),

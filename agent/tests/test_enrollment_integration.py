@@ -305,3 +305,64 @@ def test_an_unknown_key_cannot_beat(db):
     session = _ClientSession(TestClient(app))
     with pytest.raises(hb.HeartbeatRefused):
         _beat(session, Credentials("ZZZZZZ", "cle-inventee"), _config(""))
+
+
+# --------------------------------------------------------------- VLAN
+
+
+def test_an_observed_vlan_reaches_the_platform_at_enrolment(db, monkeypatch):
+    import facts as facts_module
+
+    monkeypatch.setattr(facts_module, "detect_vlan", lambda: "100,250")
+    session = _ClientSession(TestClient(app))
+
+    creds = enroll(
+        _config(_issue_token(db)), load_or_create_machine_id(),
+        facts_module.collect(AGENT_VERSION), session=session,
+    )
+
+    stored = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    assert stored.vlan_observed == "100,250"
+
+
+def test_a_vlan_change_is_picked_up_by_the_next_beat(db, monkeypatch):
+    """Un hote rebranche sur un autre port ne se reenrole pas : c'est le
+    battement qui doit rapporter le nouveau VLAN."""
+    import facts as facts_module
+    import heartbeat as hb
+    from metrics import collect as collect_metrics
+
+    monkeypatch.setattr(facts_module, "detect_vlan", lambda: "100")
+    session = _ClientSession(TestClient(app))
+    creds = enroll(
+        _config(_issue_token(db)), load_or_create_machine_id(),
+        facts_module.collect(AGENT_VERSION), session=session,
+    )
+    assert db.query(Agent).filter(Agent.id == creds.agent_id).first().vlan_observed == "100"
+
+    # L'hote change de port reseau.
+    monkeypatch.setattr(facts_module, "detect_vlan", lambda: "250")
+    payload = hb.build_payload(
+        collect_metrics(), facts_module.collect(AGENT_VERSION),
+        taken_at=datetime.now(timezone.utc),
+    )
+    hb.send(_config(""), creds, payload, session=session)
+
+    db.expire_all()
+    assert db.query(Agent).filter(Agent.id == creds.agent_id).first().vlan_observed == "250"
+
+
+def test_an_untagged_host_leaves_the_observed_vlan_empty(db, monkeypatch):
+    """La plupart des postes sont sur port d'acces : ils ne peuvent pas
+    connaitre leur VLAN, et vide veut dire « non determinable »."""
+    import facts as facts_module
+
+    monkeypatch.setattr(facts_module, "detect_vlan", lambda: None)
+    session = _ClientSession(TestClient(app))
+
+    creds = enroll(
+        _config(_issue_token(db)), load_or_create_machine_id(),
+        facts_module.collect(AGENT_VERSION), session=session,
+    )
+
+    assert db.query(Agent).filter(Agent.id == creds.agent_id).first().vlan_observed is None

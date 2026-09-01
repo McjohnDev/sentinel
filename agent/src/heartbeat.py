@@ -138,6 +138,10 @@ def build_payload(
         payload["ip_address"] = host.ip_address
     if host.runtime:
         payload["runtime"] = host.runtime
+    # Renvoyé à chaque battement comme les autres faits : un hôte que l'on
+    # rebranche sur un autre port change de VLAN sans se réenrôler.
+    if host.vlan_observed:
+        payload["vlan_observed"] = host.vlan_observed
     if config_version is not None:
         payload["config_version"] = config_version
     return payload

@@ -70,13 +70,36 @@ def _root_mount() -> str:
     return "C:\\" if os.name == "nt" else "/"
 
 
+#: Durée de la toute première mesure processeur, en secondes.
+#:
+#: `psutil.cpu_percent(interval=None)` compare deux relevés successifs des
+#: compteurs du noyau. Au premier appel il n'existe pas de relevé précédent :
+#: psutil compare alors au démarrage du processus et rend une valeur
+#: arbitraire — mesuré ici à **100 %**. Ce premier battement partait donc avec
+#: un pic de charge inventé, capable de déclencher une alerte processeur
+#: critique à chaque démarrage d'agent. La première mesure est donc bloquante
+#: et réelle ; les suivantes sont instantanées.
+FIRST_SAMPLE_SECONDS = 1.0
+
+_cpu_primed = False
+
+
+def _cpu_percent() -> float:
+    global _cpu_primed
+    if not _cpu_primed:
+        value = psutil.cpu_percent(interval=FIRST_SAMPLE_SECONDS)
+        _cpu_primed = True
+        return value or 0.0
+    return psutil.cpu_percent(interval=None) or 0.0
+
+
 def collect(cpu_interval: float = 0.0) -> SystemSample:
     """Relève un échantillon système.
 
-    `cpu_interval` à 0 rend la mesure depuis le dernier appel, sans bloquer.
-    La boucle appelle donc `collect` à cadence régulière et obtient une
-    moyenne sur l'intervalle écoulé, au lieu d'immobiliser le fil d'exécution
-    une seconde à chaque battement.
+    Hors première mesure, le relevé processeur est instantané : il porte sur
+    l'intervalle écoulé depuis l'appel précédent. La boucle obtient ainsi une
+    moyenne sur sa propre cadence, sans immobiliser le fil d'exécution une
+    seconde à chaque battement.
     """
     if psutil is None:
         raise MetricsUnavailable(
@@ -97,7 +120,9 @@ def collect(cpu_interval: float = 0.0) -> SystemSample:
         uptime = 0
 
     return SystemSample(
-        cpu_percent=_clamp_percent(psutil.cpu_percent(interval=cpu_interval or None) or 0.0),
+        cpu_percent=_clamp_percent(
+            psutil.cpu_percent(interval=cpu_interval) if cpu_interval else _cpu_percent()
+        ),
         cpu_cores=max(1, int(cores)),
         ram_percent=_clamp_percent(memory.percent),
         ram_total_gb=_gb(memory.total),

@@ -152,6 +152,8 @@ def build_payload(config: AgentConfig, machine_id: str, host: HostFacts) -> Dict
         payload["disk_total_gb"] = host.disk_total_gb
     if host.runtime:
         payload["runtime"] = host.runtime
+    if host.vlan_observed:
+        payload["vlan_observed"] = host.vlan_observed
     return payload
 
 

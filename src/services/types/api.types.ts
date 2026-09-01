@@ -23,6 +23,8 @@ export interface BackendAgent {
   machine_id?: string;
   /** Caractéristiques matérielles constatées (point 2). */
   cpu_cores?: number | null;
+  vlan_observed?: string | null;
+  vlan?: string | null;
   disk_total_gb_host?: number | null;
   /** Responsabilité de l'hôte (point 3). */
   owner_user_id?: string | null;

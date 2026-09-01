@@ -271,6 +271,8 @@ export class DataMapper {
       retired: backendAgent.retired ?? false,
       uninstalled: backendAgent.uninstalled ?? false,
       uninstalledAt: backendAgent.uninstalled_at ?? null,
+      vlanObserved: backendAgent.vlan_observed ?? null,
+      vlan: backendAgent.vlan ?? null,
       ownerUserId: backendAgent.owner_user_id ?? null,
       ownerUsername: backendAgent.owner_username ?? null,
       adminGroupId: backendAgent.admin_group_id ?? null,

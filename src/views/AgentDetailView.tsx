@@ -271,6 +271,7 @@ export const AgentDetailView: React.FC = () => {
                 {agent.hostname} · {agent.ipAddress} · {agent.os} {agent.osVersion} · agent {agent.agentVersion}
                 {agent.cpuCores ? ` · ${agent.cpuCores} vCPU` : ''}
                 {agent.ramTotalGb ? ` · ${agent.ramTotalGb} Go` : ''}
+                {agent.vlanObserved ? ` · VLAN ${agent.vlanObserved} étiqueté` : ''}
               </span>
             </div>
 
@@ -284,6 +285,30 @@ export const AgentDetailView: React.FC = () => {
                 className="text-[12.5px] text-slate-700"
                 onSaved={reloadAgent}
               />
+              <span className="text-slate-300">·</span>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">VLAN</span>
+              <EditableAgentField
+                agent={agent}
+                field="vlan"
+                value={agent.vlan || ''}
+                placeholder="Non renseigné"
+                className="text-[12.5px] text-slate-700"
+                onSaved={reloadAgent}
+              />
+              {/* La divergence est le fait intéressant : un hôte rebranché sur
+                  un autre port réseau étiquette un VLAN que la fiche ignore
+                  encore. On la montre plutôt que de choisir laquelle des deux
+                  valeurs est « la bonne ». */}
+              {agent.vlanObserved &&
+                agent.vlan &&
+                agent.vlanObserved.replace(/\s/g, '') !== agent.vlan.replace(/\s/g, '') && (
+                  <span
+                    className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10.5px] font-bold"
+                    title={`L'hôte étiquette le VLAN ${agent.vlanObserved}`}
+                  >
+                    hôte : {agent.vlanObserved}
+                  </span>
+                )}
               <span className="text-slate-300">·</span>
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Responsable</span>
               <AgentOwnerField

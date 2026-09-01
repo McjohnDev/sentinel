@@ -21,6 +21,7 @@ export interface AgentPatch {
   name?: string;
   location?: string;
   machine_type?: 'server' | 'workstation';
+  vlan?: string | null;
   owner_user_id?: string | null;
   admin_group_id?: string | null;
   group_id?: string | null;

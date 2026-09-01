@@ -110,6 +110,10 @@ export interface Agent {
   uninstalledAt?: string | null;
 
   // --- Responsabilité de l'hôte (point 3) ---
+  /** VLAN constaté par l'hôte — vide s'il ne peut pas le déterminer. */
+  vlanObserved?: string | null;
+  /** VLAN déclaré par l'exploitation — modifiable. */
+  vlan?: string | null;
   ownerUserId?: string | null;
   ownerUsername?: string | null;
   adminGroupId?: string | null;
