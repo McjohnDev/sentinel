@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any, Tuple
 import json
 import logging
@@ -15,6 +15,30 @@ from src.availability_service import AvailabilityService
 from src import webhook_service
 
 logger = logging.getLogger(__name__)
+
+
+def _as_datetime(value: Any) -> Optional[datetime]:
+    """Convertit une date reçue d'un agent en `datetime`, ou None.
+
+    JSON ne transporte pas de date : l'agent envoie une chaîne ISO 8601. Elle
+    était jusqu'ici affectée telle quelle à une colonne `DateTime`, ce que le
+    pilote refuse — toute observation de fichier portant une date de
+    modification faisait donc échouer le battement entier. Une date illisible
+    est ramenée à None : perdre l'horodatage est sans gravité, perdre le
+    battement de l'hôte ne l'est pas.
+    """
+    if value is None or isinstance(value, datetime):
+        return value
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        logger.warning("Date de modification illisible ignorée : %r", value)
+        return None
+    # Colonnes naïves côté plateforme : on ramène en UTC sans fuseau pour ne
+    # pas mélanger deux conventions dans la même colonne.
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 class AlertService:
@@ -860,7 +884,7 @@ class AlertService:
             raw_exists = file_info.get("exists")
             exists = None if raw_exists is None else bool(raw_exists)
             size_bytes = file_info.get("size_bytes")
-            last_modified = file_info.get("last_modified")
+            last_modified = _as_datetime(file_info.get("last_modified"))
             if not file_path:
                 continue
 

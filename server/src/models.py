@@ -110,6 +110,15 @@ class Agent(Base):
     #: information que l'équipe réseau détient et que la machine ignore.
     vlan = Column(String, nullable=True)
 
+    #: Inventaire logiciel remonté par l'agent : services offerts, applications
+    #: et pilotes installés. Stocké en JSON plutôt qu'en tables dédiées : c'est
+    #: un document par hôte, consulté en entier (fiche, sélecteur de services)
+    #: et jamais joint. Une recherche à l'échelle du parc — « quels hôtes ont
+    #: cette version ? » — demanderait des tables ; ce n'est pas demandé
+    #: aujourd'hui et la simplicité prime.
+    inventory_json = Column(Text, nullable=True)
+    inventory_at = Column(DateTime, nullable=True)
+
     # --- Exécution de l'agent sur l'hôte (AGT-012, point 9) ---
     # Bloc JSON : chemin d'installation, mode d'exécution, service, PID,
     # compte, élévation, canal de packaging, plugins chargés… Stocké en JSON

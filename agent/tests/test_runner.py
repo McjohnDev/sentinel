@@ -80,6 +80,7 @@ def _run(steps, *, max_beats, sleeps=None, sampler=None):
             sleeper=recorded.append,
             clock=_Clock(),
             sampler=sampler or (lambda: SAMPLE),
+            inventory_every=0,
         ),
         recorded,
     )
@@ -228,7 +229,7 @@ def test_host_facts_are_re_read_on_every_beat():
     runner.run(
         CONFIG, CREDS, HOST, interval_seconds=30.0, max_beats=3,
         session=_Capture(), sleeper=lambda _s: None, clock=_Clock(),
-        sampler=lambda: SAMPLE, host_provider=provider,
+        sampler=lambda: SAMPLE, host_provider=provider, inventory_every=0,
     )
 
     assert seen == ["5.15.0", "5.15.1", "6.1.0"]
@@ -251,7 +252,7 @@ def test_an_ip_change_reaches_the_platform():
     runner.run(
         CONFIG, CREDS, HOST, max_beats=1, session=_Capture(),
         sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
-        host_provider=provider,
+        host_provider=provider, inventory_every=0,
     )
     assert sent == ["192.168.5.5"]
 
@@ -272,7 +273,7 @@ def test_a_failed_host_reading_keeps_the_previous_facts():
     outcome = runner.run(
         CONFIG, CREDS, HOST, max_beats=2, session=_Capture(),
         sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
-        host_provider=provider,
+        host_provider=provider, inventory_every=0,
     )
     assert outcome.beats_sent == 2
     assert sent == ["web-01", "web-01"]
@@ -302,7 +303,7 @@ def test_the_observed_vlan_rides_on_the_beat():
     runner.run(
         CONFIG, CREDS, tagged, max_beats=1, session=_Capture(),
         sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
-        host_provider=lambda previous: previous,
+        host_provider=lambda previous: previous, inventory_every=0,
     )
     assert sent == ["100,250"]
 
@@ -318,6 +319,63 @@ def test_an_untagged_host_omits_the_vlan_rather_than_sending_empty():
     runner.run(
         CONFIG, CREDS, HOST, max_beats=1, session=_Capture(),
         sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
-        host_provider=lambda previous: previous,
+        host_provider=lambda previous: previous, inventory_every=0,
     )
     assert sent == [False]
+
+
+# ------------------------------------------------- inventaire (points 7 et +)
+
+
+def test_the_inventory_goes_out_on_the_first_successful_beat(monkeypatch):
+    """Sans cela, l'exploitant attendrait des heures avant de pouvoir choisir
+    un service dans la liste réelle de l'hôte."""
+    import inventory as inventory_module
+
+    pushed = []
+    monkeypatch.setattr(inventory_module, "collect", lambda: inventory_module.Inventory())
+    monkeypatch.setattr(inventory_module, "push", lambda *a, **k: pushed.append(1))
+
+    outcome = runner.run(
+        CONFIG, CREDS, HOST, max_beats=1, session=_Scripted([_ok()]),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=lambda p: p, inventory_every=5,
+    )
+    assert len(pushed) == 1
+    assert outcome.inventories_sent == 1
+
+
+def test_the_inventory_is_not_sent_on_every_beat(monkeypatch):
+    # Le relevé interroge la base de registre ou le gestionnaire de paquets :
+    # le refaire à chaque battement coûterait bien plus qu'il n'apprend.
+    import inventory as inventory_module
+
+    pushed = []
+    monkeypatch.setattr(inventory_module, "collect", lambda: inventory_module.Inventory())
+    monkeypatch.setattr(inventory_module, "push", lambda *a, **k: pushed.append(1))
+
+    runner.run(
+        CONFIG, CREDS, HOST, max_beats=4, session=_Scripted([_ok()]),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=lambda p: p, inventory_every=3,
+    )
+    # Battements 1 et 4 seulement.
+    assert len(pushed) == 2
+
+
+def test_a_failed_inventory_does_not_break_the_beat(monkeypatch):
+    # Retirer l'hôte du parc pour une donnée d'appoint serait disproportionné.
+    import inventory as inventory_module
+
+    def broken():
+        raise RuntimeError("registre inaccessible")
+
+    monkeypatch.setattr(inventory_module, "collect", broken)
+
+    outcome = runner.run(
+        CONFIG, CREDS, HOST, max_beats=2, session=_Scripted([_ok()]),
+        sleeper=lambda _s: None, clock=_Clock(), sampler=lambda: SAMPLE,
+        host_provider=lambda p: p, inventory_every=1,
+    )
+    assert outcome.beats_sent == 2
+    assert outcome.inventories_sent == 0

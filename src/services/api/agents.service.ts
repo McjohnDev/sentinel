@@ -207,6 +207,18 @@ export const agentsService = {
   },
 
   /** Plan de supervision complet d'un hôte. */
+  /**
+   * Inventaire logiciel d'un hôte : services offerts, applications, pilotes.
+   *
+   * Alimente aussi le sélecteur de services du plan : l'exploitant choisit
+   * parmi ce que l'hôte déclare, au lieu de saisir un nom. Une faute de
+   * frappe produirait une surveillance qui ne surveille rien.
+   */
+  async getInventory(id: string): Promise<HostInventory> {
+    const { data } = await axiosInstance.get(`/agents/${id}/inventory`);
+    return data;
+  },
+
   async getMonitoringPlan(id: string): Promise<MonitoringPlan> {
     const { data } = await axiosInstance.get(`/agents/${id}/monitoring`);
     return data;
@@ -228,6 +240,16 @@ export const agentsService = {
     await axiosInstance.patch(`/agents/${id}`, { name });
   },
 };
+
+export interface HostInventory {
+  agent_id: string;
+  collected_at?: string | null;
+  services: Array<{ name: string; display_name?: string | null; status?: string | null; start_type?: string | null }>;
+  applications: Array<{ name: string; version?: string | null; publisher?: string | null; install_date?: string | null }>;
+  drivers: Array<{ name: string; display_name?: string | null; version?: string | null; state?: string | null }>;
+  truncated: string[];
+  unavailable: string[];
+}
 
 export interface VlanSubnet {
   id: string;

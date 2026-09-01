@@ -113,6 +113,7 @@ def build_payload(
     *,
     taken_at: datetime,
     config_version: Optional[int] = None,
+    observations: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Construit le corps du battement.
 
@@ -144,6 +145,15 @@ def build_payload(
         payload["vlan_observed"] = host.vlan_observed
     if config_version is not None:
         payload["config_version"] = config_version
+
+    # Observations du plan (point 7). Chaque liste n'est jointe que si elle
+    # porte quelque chose : la plateforme n'évalue services et fichiers que
+    # lorsque l'agent en rapporte, si bien qu'une liste vide éteindrait les
+    # alertes en cours au lieu de ne rien dire.
+    for key in ("disks", "services", "files"):
+        values = (observations or {}).get(key)
+        if values:
+            payload[key] = values
     return payload
 
 

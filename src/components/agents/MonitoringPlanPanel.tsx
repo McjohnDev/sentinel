@@ -11,6 +11,7 @@ import {
   MonitoredFileRule,
   MonitoredServiceRule,
   MonitoringPlan,
+  HostInventory,
   PartitionRule,
   ServiceState,
   agentsService,
@@ -51,6 +52,10 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
   const [plan, setPlan] = useState<MonitoringPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Services réellement offerts par l'hôte, pour que l'exploitant choisisse
+  // au lieu de saisir. Une faute de frappe produirait une surveillance qui
+  // ne surveille rien : le service resterait « inconnu » plutôt qu'« arrêté ».
+  const [offeredServices, setOfferedServices] = useState<HostInventory['services']>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -64,6 +69,23 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
     } finally {
       setLoading(false);
     }
+  }, [agentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    agentsService
+      .getInventory(agentId)
+      .then((inv) => {
+        if (!cancelled) setOfferedServices(inv.services || []);
+      })
+      .catch(() => {
+        // Inventaire pas encore remonté : on retombe sur la saisie libre
+        // plutôt que d'empêcher toute configuration.
+        if (!cancelled) setOfferedServices([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [agentId]);
 
   useEffect(() => {
@@ -312,6 +334,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
               key={i}
               rule={svc}
               disabled={disabled}
+              offered={offeredServices}
               onChange={(next) => {
                 const services = [...plan.services];
                 services[i] = next;
@@ -474,19 +497,75 @@ const PartitionRow: React.FC<{
   </div>
 );
 
+/**
+ * Choix d'un service parmi ceux que l'hôte déclare offrir.
+ *
+ * Repli sur la saisie libre quand l'inventaire n'est pas encore remonté — un
+ * hôte fraîchement enrôlé n'a pas encore envoyé le sien, et bloquer la
+ * configuration jusque-là serait pire que le risque de faute de frappe. Un
+ * nom déjà saisi qui ne figure pas dans la liste est conservé et signalé,
+ * jamais effacé en silence.
+ */
+const ServiceNamePicker: React.FC<{
+  value: string;
+  disabled: boolean;
+  offered: HostInventory['services'];
+  onChange: (name: string) => void;
+}> = ({ value, disabled, offered, onChange }) => {
+  const known = offered.some((s) => s.name === value);
+
+  if (!offered.length) {
+    return (
+      <input
+        value={value}
+        disabled={disabled}
+        placeholder="nom du service (inventaire non encore remonté)"
+        onChange={(e) => onChange(e.target.value)}
+        className="cbc-input py-1 text-[13px] tnum"
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <select
+        value={known ? value : ''}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="cbc-input py-1 text-[13px] tnum min-w-0 flex-1"
+      >
+        <option value="">Choisir un service…</option>
+        {offered.map((s) => (
+          <option key={s.name} value={s.name}>
+            {s.display_name && s.display_name !== s.name ? `${s.name} — ${s.display_name}` : s.name}
+          </option>
+        ))}
+      </select>
+      {value && !known && (
+        <span
+          className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10.5px] font-bold shrink-0"
+          title={`« ${value} » ne figure pas dans l'inventaire de cet hôte. Le service a peut-être été renommé ou désinstallé.`}
+        >
+          absent
+        </span>
+      )}
+    </div>
+  );
+};
+
 const ServiceRow: React.FC<{
   rule: MonitoredServiceRule;
   disabled: boolean;
+  offered: HostInventory['services'];
   onChange: (r: MonitoredServiceRule) => void;
   onRemove: () => void;
-}> = ({ rule, disabled, onChange, onRemove }) => (
+}> = ({ rule, disabled, offered, onChange, onRemove }) => (
   <div className="grid grid-cols-[1fr_150px_130px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
-    <input
+    <ServiceNamePicker
       value={rule.name}
       disabled={disabled}
-      placeholder="nom du service (ex. swift-gateway)"
-      onChange={(e) => onChange({ ...rule, name: e.target.value })}
-      className="cbc-input py-1 text-[13px] tnum"
+      offered={offered}
+      onChange={(name) => onChange({ ...rule, name })}
     />
     <select
       value={rule.expected_state}

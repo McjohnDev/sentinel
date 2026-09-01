@@ -451,6 +451,22 @@ class MaintenanceWindowRequest(BaseModel):
     reason: str
 
 
+class InventoryRequest(BaseModel):
+    """Inventaire logiciel remonté par l'agent.
+
+    Les listes sont libres de forme : elles décrivent ce que l'hôte offre, et
+    figer un schéma strict ferait rejeter l'inventaire entier d'un système
+    dont un champ manque — pour une donnée d'appoint, le refus coûterait plus
+    que l'imprécision.
+    """
+
+    services: Optional[List[Dict[str, Any]]] = None
+    applications: Optional[List[Dict[str, Any]]] = None
+    drivers: Optional[List[Dict[str, Any]]] = None
+    truncated: Optional[List[str]] = None
+    unavailable: Optional[List[str]] = None
+
+
 class ConfigAckRequest(BaseModel):
     version: int
 
@@ -4912,6 +4928,75 @@ def get_notification_channel_status(request: Request, current_user: User = Depen
     """
     status = MessagingService.health_check(db)
     return status
+
+
+@app.post("/api/agents/inventory")
+@limiter.limit("12/hour")
+def push_inventory(
+    request: Request,
+    body: InventoryRequest,
+    agent_id: str = Depends(verify_agent),
+    db: Session = Depends(get_db),
+):
+    """Reçoit l'inventaire logiciel d'un hôte.
+
+    Cadence volontairement basse : ce relevé interroge la base de registre ou
+    le gestionnaire de paquets, et ne bouge que rarement. Il ne voyage donc
+    pas avec le battement.
+    """
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+
+    payload = {
+        "services": body.services or [],
+        "applications": body.applications or [],
+        "drivers": body.drivers or [],
+        "truncated": body.truncated or [],
+        "unavailable": body.unavailable or [],
+    }
+    agent.inventory_json = json.dumps(payload, default=str)
+    agent.inventory_at = datetime.utcnow()
+    db.commit()
+    cache_service.delete_pattern("agents:*")
+
+    return {
+        "status": "success",
+        "services": len(payload["services"]),
+        "applications": len(payload["applications"]),
+        "drivers": len(payload["drivers"]),
+    }
+
+
+@app.get("/api/agents/{agent_id}/inventory")
+@limiter.limit("60/minute")
+def get_inventory(
+    request: Request,
+    agent_id: str,
+    current_user: User = Depends(require_auth()),
+    db: Session = Depends(get_db),
+):
+    """Inventaire d'un hôte : services offerts, applications, pilotes.
+
+    Sert aussi le sélecteur de services du plan de supervision : l'exploitant
+    choisit parmi ce que l'hôte déclare, au lieu de saisir un nom. Une faute
+    de frappe produirait une surveillance qui ne surveille rien — le service
+    resterait « inconnu » au lieu d'être « arrêté ».
+    """
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+
+    parsed = _parse_runtime(agent.inventory_json) or {}
+    return {
+        "agent_id": agent.id,
+        "collected_at": agent.inventory_at,
+        "services": parsed.get("services") or [],
+        "applications": parsed.get("applications") or [],
+        "drivers": parsed.get("drivers") or [],
+        "truncated": parsed.get("truncated") or [],
+        "unavailable": parsed.get("unavailable") or [],
+    }
 
 
 @app.get("/api/vlan-subnets")

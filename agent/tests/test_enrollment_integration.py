@@ -440,3 +440,112 @@ def test_an_unacknowledged_plan_keeps_being_offered(db):
     assert beat().config is not None
     db.expire_all()
     assert beat().config is not None, "sans accuse, le plan doit revenir"
+
+
+# ------------------------------------------- point 7 : releves et inventaire
+
+
+def test_the_agent_reports_what_the_plan_designates(db, tmp_path):
+    """Boucle complete du point 7 : la plateforme designe, l'agent observe."""
+    import collectors
+    import heartbeat as hb
+    from metrics import collect as collect_metrics
+    from src import monitoring_plan
+    from src.models import FileMonitoring, ServiceMonitoring
+
+    present = tmp_path / "swift.log"
+    present.write_text("x" * 42, encoding="utf-8")
+    absent = tmp_path / "interdit.flag"
+
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+    row = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+
+    monitoring_plan.replace_plan(
+        db, row,
+        {
+            "services": [{"name": "un-service-absent", "expected_state": "running"}],
+            "files": [{"path": str(present)}, {"path": str(absent)}],
+        },
+    )
+    db.commit()
+
+    plan_payload = monitoring_plan.agent_config_payload(db, row)
+    observations = collectors.observe(plan_payload)
+
+    payload = hb.build_payload(
+        collect_metrics(), collect(AGENT_VERSION),
+        taken_at=datetime.now(timezone.utc), observations=observations,
+    )
+    hb.send(_config(""), creds, payload, session=session)
+
+    db.expire_all()
+    # Le fichier present et le fichier absent sont tous deux enregistres.
+    states = {
+        f.file_path: f.exists
+        for f in db.query(FileMonitoring).filter(FileMonitoring.agent_id == creds.agent_id).all()
+    }
+    assert states.get(str(present)) is True
+    assert states.get(str(absent)) is False
+
+    # Le service introuvable est remonte, sans etre declare arrete.
+    observed = {
+        s.service_name: s.status
+        for s in db.query(ServiceMonitoring).filter(ServiceMonitoring.agent_id == creds.agent_id).all()
+    }
+    assert observed.get("un-service-absent") == "unknown"
+
+
+def test_the_inventory_reaches_the_platform_and_feeds_the_picker(db):
+    """La plateforme doit pouvoir choisir parmi les services existants."""
+    import inventory as inventory_module
+
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+
+    report = inventory_module.Inventory(
+        services=[{"name": "swift-alliance", "display_name": "SWIFT Alliance", "status": "running"}],
+        applications=[{"name": "Oracle Client", "version": "19.3"}],
+        drivers=[{"name": "acpi", "state": "Running"}],
+    )
+    inventory_module.push(_config(""), creds, report, session=session)
+
+    db.expire_all()
+    stored = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    assert stored.inventory_at is not None
+
+    # Relu par l'interface : c'est ce qui alimente le selecteur de services.
+    client = TestClient(app)
+    from src.auth_service import AuthService
+    from src.models import User, UserRole
+    import uuid as _uuid
+
+    admin = User(
+        id=str(_uuid.uuid4()), username="adm-inv", email="adm-inv@cbcam.cm",
+        password_hash="!x", role=UserRole.ADMIN, is_active=True,
+    )
+    db.add(admin)
+    db.commit()
+    token = AuthService.create_access_token(data={"sub": admin.id})
+
+    response = client.get(
+        "/api/agents/%s/inventory" % creds.agent_id,
+        headers={"Authorization": "Bearer %s" % token},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert [s["name"] for s in body["services"]] == ["swift-alliance"]
+    assert body["applications"][0]["version"] == "19.3"
+    assert body["drivers"][0]["state"] == "Running"
+
+
+def test_an_unknown_key_cannot_push_an_inventory(db):
+    import inventory as inventory_module
+    from enrollment import Credentials
+
+    session = _ClientSession(TestClient(app))
+    with pytest.raises(inventory_module.InventoryPushFailed):
+        inventory_module.push(
+            _config(""), Credentials("ZZZZZZ", "cle-inventee"),
+            inventory_module.Inventory(), session=session,
+        )

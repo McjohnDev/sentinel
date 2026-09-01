@@ -23,6 +23,8 @@ from typing import Callable, Optional
 
 import requests
 
+import collectors as collectors_module
+import inventory as inventory_module
 import heartbeat as heartbeat_module
 import plan as plan_module
 import session as session_module
@@ -42,6 +44,12 @@ BACKOFF_START = 5.0
 #: que sa reprise passerait inaperçue.
 BACKOFF_MAX = 300.0
 
+#: Battements entre deux inventaires. Le relevé interroge la base de registre
+#: ou le gestionnaire de paquets : le faire à chaque battement coûterait bien
+#: plus que ce qu'il apprend, un parc logiciel ne bougeant qu'à l'occasion
+#: d'une installation.
+INVENTORY_EVERY_BEATS = 240
+
 
 @dataclass
 class RunnerOutcome:
@@ -50,6 +58,7 @@ class RunnerOutcome:
     beats_sent: int = 0
     failures: int = 0
     resumed: int = 0
+    inventories_sent: int = 0
     plan_version: Optional[int] = None
     last_error: Optional[str] = None
     credentials: Optional[Credentials] = None
@@ -71,6 +80,8 @@ def run(
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     sampler: Callable[[], SystemSample] = collect_metrics,
     host_provider: Optional[Callable[[HostFacts], HostFacts]] = None,
+    observer: Callable[[Optional[dict]], dict] = collectors_module.observe,
+    inventory_every: int = INVENTORY_EVERY_BEATS,
     config_version: Optional[int] = None,
 ) -> RunnerOutcome:
     """Bat jusqu'à `max_beats` battements (ou indéfiniment si None).
@@ -115,8 +126,20 @@ def run(
         # recevoir ferait croire à la plateforme qu'un plan est en vigueur
         # alors qu'un arrêt au mauvais moment l'aurait perdu.
         announced = config_version if config_version is not None else plan_module.current_version()
+
+        # Ce que le plan désigne est relevé à chaque battement. Un relevé qui
+        # échoue ne doit pas rompre la liaison : mieux vaut un battement sans
+        # observation qu'un hôte qui cesse de donner signe de vie.
+        try:
+            stored_plan = plan_module.read_plan()
+            observations = observer(stored_plan.payload if stored_plan else None)
+        except Exception:  # noqa: BLE001
+            logger.warning("Relevé du plan impossible ; battement sans observation.", exc_info=True)
+            observations = None
+
         payload = heartbeat_module.build_payload(
-            sample, host, taken_at=taken_at, config_version=announced
+            sample, host, taken_at=taken_at, config_version=announced,
+            observations=observations,
         )
 
         try:
@@ -171,6 +194,12 @@ def run(
             outcome.resumed += 1
 
         outcome.beats_sent += 1
+
+        # Inventaire : premier battement réussi, puis à cadence lente. Le
+        # faire au premier permet à l'exploitant de choisir un service dans
+        # la liste réelle de l'hôte sans attendre des heures.
+        if inventory_every and (outcome.beats_sent - 1) % inventory_every == 0:
+            _push_inventory(config, credentials, http, outcome)
         session_module.record_success(
             server_url=config.server_url,
             agent_id=credentials.agent_id,
@@ -186,3 +215,27 @@ def run(
             sleeper(interval_seconds)
 
     return outcome
+
+
+def _push_inventory(config, credentials, http, outcome: RunnerOutcome) -> None:
+    """Relève et transmet l'inventaire, sans jamais rompre le battement.
+
+    Un inventaire manqué n'est pas un incident : il repartira au prochain
+    tour. Faire échouer le cycle pour autant retirerait l'hôte du parc pour
+    une donnée d'appoint.
+    """
+    try:
+        report = inventory_module.collect()
+    except Exception:  # noqa: BLE001
+        logger.warning("Relevé d'inventaire impossible.", exc_info=True)
+        return
+
+    try:
+        inventory_module.push(config, credentials, report, session=http)
+    except inventory_module.InventoryPushFailed as exc:
+        logger.warning("%s", exc)
+        return
+
+    outcome.inventories_sent += 1
+    if report.unavailable:
+        logger.info("Inventaire partiel — sections indisponibles : %s", ", ".join(report.unavailable))

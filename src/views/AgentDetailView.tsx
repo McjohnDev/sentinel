@@ -12,6 +12,7 @@ import { agentsService } from '../services/api/agents.service';
 import { AgentRuntimePanel } from '../components/agents/AgentRuntimePanel';
 import { EditableAgentField } from '../components/agents/EditableAgentField';
 import { AgentOwnerField } from '../components/agents/AgentOwnerField';
+import { HostInventoryPanel } from '../components/agents/HostInventoryPanel';
 import { MonitoringPlanPanel } from '../components/agents/MonitoringPlanPanel';
 import { Agent, Alert } from '../types';
 import { AcknowledgeModal } from '../components/common/AcknowledgeModal';
@@ -28,6 +29,7 @@ const TABS = [
   // deux onglets auraient présenté les mêmes réglages à deux endroits, sans
   // qu'on sache lequel fait foi.
   { id: 'config', label: 'Configuration' },
+  { id: 'inventaire', label: 'Inventaire' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -500,6 +502,8 @@ export const AgentDetailView: React.FC = () => {
           )}
         </div>
       )}
+
+      {tab === 'inventaire' && <HostInventoryPanel agentId={agent.id} />}
 
       {tab === 'config' && (
         <MonitoringPlanPanel

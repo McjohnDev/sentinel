@@ -44,6 +44,8 @@ _COLUMNS = [
     # pas connaître leur VLAN — voir models.Agent.
     ("vlan_subnets", "range_start", "VARCHAR"),
     ("vlan_subnets", "range_end", "VARCHAR"),
+    ("agents", "inventory_json", "TEXT"),
+    ("agents", "inventory_at", "TIMESTAMP"),
     ("agents", "vlan_observed", "VARCHAR"),
     ("agents", "vlan", "VARCHAR"),
     # AGT-012 / point 9 — comment et où l'agent s'exécute sur l'hôte.
