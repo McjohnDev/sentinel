@@ -44,7 +44,14 @@ from src.main import app  # noqa: E402
 from src.models import Agent, EnrollmentToken  # noqa: E402
 
 from config import AgentConfig  # noqa: E402
-from enrollment import AGENT_VERSION, EnrollmentError, enroll, read_credentials  # noqa: E402
+from enrollment import (  # noqa: E402
+    AGENT_VERSION,
+    EnrollmentError,
+    clear_credentials,
+    deregister,
+    enroll,
+    read_credentials,
+)
 from facts import collect  # noqa: E402
 from identity import load_or_create_machine_id  # noqa: E402
 
@@ -101,10 +108,10 @@ class _ClientSession:
         self.client = client
         self.verify_seen = None
 
-    def post(self, url, json=None, timeout=None, verify=None):
+    def post(self, url, json=None, timeout=None, verify=None, headers=None):
         self.verify_seen = verify
         path = url.split("://", 1)[-1].split("/", 1)[-1]
-        return self.client.post("/" + path, json=json)
+        return self.client.post("/" + path, json=json, headers=headers or {})
 
 
 def _config(token):
@@ -172,3 +179,47 @@ def test_an_unknown_token_enrols_nothing(db):
 
     assert db.query(Agent).count() == 0
     assert read_credentials() is None
+
+
+def test_uninstall_marks_the_host_without_deleting_it(db):
+    """Point 4 : le desenrolement marque, il n'efface pas."""
+    token = _issue_token(db)
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(token), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+
+    deregister(_config(""), creds, reason="poste reforme", session=session)
+
+    stored = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    # La ligne survit : sans elle on perdrait l'historique au moment precis ou
+    # l'on veut savoir depuis quand l'hote n'est plus supervise.
+    assert stored is not None
+    assert stored.uninstalled_at is not None
+    assert stored.uninstalled_by == "agent"
+
+
+def test_reinstalling_recovers_the_same_host(db):
+    """La promesse affichee par la CLI a la desinstallation."""
+    session = _ClientSession(TestClient(app))
+    machine = load_or_create_machine_id()
+    host = collect(AGENT_VERSION)
+
+    first = enroll(_config(_issue_token(db, "jeton-cycle-un")), machine, host, session=session)
+    deregister(_config(""), first, reason="remplacement disque", session=session)
+    clear_credentials()
+
+    second = enroll(_config(_issue_token(db, "jeton-cycle-deux")), machine, host, session=session)
+
+    assert second.agent_id == first.agent_id, "une reinstallation ne doit pas creer un second hote"
+    assert db.query(Agent).count() == 1
+    stored = db.query(Agent).filter(Agent.id == second.agent_id).first()
+    # La marque de desinstallation est levee : l'hote est de nouveau supervise.
+    assert stored.uninstalled_at is None
+    assert stored.status == "active"
+
+
+def test_deregistration_without_credentials_is_refused(db):
+    session = _ClientSession(TestClient(app))
+    from enrollment import Credentials, DeregistrationError
+
+    with pytest.raises(DeregistrationError):
+        deregister(_config(""), Credentials("ZZZZZZ", "cle-inventee"), session=session)

@@ -13,7 +13,16 @@ from pathlib import Path
 
 from agent_paths import credentials_file, machine_id_file, state_dir
 from config import ConfigError, load_config
-from enrollment import AGENT_VERSION, EnrollmentError, enroll, is_enrolled, read_credentials
+from enrollment import (
+    AGENT_VERSION,
+    DeregistrationError,
+    EnrollmentError,
+    clear_credentials,
+    deregister,
+    enroll,
+    is_enrolled,
+    read_credentials,
+)
 from facts import collect
 from identity import load_or_create_machine_id
 
@@ -73,6 +82,46 @@ def cmd_enroll(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_uninstall(args: argparse.Namespace) -> int:
+    creds = read_credentials()
+    if not creds:
+        print("Cet hôte n'est pas enrôlé — rien à signaler.")
+        return 0
+
+    try:
+        config = load_config(_config_path(args), url_override=args.server_url)
+    except ConfigError as exc:
+        print("Configuration : %s" % exc, file=sys.stderr)
+        return 2
+
+    try:
+        deregister(config, creds, reason=args.reason)
+    except DeregistrationError as exc:
+        # Par défaut on refuse d'effacer les jetons sans avoir prévenu la
+        # plateforme : sinon l'hôte disparaît sans un mot et reste affiché
+        # « hors ligne » au parc, indistinguable d'une panne. L'exploitant
+        # doit pouvoir forcer — une machine mise au rebut ne rejoindra jamais
+        # le réseau — mais en le sachant.
+        print("Échec du signalement : %s" % exc, file=sys.stderr)
+        if not args.force:
+            print(
+                "Jetons conservés. Relancer quand la plateforme répond, ou "
+                "--force pour désinstaller sans la prévenir (l'hôte restera "
+                "affiché hors ligne jusqu'à son retrait manuel).",
+                file=sys.stderr,
+            )
+            return 1
+        clear_credentials()
+        print("Jetons effacés sans signalement (--force).")
+        return 1
+
+    clear_credentials()
+    print("Désenrôlement signalé — hôte %s marqué désinstallé." % creds.agent_id)
+    print("L'identité machine est conservée : une réinstallation retrouvera")
+    print("le même hôte et son historique.")
+    return 0
+
+
 def cmd_status(_args: argparse.Namespace) -> int:
     creds = read_credentials()
     print("Version agent : %s" % AGENT_VERSION)
@@ -107,6 +156,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="réenrôle un hôte déjà enrôlé (consomme un nouveau jeton)",
     )
     enroll_cmd.set_defaults(func=cmd_enroll)
+
+    uninstall_cmd = sub.add_parser(
+        "uninstall", help="signale la désinstallation puis oublie les jetons"
+    )
+    uninstall_cmd.add_argument("--reason", help="motif transmis à la plateforme")
+    uninstall_cmd.add_argument("--server-url", help="URL de la plateforme")
+    uninstall_cmd.add_argument(
+        "--force",
+        action="store_true",
+        help="désinstalle même si la plateforme ne peut pas être prévenue",
+    )
+    uninstall_cmd.set_defaults(func=cmd_uninstall)
 
     sub.add_parser("status", help="état local de l'agent").set_defaults(func=cmd_status)
     sub.add_parser("version", help="version de l'agent").set_defaults(func=cmd_version)

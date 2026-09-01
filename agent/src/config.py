@@ -36,9 +36,17 @@ class AgentConfig:
     machine_type: str
     timeout_seconds: float
 
+    def api_url(self, path: str) -> str:
+        """URL absolue d'une route de la plateforme."""
+        return self.server_url.rstrip("/") + "/api/" + path.lstrip("/")
+
     @property
     def enroll_url(self) -> str:
-        return self.server_url.rstrip("/") + "/api/agents/enroll"
+        return self.api_url("agents/enroll")
+
+    @property
+    def deregister_url(self) -> str:
+        return self.api_url("agents/deregister")
 
 
 def _as_bool(value: Any, default: bool) -> bool:
