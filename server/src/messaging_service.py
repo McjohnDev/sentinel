@@ -176,7 +176,13 @@ class MessagingService:
         if not recipients:
             return {"ok": False, "error": "Aucun destinataire."}
         ok = MessagingService._send_to_cbc_api(
-            to=recipients if len(recipients) > 1 else recipients[0],
+            # Toujours une liste, même à un seul destinataire : faire varier le
+            # type du champ avec le nombre d'éléments est un piège — les deux
+            # formes doivent alors être supportées de bout en bout, et un envoi
+            # à un seul destinataire ne suit plus le même chemin que les autres.
+            # Les autres appels de ce module envoient déjà `cfg["recipients"]`
+            # tel quel, liste à un élément comprise.
+            to=recipients,
             subject=subject,
             body=body,
             is_html=is_html,
@@ -267,7 +273,7 @@ class MessagingService:
         subject_tpl, body_tpl = resolve(db, "alert", alert_type, ctx.get("agent_id") or None)
         subject, body = render(subject_tpl, body_tpl, ctx)
         return MessagingService._send_to_cbc_api(
-            to=to_list if len(to_list) > 1 else to_list[0],
+            to=to_list,
             subject=subject,
             body=body,
             is_html=True,

@@ -3,7 +3,7 @@
   "description": "Single time-series sample from an agent or connector.",
   "examples": [
     {
-      "agent_id": "550e8400-e29b-41d4-a716-446655440000",
+      "agent_id": "A3F09C",
       "family": "cpu",
       "host": "web-01.prod",
       "labels": {
@@ -25,7 +25,8 @@
       "type": "string"
     },
     "agent_id": {
-      "format": "uuid",
+      "maxLength": 64,
+      "minLength": 1,
       "title": "Agent Id",
       "type": "string"
     },

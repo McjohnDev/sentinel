@@ -1817,7 +1817,6 @@ def list_agents(
             "uninstalled": uninstalled,
             "uninstalled_at": agent.uninstalled_at,
             "cpu_cores": agent.cpu_cores,
-            "ram_total_gb": agent.ram_total_gb,
             **resolve_vlan(agent, vlan_rows),
             "owner_user_id": agent.owner_user_id,
             "admin_group_id": agent.admin_group_id,
@@ -1835,7 +1834,10 @@ def list_agents(
             "cpu_percent": last_hb.cpu_percent if last_hb else None,
             "ram_percent": last_hb.ram_percent if last_hb else None,
             "ram_used_gb": last_hb.ram_used_gb if last_hb else None,
-            "ram_total_gb": last_hb.ram_total_gb if last_hb else None,
+            # Le battement fait foi, l'inventaire prend le relais tant qu'il
+            # n'y en a pas : un hôte fraîchement enrôlé a déclaré son matériel,
+            # l'afficher vide jusqu'au premier battement le perdrait.
+            "ram_total_gb": last_hb.ram_total_gb if last_hb else agent.ram_total_gb,
             "disk_percent": last_hb.disk_percent if last_hb else None,
             "disk_used_gb": last_hb.disk_used_gb if last_hb else None,
             "disk_total_gb": last_hb.disk_total_gb if last_hb else None,
@@ -2380,8 +2382,6 @@ def get_agent(request: Request, agent_id: str, current_user: User = Depends(requ
         "machine_type": agent.machine_type.value if hasattr(agent.machine_type, "value") else str(agent.machine_type or ""),
         # Caractéristiques constatées de l'hôte (point 2)
         "cpu_cores": agent.cpu_cores,
-        "ram_total_gb": agent.ram_total_gb,
-        "disk_total_gb": agent.disk_total_gb,
         # Segmentation réseau : constaté par l'hôte, déclaré par
         # l'exploitation, déduit du plan d'adressage. Les trois, parce qu'ils
         # peuvent diverger — et cette divergence est justement ce qu'on veut
@@ -2413,10 +2413,10 @@ def get_agent(request: Request, agent_id: str, current_user: User = Depends(requ
         "cpu_percent": last_heartbeat.cpu_percent if last_heartbeat else None,
         "ram_percent": last_heartbeat.ram_percent if last_heartbeat else None,
         "ram_used_gb": last_heartbeat.ram_used_gb if last_heartbeat else None,
-        "ram_total_gb": last_heartbeat.ram_total_gb if last_heartbeat else None,
+        "ram_total_gb": last_heartbeat.ram_total_gb if last_heartbeat else agent.ram_total_gb,
         "disk_percent": last_heartbeat.disk_percent if last_heartbeat else None,
         "disk_used_gb": last_heartbeat.disk_used_gb if last_heartbeat else None,
-        "disk_total_gb": last_heartbeat.disk_total_gb if last_heartbeat else None,
+        "disk_total_gb": last_heartbeat.disk_total_gb if last_heartbeat else agent.disk_total_gb,
         "uptime_seconds": last_heartbeat.uptime_seconds if last_heartbeat else None,
         "disks": _partitions_from_heartbeat(last_heartbeat),
         "last_heartbeat": {

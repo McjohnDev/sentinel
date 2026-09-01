@@ -28,3 +28,14 @@ ignore = [
     "F401",  # unused imports: many modules re-export deliberately
     "F841",  # unused locals: frequent in the current code, not a defect
 ]
+
+[tool.pytest.ini_options]
+# Uniquement `test_*.py`. Le motif par defaut de pytest inclut aussi
+# `*_test.py`, ce qui faisait collecter `server/tests/load_test.py` : un
+# script Locust dont l'import declenche le monkey-patching gevent de `ssl`,
+# `socket` et `threading` *apres* que la suite les a deja importes. La suite
+# se figeait alors au premier TestClient, et le delai de garde de
+# pytest-timeout ne se declenchait jamais — `threading` venait justement
+# d'etre remplace. Restreindre le motif empeche qu'un autre fichier en
+# `_test.py` reproduise la panne.
+python_files = ["test_*.py"]
