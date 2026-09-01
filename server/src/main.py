@@ -451,6 +451,20 @@ class MaintenanceWindowRequest(BaseModel):
     reason: str
 
 
+class MailTemplatePreviewRequest(BaseModel):
+    """Rendu d'un gabarit sur un jeu de valeurs, sans envoi."""
+
+    subject: constr(min_length=1, max_length=300)
+    body_html: constr(min_length=1, max_length=100000)
+    context: Optional[Dict[str, Any]] = None
+
+
+class WebhookTestRequest(BaseModel):
+    """Essai du webhook signé — le canal par lequel n8n est déclenché."""
+
+    event_key: Optional[constr(max_length=80)] = None
+
+
 class InventoryRequest(BaseModel):
     """Inventaire logiciel remonté par l'agent.
 
@@ -4928,6 +4942,133 @@ def get_notification_channel_status(request: Request, current_user: User = Depen
     """
     status = MessagingService.health_check(db)
     return status
+
+
+@app.delete("/api/settings/mail-templates")
+@limiter.limit("20/minute")
+def reset_mail_template(
+    request: Request,
+    kind: str,
+    event_key: str,
+    agent_id: Optional[str] = None,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Revient au gabarit livré pour cette vérification.
+
+    La ligne est supprimée plutôt que réécrite avec le défaut : recopier
+    figerait une version du jour, et l'exploitant croirait suivre le gabarit
+    livré tout en gardant une copie qui cesse d'évoluer avec le produit.
+    """
+    from src.mail_templates import seed_defaults
+
+    target = (agent_id or "").strip()
+    removed = (
+        db.query(MailTemplate)
+        .filter(
+            MailTemplate.kind == kind,
+            MailTemplate.event_key == event_key,
+            MailTemplate.agent_id == target,
+        )
+        .delete()
+    )
+    db.commit()
+    if target == "":
+        # Sans réinstallation immédiate, la vérification n'aurait plus aucun
+        # gabarit et l'alerte partirait sans mise en forme.
+        seed_defaults(db)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="RESET_MAIL_TEMPLATE",
+        details="%s/%s%s" % (kind, event_key, (" hote=%s" % target) if target else " (global)"),
+    )
+    return {"status": "success", "removed": removed}
+
+
+@app.post("/api/settings/mail-templates/preview")
+@limiter.limit("60/minute")
+def preview_mail_template(
+    request: Request,
+    body: MailTemplatePreviewRequest,
+    current_user: User = Depends(require_operator_or_admin()),
+    db: Session = Depends(get_db),
+):
+    """Rend le gabarit sur un jeu de valeurs, sans rien envoyer.
+
+    Un gabarit ne se relit pas, il se regarde. Sans aperçu, la première
+    alerte réelle sert de test — au plus mauvais moment, et devant les
+    destinataires.
+    """
+    from src.mail_templates import render
+
+    sample: Dict[str, Any] = {
+        "hostname": "web-01.prod",
+        "agent_id": "A3F09C",
+        "severity": "critical",
+        "alert_type": "disk_high",
+        "message": "Disque /u01 à 96 %",
+        "value": 96,
+        "threshold": 85,
+        "mount": "/u01",
+        "service_name": "swift-alliance",
+        "file_path": "/var/lock/cbc.flag",
+        "plugin": "service.manage",
+        "status": "succeeded",
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+    }
+    sample.update(body.context or {})
+    subject, html = render(body.subject, body.body_html, sample)
+    return {"subject": subject, "body_html": html, "context": sample}
+
+
+@app.post("/api/settings/webhook/test")
+@limiter.limit("10/minute")
+def send_webhook_test(
+    request: Request,
+    body: WebhookTestRequest,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Envoie une charge signée de test — le canal qui déclenche n8n.
+
+    Sans cet essai, la seule façon de savoir si n8n reçoit quelque chose est
+    d'attendre un vrai incident. La charge porte `test: true` pour qu'un
+    scénario n8n puisse la reconnaître et ne pas la traiter comme une alerte
+    réelle.
+    """
+    cfg = db.query(MessagingConfig).filter(MessagingConfig.id == "default").first()
+    if not cfg or not cfg.webhook_enabled or not cfg.webhook_url or not cfg.webhook_secret:
+        raise HTTPException(
+            status_code=400,
+            detail="Webhook non configuré : renseigner l'URL et le secret, puis l'activer.",
+        )
+
+    payload = {
+        "test": True,
+        "event": body.event_key or "webhook.test",
+        "severity": "info",
+        "hostname": "essai-plateforme",
+        "message": "Essai de webhook émis depuis la plateforme CBC Supervision.",
+        "emitted_at": datetime.utcnow().isoformat() + "Z",
+        "emitted_by": current_user.username,
+    }
+    from src import webhook_service
+
+    ok = webhook_service.post_signed(cfg.webhook_url, cfg.webhook_secret, payload)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="TEST_WEBHOOK",
+        details="url=%s resultat=%s" % (cfg.webhook_url, "ok" if ok else "echec"),
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=502,
+            detail="Le webhook n'a pas répondu favorablement. Vérifier l'URL, le "
+                   "secret partagé et que le scénario n8n est actif.",
+        )
+    return {"status": "success", "url": cfg.webhook_url, "signed": True}
 
 
 @app.post("/api/agents/inventory")

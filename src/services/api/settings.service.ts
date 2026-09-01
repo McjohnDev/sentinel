@@ -235,3 +235,63 @@ export const settingsService = {
     await axiosInstance.post('/platform/latency/page', { seconds, path });
   },
 };
+
+export interface MailTemplate {
+  id: string;
+  kind: string;
+  event_key: string;
+  agent_id: string;
+  subject: string;
+  body_html: string;
+  description?: string | null;
+  scope: 'global' | 'agent';
+  updated_at?: string | null;
+}
+
+/**
+ * Gabarits de courriel, un par vérification (point 8).
+ *
+ * Le catalogue rendu couvre toutes les vérifications connues, pas seulement
+ * celles déjà personnalisées : l'exploitant doit voir ce qui *peut* être
+ * réglé plutôt que de deviner les clés d'événement.
+ */
+export const mailTemplatesService = {
+  async list(agentId?: string): Promise<MailTemplate[]> {
+    const { data } = await axiosInstance.get('/settings/mail-templates', {
+      params: agentId ? { agent_id: agentId } : undefined,
+    });
+    return data.data || [];
+  },
+
+  async save(body: {
+    kind: string;
+    event_key: string;
+    subject: string;
+    body_html: string;
+    agent_id?: string;
+  }): Promise<void> {
+    await axiosInstance.put('/settings/mail-templates', body);
+  },
+
+  /** Revient au gabarit livré. La ligne est supprimée, pas recopiée. */
+  async reset(kind: string, eventKey: string, agentId?: string): Promise<void> {
+    await axiosInstance.delete('/settings/mail-templates', {
+      params: { kind, event_key: eventKey, ...(agentId ? { agent_id: agentId } : {}) },
+    });
+  },
+
+  /** Rend le gabarit sans rien envoyer. */
+  async preview(subject: string, bodyHtml: string): Promise<{ subject: string; body_html: string }> {
+    const { data } = await axiosInstance.post('/settings/mail-templates/preview', {
+      subject,
+      body_html: bodyHtml,
+    });
+    return data;
+  },
+
+  /** Essai du webhook signé — le canal qui déclenche n8n. */
+  async testWebhook(): Promise<{ status: string; url: string }> {
+    const { data } = await axiosInstance.post('/settings/webhook/test', {});
+    return data;
+  },
+};

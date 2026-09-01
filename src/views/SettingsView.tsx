@@ -9,6 +9,7 @@ import { useApp } from '../context/AppContext';
 import { GlobalThresholds, MessagingNotificationConfig, ServicesMonitoringConfig, FilesMonitoringConfig, DataRetentionConfig, AvailabilityPolicy } from '../types';
 import { Modal } from '../components/common/Modal';
 import { VlanPlanPanel } from '../components/settings/VlanPlanPanel';
+import { MailTemplatesPanel } from '../components/settings/MailTemplatesPanel';
 import { groupsService, MachineGroup, ConfigRevision, CoverageRow, CoverageOverlap } from '../services/api/groups.service';
 import {
   Sliders,
@@ -40,6 +41,7 @@ import {
   Activity,
   RefreshCw,
   Network,
+  Mail,
 } from 'lucide-react';
 import { settingsService } from '../services/api/settings.service';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -58,7 +60,8 @@ type SettingsTab =
   | 'tokens'
   | 'platform'
   | 'ldap'
-  | 'vlan';
+  | 'vlan'
+  | 'templates';
 
 const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
   { id: 'thresholds', label: "Seuils d'alerte", icon: Sliders },
@@ -73,6 +76,7 @@ const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> 
   { id: 'platform', label: 'Plateforme', icon: Activity },
   { id: 'ldap', label: 'Annuaire (LDAP)', icon: ShieldCheck },
   { id: 'vlan', label: 'Plan d’adressage', icon: Network },
+  { id: 'templates', label: 'Courriels par vérification', icon: Mail },
 ];
 
 export const SettingsView: React.FC = () => {
@@ -1432,6 +1436,8 @@ export const SettingsView: React.FC = () => {
       {activeTab === 'ldap' && <LdapPanel />}
 
       {activeTab === 'vlan' && <VlanPlanPanel />}
+
+      {activeTab === 'templates' && <MailTemplatesPanel />}
 
       {activeTab === 'platform' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
