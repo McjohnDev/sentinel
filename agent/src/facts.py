@@ -16,7 +16,7 @@ import platform
 import re
 import socket
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 try:  # psutil est une dépendance déclarée, mais l'agent doit rester diagnosticable sans elle.
     import psutil
@@ -141,17 +141,35 @@ def _vlan_from_interface_names() -> Optional[str]:
     return _single(ids)
 
 
+#: Longueur de la colonne côté plateforme.
+_VLAN_FIELD_MAX = 64
+
+
 def _single(ids) -> Optional[str]:
-    """Rend le VLAN observé, ou None si la réponse serait ambiguë.
+    """Rend le VLAN observé, ou None si l'hôte n'étiquette rien.
 
     Un hôte trunk peut porter plusieurs VLAN. En désigner un seul serait
     arbitraire et faux dans l'inventaire ; on les rend tous, séparés par des
     virgules, pour que l'exploitant voie la réalité.
+
+    La troncature se fait **par élément entier**, jamais au caractère. Couper
+    la chaîne à 64 caractères transformait `115` en `11` : un VLAN qui existe,
+    qui n'est pas le bon, et que rien ne signale comme tronqué. Mieux vaut
+    déclarer moins de VLAN que d'en inventer un faux.
     """
     unique = sorted({i for i in ids if i.isdigit() and 0 < int(i) < 4095}, key=int)
     if not unique:
         return None
-    return ",".join(unique)[:64]
+
+    kept: List[str] = []
+    length = 0
+    for value in unique:
+        addition = len(value) + (1 if kept else 0)
+        if length + addition > _VLAN_FIELD_MAX:
+            break
+        kept.append(value)
+        length += addition
+    return ",".join(kept) if kept else None
 
 
 @dataclass(frozen=True)

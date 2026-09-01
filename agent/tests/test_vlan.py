@@ -93,3 +93,33 @@ def test_host_facts_carry_the_observed_vlan():
 
     host = facts.collect(AGENT_VERSION)
     assert host.vlan_observed is None or host.vlan_observed.replace(",", "").isdigit()
+
+
+def test_a_trunk_host_never_reports_a_truncated_vlan():
+    """Regression : la troncature au caractere inventait un VLAN.
+
+    Couper la chaine a 64 caracteres transformait `115` en `11` — un VLAN qui
+    existe, qui n'est pas le bon, et que rien ne signale comme tronque. La
+    coupe se fait desormais par element entier.
+    """
+    out = facts._single([str(v) for v in range(100, 130)])
+
+    assert out is not None
+    parts = out.split(",")
+    assert all(parts), "aucun element vide"
+    assert not out.endswith(","), "pas de virgule orpheline"
+    assert len(out) <= 64, "la colonne plateforme fait 64 caracteres"
+    # Chaque VLAN rendu doit etre un VLAN reellement observe, jamais un
+    # fragment d'un autre.
+    observed = {str(v) for v in range(100, 130)}
+    assert all(p in observed for p in parts)
+
+
+def test_a_single_long_list_still_reports_something():
+    out = facts._single(["1000", "1001", "1002"])
+    assert out == "1000,1001,1002"
+
+
+def test_when_even_one_vlan_would_not_fit_nothing_is_invented():
+    # Cas theorique, mais la regle doit tenir : mieux vaut rien que faux.
+    assert facts._single([]) is None

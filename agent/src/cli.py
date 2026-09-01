@@ -27,6 +27,7 @@ from enrollment import (
 )
 from facts import collect
 from identity import load_or_create_machine_id
+from instance_lock import AlreadyRunning, InstanceLock
 from runner import run as run_loop
 from session import read_state
 
@@ -152,18 +153,28 @@ def cmd_run(args: argparse.Namespace) -> int:
         % (args.interval, config.server_url, creds.agent_id)
     )
 
+    # Un seul agent à la fois : deux boucles écriraient les mêmes fichiers
+    # d'état, et l'une pourrait acquitter un plan que l'autre n'a pas rangé.
+    try:
+        lock = InstanceLock().acquire()
+    except AlreadyRunning as exc:
+        print("%s" % exc, file=sys.stderr)
+        return 2
+
     try:
         outcome = run_loop(
             config,
             creds,
             host,
             interval_seconds=args.interval,
-            max_beats=args.once and 1 or None,
+            max_beats=1 if args.once else None,
         )
     except KeyboardInterrupt:
         print()
         print("Arrêt demandé.")
         return 0
+    finally:
+        lock.release()
 
     if outcome.last_error and outcome.beats_sent == 0:
         print("Aucun battement accepté : %s" % outcome.last_error, file=sys.stderr)
