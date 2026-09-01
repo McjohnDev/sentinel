@@ -1,0 +1,158 @@
+"""Boucle de battement et reprise après indisponibilité (point 5).
+
+La boucle n'est pas un `sleep(intervalle)` : elle avance sur une échéance
+calculée à partir d'une horloge **monotone**. Dormir la durée de l'intervalle
+laisse dériver la cadence du temps de traitement, et surtout un changement
+d'heure système — passage à l'heure d'hiver, correction NTP — peut faire
+dormir la boucle une heure de plus, pendant laquelle l'hôte est déclaré hors
+ligne sans qu'aucune panne ne se soit produite.
+
+Reprise : après un échec, l'intervalle croît (5 s, 10 s, 20 s… plafonné),
+pour ne pas marteler une plateforme déjà en difficulté — un parc entier qui
+réessaie à la seconde après une coupure suffit à empêcher son redémarrage. Au
+premier succès, la cadence nominale reprend immédiatement.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Callable, Optional
+
+import requests
+
+import heartbeat as heartbeat_module
+import session as session_module
+from config import AgentConfig
+from enrollment import Credentials, write_credentials
+from facts import HostFacts
+from metrics import MetricsUnavailable, SystemSample
+from metrics import collect as collect_metrics
+
+logger = logging.getLogger("cbc-agent.runner")
+
+#: Attente initiale après un échec, en secondes.
+BACKOFF_START = 5.0
+
+#: Plafond de l'attente. Au-delà, l'hôte resterait silencieux si longtemps
+#: que sa reprise passerait inaperçue.
+BACKOFF_MAX = 300.0
+
+
+@dataclass
+class RunnerOutcome:
+    """Ce que la boucle a fait — utile aux tests et à un arrêt propre."""
+
+    beats_sent: int = 0
+    failures: int = 0
+    resumed: int = 0
+    last_error: Optional[str] = None
+    credentials: Optional[Credentials] = None
+
+
+def _next_backoff(current: float) -> float:
+    return min(BACKOFF_MAX, current * 2)
+
+
+def run(
+    config: AgentConfig,
+    credentials: Credentials,
+    host: HostFacts,
+    *,
+    interval_seconds: float = 30.0,
+    max_beats: Optional[int] = None,
+    session: Optional[requests.Session] = None,
+    sleeper: Callable[[float], None] = time.sleep,
+    clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    sampler: Callable[[], SystemSample] = collect_metrics,
+    config_version: Optional[int] = None,
+) -> RunnerOutcome:
+    """Bat jusqu'à `max_beats` battements (ou indéfiniment si None).
+
+    `sleeper`, `clock` et `sampler` sont injectables : la reprise après
+    indisponibilité doit pouvoir être éprouvée sans attendre réellement, et
+    sans dépendre de la machine qui exécute les tests.
+    """
+    http = session or requests.Session()
+    outcome = RunnerOutcome(credentials=credentials)
+    backoff = BACKOFF_START
+    beats = 0
+
+    while max_beats is None or beats < max_beats:
+        beats += 1
+        taken_at = clock()
+
+        try:
+            sample = sampler()
+        except MetricsUnavailable as exc:
+            # Sans mesure il n'y a pas de battement possible : réessayer ne
+            # changera rien tant que l'hôte est dans cet état.
+            outcome.last_error = str(exc)
+            logger.error("%s", exc)
+            return outcome
+
+        payload = heartbeat_module.build_payload(
+            sample, host, taken_at=taken_at, config_version=config_version
+        )
+
+        try:
+            result = heartbeat_module.send(config, credentials, payload, session=http)
+        except heartbeat_module.IdentityLost as exc:
+            # On s'arrête au lieu de se réenrôler tout seul : un réenrôlement
+            # automatique consomme un jeton et, si la plateforme a révoqué cet
+            # hôte, le ferait rentrer par la fenêtre.
+            outcome.failures += 1
+            outcome.last_error = str(exc)
+            session_module.record_failure(
+                server_url=config.server_url,
+                agent_id=credentials.agent_id,
+                error=str(exc),
+            )
+            logger.error("%s", exc)
+            return outcome
+        except heartbeat_module.HeartbeatRefused as exc:
+            outcome.failures += 1
+            outcome.last_error = str(exc)
+            state = session_module.record_failure(
+                server_url=config.server_url,
+                agent_id=credentials.agent_id,
+                error=str(exc),
+            )
+            logger.warning(
+                "Battement %s échoué (%s tentative(s) de suite) : %s",
+                beats,
+                state.consecutive_failures,
+                exc,
+            )
+            if max_beats is None or beats < max_beats:
+                sleeper(backoff)
+            backoff = _next_backoff(backoff)
+            continue
+
+        adopted = heartbeat_module.interpret(result, credentials)
+        if adopted != credentials:
+            credentials = adopted
+            write_credentials(credentials)
+            outcome.credentials = credentials
+
+        if result.echo.resumed_after_outage:
+            outcome.resumed += 1
+
+        outcome.beats_sent += 1
+        session_module.record_success(
+            server_url=config.server_url,
+            agent_id=credentials.agent_id,
+            at=taken_at,
+        )
+
+        # Cadence nominale rétablie dès le premier succès : rester en attente
+        # longue après une reprise laisserait l'hôte au bord du seuil de
+        # bascule hors ligne.
+        backoff = BACKOFF_START
+
+        if max_beats is None or beats < max_beats:
+            sleeper(interval_seconds)
+
+    return outcome

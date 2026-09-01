@@ -13,7 +13,7 @@ C'est ce test qui échouerait si les deux moitiés dérivaient l'une de l'autre.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -223,3 +223,85 @@ def test_deregistration_without_credentials_is_refused(db):
 
     with pytest.raises(DeregistrationError):
         deregister(_config(""), Credentials("ZZZZZZ", "cle-inventee"), session=session)
+
+
+# --------------------------------------------------- point 5 : battement
+
+
+def _beat(session, creds, config, **kw):
+    """Un battement complet contre la vraie route."""
+    import heartbeat as hb
+    from metrics import collect as collect_metrics
+
+    payload = hb.build_payload(
+        collect_metrics(), collect(AGENT_VERSION),
+        taken_at=datetime.now(timezone.utc), **kw
+    )
+    return hb.send(config, creds, payload, session=session)
+
+
+def test_a_heartbeat_is_accepted_by_the_real_route(db):
+    """Le corps construit par l'agent satisfait-il reellement le schema ?"""
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+
+    result = _beat(session, creds, _config(""))
+
+    # L'echo est le seul canal descendant : il doit revenir renseigne.
+    assert result.echo.agent_id == creds.agent_id
+    assert result.echo.server_time
+
+
+def test_a_heartbeat_is_what_makes_the_host_stop_reading_offline(db):
+    """La raison d'etre du point 5, verifiee de bout en bout."""
+    from src.agent_purge import derived_agent_status
+
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+
+    # On force un silence prolonge : l'hote doit alors se lire hors ligne.
+    # `enrolled_at` doit reculer aussi : is_agent_live accorde une grace de
+    # deux minutes apres l'enrolement, quel que soit last_communication, pour
+    # qu'un hote reenrole ne soit pas purge dans la seconde.
+    stale = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    stale.last_communication = datetime.utcnow() - timedelta(days=2)
+    stale.enrolled_at = datetime.utcnow() - timedelta(days=2)
+    db.commit()
+    db.expire_all()
+    assert derived_agent_status(
+        db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    ) != "active"
+
+    _beat(session, creds, _config(""))
+
+    db.expire_all()
+    revived = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    assert derived_agent_status(revived) == "active"
+
+
+def test_the_platform_reports_the_gap_after_an_outage(db):
+    """« l'agent qui envoie a nouveau un heartbeat, la plateforme qui repond »."""
+    session = _ClientSession(TestClient(app))
+    creds = enroll(_config(_issue_token(db)), load_or_create_machine_id(), collect(AGENT_VERSION), session=session)
+
+    _beat(session, creds, _config(""))
+
+    db.expire_all()
+    row = db.query(Agent).filter(Agent.id == creds.agent_id).first()
+    row.last_communication = datetime.utcnow() - timedelta(hours=3)
+    db.commit()
+
+    result = _beat(session, creds, _config(""))
+
+    assert result.echo.resumed_after_outage is True
+    assert result.echo.previous_gap_seconds is not None
+    assert result.echo.previous_gap_seconds > 3000
+
+
+def test_an_unknown_key_cannot_beat(db):
+    from enrollment import Credentials
+    import heartbeat as hb
+
+    session = _ClientSession(TestClient(app))
+    with pytest.raises(hb.HeartbeatRefused):
+        _beat(session, Credentials("ZZZZZZ", "cle-inventee"), _config(""))

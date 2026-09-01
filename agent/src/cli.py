@@ -1,13 +1,15 @@
 """Point d'entrée de l'agent CBC Supervision.
 
-Périmètre courant : point 1 — enrôlement. Les verbes de collecte et de
-heartbeat arriveront avec les points suivants ; ce fichier grandit avec eux
+Périmètre courant : enrôlement (point 1), désinstallation signalée (point 4),
+battement et reprise de contact (point 5). Les verbes de collecte
+paramétrable arriveront avec les points 6 et 7 ; ce fichier grandit avec eux
 plutôt que d'annoncer aujourd'hui des commandes qui ne font rien.
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -25,6 +27,8 @@ from enrollment import (
 )
 from facts import collect
 from identity import load_or_create_machine_id
+from runner import run as run_loop
+from session import read_state
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml"
 
@@ -122,6 +126,51 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_run(args: argparse.Namespace) -> int:
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)-8s %(message)s",
+    )
+
+    creds = read_credentials()
+    if not creds:
+        print(
+            "Hôte non enrôlé — lancer « enroll » avant de battre.",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        config = load_config(_config_path(args), url_override=args.server_url)
+    except ConfigError as exc:
+        print("Configuration : %s" % exc, file=sys.stderr)
+        return 2
+
+    host = collect(AGENT_VERSION)
+    print(
+        "Battement toutes les %ss vers %s (hôte %s)."
+        % (args.interval, config.server_url, creds.agent_id)
+    )
+
+    try:
+        outcome = run_loop(
+            config,
+            creds,
+            host,
+            interval_seconds=args.interval,
+            max_beats=args.once and 1 or None,
+        )
+    except KeyboardInterrupt:
+        print()
+        print("Arrêt demandé.")
+        return 0
+
+    if outcome.last_error and outcome.beats_sent == 0:
+        print("Aucun battement accepté : %s" % outcome.last_error, file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_status(_args: argparse.Namespace) -> int:
     creds = read_credentials()
     print("Version agent : %s" % AGENT_VERSION)
@@ -131,6 +180,17 @@ def cmd_status(_args: argparse.Namespace) -> int:
         print("Enrôlement    : %s" % creds.agent_id)
     else:
         print("Enrôlement    : aucun — lancer « enroll »")
+
+    # État de la liaison vu depuis l'hôte. C'est la réponse à « le parc
+    # l'affiche hors ligne, qui a raison ? » — sans interroger la plateforme,
+    # qui est justement ce qu'on met en doute.
+    link = read_state()
+    print("Liaison       : %s" % ("établie" if link.connected else "rompue"))
+    print("Dernier succès: %s" % (link.last_success_at or "jamais"))
+    if link.consecutive_failures:
+        print("Échecs de suite: %d" % link.consecutive_failures)
+    if link.last_error:
+        print("Dernière erreur: %s" % link.last_error)
     return 0
 
 
@@ -168,6 +228,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="désinstalle même si la plateforme ne peut pas être prévenue",
     )
     uninstall_cmd.set_defaults(func=cmd_uninstall)
+
+    run_cmd = sub.add_parser("run", help="bat vers la plateforme jusqu'à interruption")
+    run_cmd.add_argument("--server-url", help="URL de la plateforme")
+    run_cmd.add_argument(
+        "--interval", type=float, default=30.0, help="secondes entre deux battements"
+    )
+    run_cmd.add_argument("--once", action="store_true", help="un seul battement puis sortie")
+    run_cmd.add_argument("--verbose", action="store_true", help="journal détaillé")
+    run_cmd.set_defaults(func=cmd_run)
 
     sub.add_parser("status", help="état local de l'agent").set_defaults(func=cmd_status)
     sub.add_parser("version", help="version de l'agent").set_defaults(func=cmd_version)
