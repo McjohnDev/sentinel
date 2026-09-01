@@ -248,6 +248,73 @@ l'analyse de l'agent supprimé montre que le rejeu est précisément là où
 limite ni cadence, ordre inversé écrasant les faits frais par des faits
 vieux de 24 h). À reprendre proprement, avec une route d'ingestion par lots.
 
+### Revue des points 1 à 5 — 1er septembre 2026
+
+Deux défauts réels, tous deux dans le code écrit pendant cette reprise.
+
+**Les faits d'hôte étaient figés au démarrage de l'agent.** `cli.py` les
+relevait une fois et la boucle réutilisait cet objet indéfiniment.
+L'affirmation portée par le code lui-même — les faits repartent à chaque
+battement *pour qu'une montée de version soit visible sans réenrôlement* —
+n'était vraie qu'à moitié : ils étaient dans chaque envoi, jamais relus. Un
+agent installé en service tourne des mois : un poste en DHCP annonçait donc à
+jamais l'adresse qu'il avait au lancement. Le test s'appelait
+`test_host_facts_ride_on_every_beat` et ne vérifiait que la *présence* des
+champs — il passait depuis le début.
+
+Corrigé par `facts.refreshed()`. Le matériel est délibérément repris tel
+quel : l'énumération des partitions interroge chaque volume monté, et un
+partage réseau figé y bloque. Le refaire à chaque battement mettrait la
+liaison à la merci d'un montage bloqué — ce que la supervision doit signaler,
+pas subir.
+
+**Le premier battement annonçait une charge processeur inventée.**
+`psutil.cpu_percent(interval=None)` compare deux relevés successifs ; au
+premier appel il n'y a pas de relevé précédent. Mesuré ici : **100 %**. Chaque
+démarrage d'agent envoyait donc un pic de charge fictif, capable de déclencher
+une alerte processeur critique sur un hôte fraîchement installé. La première
+mesure est désormais réelle et bloquante une seconde.
+
+### VLAN — ajouté le 1er septembre 2026, en deux champs
+
+Un seul champ aurait menti. Une machine sur **port d'accès ne peut pas
+connaître son VLAN** : le commutateur pose et retire l'étiquette de façon
+transparente.
+
+| Champ | Nature | Source | Vide signifie |
+|---|---|---|---|
+| `vlan_observed` | constaté, non modifiable | l'agent, si l'hôte étiquette | *non déterminable depuis l'hôte* |
+| `vlan` | attribué, modifiable | l'exploitation | non renseigné |
+
+L'agent lit `/proc/net/vlan/config`, à défaut les noms d'interfaces
+(`eth0.100`). Un hôte sur trunk peut en porter plusieurs : ils sont tous
+rendus, plutôt que d'en choisir un arbitrairement. Détection solide sous
+Linux, au mieux sous Windows — où les postes sont de toute façon presque
+toujours sur port d'accès.
+
+La fiche d'hôte affiche les deux et **signale la divergence** au lieu de
+trancher : un hôte rebranché sur un autre port étiquette un VLAN que la fiche
+ignore encore, et c'est précisément cet écart qui est utile.
+
+### Piste — le fichier VLAN de l'équipe réseau
+
+L'équipe réseau peut effectivement fournir la donnée qui manque, mais la
+**clé de jointure** décide de tout :
+
+| Clé fournie | Verdict |
+|---|---|
+| **sous-réseau → VLAN** | **le bon choix** — l'agent remonte déjà `ip_address` à chaque battement ; le VLAN se déduit, se met à jour tout seul quand l'hôte change d'adresse, et le fichier ne vieillit pas quand le parc bouge |
+| nom d'hôte → VLAN | exploitable, mais périme dès qu'une machine est rebranchée |
+| adresse MAC → VLAN | l'agent ne remonte pas encore la MAC |
+| port de commutateur → VLAN | inexploitable sans une table port → hôte que nous n'avons pas |
+
+Un fichier de la forme `sous-réseau ; VLAN ; libellé` couvrirait donc tout le
+parc sans saisie par hôte. À demander sous cette forme.
+
+Rien n'est encore développé : il n'existe aucun import dans le produit (seul
+l'**export** CSV existe) et aucune notion de sous-réseau. À arbitrer avant de
+le bâtir.
+
 ### Déjà acquis, à ne pas réécrire
 
 - **Identifiant d'hôte** — `server/src/agent_identity.py` produit déjà
