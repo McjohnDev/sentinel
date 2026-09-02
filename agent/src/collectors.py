@@ -42,32 +42,61 @@ UNKNOWN = "unknown"
 # ----------------------------------------------------------------- disques
 
 
-def disks(mounts: Iterable[str]) -> List[Dict[str, Any]]:
-    """Occupation des partitions désignées par le plan.
+def _local_mounts() -> List[str]:
+    """Points de montage locaux de l'hôte.
 
-    Seules les partitions retenues sont mesurées : interroger tous les volumes
-    montés ferait dépendre le battement d'un partage réseau figé, alors que la
-    supervision doit signaler ce genre de blocage, pas le subir.
+    `all=False` écarte les pseudo-systèmes de fichiers et, sur la plupart des
+    systèmes, les montages réseau : c'est eux qui bloquent quand le partage
+    ne répond plus, et la supervision doit signaler ce blocage plutôt que
+    s'y suspendre.
+    """
+    if psutil is None:
+        return []
+    try:
+        return [p.mountpoint for p in psutil.disk_partitions(all=False) if p.mountpoint]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Énumération des partitions impossible : %s", exc)
+        return []
+
+
+def disks(planned: Iterable[str]) -> List[Dict[str, Any]]:
+    """Occupation des partitions de l'hôte.
+
+    **Toutes** les partitions locales sont remontées, pas seulement celles que
+    le plan désigne. La plateforme n'alerte que sur les partitions retenues
+    (`check_disk_alerts` ignore les autres), mais elle a besoin de la liste
+    complète pour que l'exploitant *choisisse* un point de montage au lieu de
+    le saisir.
+
+    C'est la correction d'un défaut de conception : ne mesurer que les
+    partitions du plan créait un cercle — le sélecteur se remplissait depuis
+    le dernier battement, qui ne contenait que ce qui était déjà configuré,
+    donc rien tant que rien n'était configuré.
+
+    Les points de montage du plan sont ajoutés même s'ils ne figurent pas
+    dans l'énumération : un chemin surveillé qui disparaît doit se voir, et
+    l'omettre éteindrait son alerte sans que personne ne l'ait décidé.
     """
     if psutil is None:
         return []
 
+    wanted: List[str] = []
+    for mount in list(_local_mounts()) + [m for m in (planned or []) if m]:
+        if mount and mount not in wanted:
+            wanted.append(mount)
+
     reported: List[Dict[str, Any]] = []
-    for mount in mounts or []:
-        if not mount:
-            continue
+    for mount in wanted:
         try:
             usage = psutil.disk_usage(mount)
         except (OSError, PermissionError) as exc:
-            # Point de montage disparu ou inaccessible : on le dit, plutôt que
-            # de l'omettre — une partition qui cesse d'être mesurée doit se
-            # voir, sinon son alerte s'éteint sans que personne ne l'ait décidé.
             logger.warning("Partition %s illisible : %s", mount, exc)
             reported.append({"mount": mount, "percent": None, "error": "unreadable"})
             continue
         reported.append(
             {
                 "mount": mount,
+                "name": mount,
                 "percent": round(usage.percent, 1),
                 "total_gb": round(usage.total / (1024 ** 3), 2),
                 "used_gb": round(usage.used / (1024 ** 3), 2),

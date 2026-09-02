@@ -20,23 +20,33 @@ from collectors import RUNNING, STOPPED, UNKNOWN, disks, file_state, files, obse
 
 
 def test_a_named_partition_is_measured(tmp_path):
-    reported = disks([str(tmp_path)])
-    assert len(reported) == 1
-    row = reported[0]
-    assert row["mount"] == str(tmp_path)
+    row = next(r for r in disks([str(tmp_path)]) if r["mount"] == str(tmp_path))
     assert 0 <= row["percent"] <= 100
     assert row["total_gb"] > 0
 
 
-def test_only_the_named_partitions_are_measured(tmp_path):
-    # Interroger tous les volumes montés ferait dépendre le battement d'un
-    # partage réseau figé — ce que la supervision doit signaler, pas subir.
-    assert disks([]) == []
-    assert len(disks([str(tmp_path)])) == 1
+def test_every_local_partition_is_reported_even_without_a_plan():
+    """Sans cela, le sélecteur de partitions reste vide pour toujours.
+
+    Il se remplit depuis le dernier battement : ne mesurer que les partitions
+    déjà configurées créait un cercle — rien à choisir tant que rien n'était
+    choisi. La plateforme n'alerte que sur les partitions retenues, remonter
+    les autres est donc sans effet de bord.
+    """
+    reported = disks([])
+    assert reported, "l'hôte a forcément au moins une partition"
+    assert all(r["mount"] for r in reported)
+
+
+def test_a_planned_mount_is_reported_even_if_it_is_not_a_real_partition(tmp_path):
+    # Un chemin surveillé qui disparaît doit se voir : l'omettre éteindrait
+    # son alerte sans que personne ne l'ait décidé.
+    mounts = [r["mount"] for r in disks([str(tmp_path)])]
+    assert str(tmp_path) in mounts
 
 
 def test_an_unreadable_partition_is_reported_not_omitted():
-    reported = disks(["/chemin/qui/n/existe/pas"])
+    reported = [r for r in disks(["/chemin/qui/n/existe/pas"]) if r["mount"] == "/chemin/qui/n/existe/pas"]
     assert len(reported) == 1, "une partition qui disparaît doit se voir"
     # L'omettre éteindrait son alerte sans que personne ne l'ait décidé.
     assert reported[0]["percent"] is None
@@ -44,7 +54,8 @@ def test_an_unreadable_partition_is_reported_not_omitted():
 
 
 def test_an_empty_mount_name_is_skipped():
-    assert disks([None, ""]) == []
+    mounts = [r["mount"] for r in disks([None, ""])]
+    assert "" not in mounts and None not in mounts
 
 
 # ----------------------------------------------------------------- fichiers
@@ -155,14 +166,18 @@ def test_observe_reads_every_section():
     out = observe(PLAN)
     assert [s["name"] for s in out["services"]] == ["swift-alliance"]
     assert [f["path"] for f in out["files"]] == ["/var/lock/cbc.flag"]
-    assert out["disks"] == []
+    # Les partitions sont remontées même si le plan n'en retient aucune :
+    # c'est ce qui alimente le sélecteur.
+    assert out["disks"]
 
 
-def test_no_plan_observes_nothing():
-    # La plateforme n'évalue que ce qui est rapporté : un agent sans plan ne
-    # doit rien affirmer, pas affirmer le vide.
+def test_no_plan_still_reports_the_partitions():
+    # Services et fichiers ne s'inventent pas : la plateforme n'évalue que ce
+    # qui est rapporté. Les partitions, elles, servent à la découverte.
     out = observe(None)
-    assert out == {"disks": [], "services": [], "files": []}
+    assert out["services"] == []
+    assert out["files"] == []
+    assert out["disks"]
 
 
 def test_a_disabled_section_is_not_observed():
@@ -189,4 +204,5 @@ def test_a_malformed_plan_observes_nothing_instead_of_crashing(shape):
     qui n'a rien à voir avec elle.
     """
     out = observe(shape)
-    assert out == {"disks": [], "services": [], "files": []}
+    assert out["services"] == []
+    assert out["files"] == []
