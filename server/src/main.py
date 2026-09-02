@@ -2303,6 +2303,9 @@ class PatchAgentRequest(BaseModel):
     owner_user_id: Optional[constr(max_length=64)] = None
     admin_group_id: Optional[constr(max_length=64)] = None
     group_id: Optional[constr(max_length=64)] = None
+    #: Adresses en copie des alertes de cet hote. Le destinataire principal
+    #: n'est pas saisi : il vient du responsable ou de l'equipe responsable.
+    alert_cc: Optional[List[constr(max_length=254)]] = None
 
 
 @app.patch("/api/agents/{agent_id}")
@@ -2380,6 +2383,24 @@ def patch_agent(
         elif field == "admin_group_id" and value:
             if not db.query(AdminGroup.id).filter(AdminGroup.id == value).first():
                 raise HTTPException(status_code=400, detail="Équipe d'administration inconnue")
+        elif field == "alert_cc":
+            cleaned = []
+            seen = set()
+            for raw in (value or []):
+                address = str(raw or "").strip()
+                if not address:
+                    continue
+                # Une adresse mal formee ne se signale pas a l'envoi : le relais
+                # rejette le message entier, et l'alerte se perd avec elle.
+                if "@" not in address or address.startswith("@") or address.endswith("@"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Adresse invalide : %s" % address,
+                    )
+                if address.lower() not in seen:
+                    seen.add(address.lower())
+                    cleaned.append(address)
+            value = json.dumps(cleaned)
 
         before = getattr(agent, field, None)
         before_value = before.value if hasattr(before, "value") else before
@@ -2515,6 +2536,12 @@ def get_agent(request: Request, agent_id: str, current_user: User = Depends(requ
         "admin_group_id": agent.admin_group_id,
         "admin_group_name": agent.admin_group.name if agent.admin_group else None,
         "group_id": agent.group_id,
+        # Destinataires des alertes de cet hote. Rendus **resolus** et non
+        # seulement configures : c'est la seule facon de voir qu'un hote sans
+        # responsable n'alerte personne. Un ecran qui affiche « responsable :
+        # aucun » laisse deviner la consequence ; celui-ci la montre.
+        "alert_cc": MessagingService.parse_alert_cc(agent.alert_cc),
+        "alert_recipients": MessagingService.resolve_recipients_for_agent(db, agent),
         # Comment et où l'agent tourne (point 9)
         "runtime": _parse_runtime(agent.runtime_json),
         "run_mode": agent.run_mode,

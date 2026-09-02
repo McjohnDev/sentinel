@@ -129,6 +129,10 @@ export interface Agent {
   ownerUserId?: string | null;
   ownerUsername?: string | null;
   adminGroupId?: string | null;
+  /** Adresses en copie des alertes, saisies pour cet hote. */
+  alertCc?: string[];
+  /** Ce qui partira reellement : responsable, equipe, copies. */
+  alertRecipients?: { to: string[]; cc: string[] };
   adminGroupName?: string | null;
 
   // --- Caractéristiques constatées (point 2) ---

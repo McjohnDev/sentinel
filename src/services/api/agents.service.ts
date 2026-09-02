@@ -27,6 +27,9 @@ export interface AgentPatch {
   owner_user_id?: string | null;
   admin_group_id?: string | null;
   group_id?: string | null;
+  /** Adresses en copie des alertes de cet hote. Le destinataire principal
+   *  n'est pas saisi : il vient du responsable et de l'equipe responsable. */
+  alert_cc?: string[];
 }
 
 export interface PatchAgentResponse {
@@ -203,6 +206,11 @@ export const agentsService = {
    * toute écriture sur un champ constaté par l'agent (nom machine, IP, OS,
    * matériel) plutôt que de l'ignorer en silence.
    */
+  /** Alias court de `patchAgent`. */
+  async patch(id: string, changes: AgentPatch): Promise<PatchAgentResponse> {
+    return this.patchAgent(id, changes);
+  },
+
   async patchAgent(id: string, changes: AgentPatch): Promise<PatchAgentResponse> {
     const { data } = await axiosInstance.patch(`/agents/${id}`, changes);
     return data;

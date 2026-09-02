@@ -39,6 +39,7 @@ _COLUMNS = [
     ("messaging_config", "smtp_from_name", "VARCHAR"),
     ("messaging_config", "smtp_verify_cert", "BOOLEAN DEFAULT TRUE"),
     ("agents", "group_id", "VARCHAR"),
+    ("agents", "alert_cc", "TEXT DEFAULT '[]'"),
     ("agents", "config_version_acked", "INTEGER DEFAULT 0"),
     ("agents", "agent_cpu_percent", "REAL"),
     ("agents", "agent_ram_mb", "REAL"),

@@ -15,6 +15,7 @@ import { EditableAgentField } from '../components/agents/EditableAgentField';
 import { AgentOwnerField } from '../components/agents/AgentOwnerField';
 import { HostInventoryPanel } from '../components/agents/HostInventoryPanel';
 import { MonitoringPlanPanel } from '../components/agents/MonitoringPlanPanel';
+import { AlertRecipientsPanel } from '../components/agents/AlertRecipientsPanel';
 import { Agent, Alert } from '../types';
 import { AcknowledgeModal } from '../components/common/AcknowledgeModal';
 import { Modal } from '../components/common/Modal';
@@ -583,11 +584,24 @@ export const AgentDetailView: React.FC = () => {
       {tab === 'inventaire' && <HostInventoryPanel agentId={agent.id} />}
 
       {tab === 'config' && (
-        <MonitoringPlanPanel
-          agentId={agent.id}
-          discoveredMounts={partitionOptions.map((p) => p.mount).filter(Boolean)}
-          canEdit={currentRole === 'Admin' || currentRole === 'Operator'}
-        />
+        <div className="space-y-5">
+          <MonitoringPlanPanel
+            agentId={agent.id}
+            discoveredMounts={partitionOptions.map((p) => p.mount).filter(Boolean)}
+            canEdit={currentRole === 'Admin' || currentRole === 'Operator'}
+          />
+          {/* A cote du plan de surveillance : decider ce qu'on surveille et
+              savoir qui sera prevenu sont deux moities du meme geste. Une
+              verification dont l'alerte ne parvient a personne ne surveille
+              rien. */}
+          <AlertRecipientsPanel
+            agentId={agent.id}
+            cc={agent.alertCc ?? []}
+            resolved={agent.alertRecipients ?? { to: [], cc: [] }}
+            canEdit={currentRole === 'Admin' || currentRole === 'Operator'}
+            onSaved={reloadAgent}
+          />
+        </div>
       )}
 
       <AlertDrawer

@@ -199,36 +199,94 @@ class MessagingService:
 
     @staticmethod
     def resolve_recipients_for_agent(db: Optional[Session], agent: Any = None) -> Dict[str, List[str]]:
-        """Return {to, cc} for an alert.
+        """Destinataires d'une alerte pour cet hote : {to, cc}.
 
-        Today: global MessagingConfig recipients in ``to``.
-        Later: host owner in ``to``, management hierarchy in ``cc``.
+        Le destinataire principal ne se saisit pas. C'est **le responsable de
+        l'hote**, ou les membres de l'equipe responsable, dont l'adresse vient
+        de l'annuaire : une liste tenue a la main divergerait du jour ou une
+        personne change de poste, et les alertes continueraient de partir vers
+        quelqu'un qui n'a plus la machine en charge.
+
+        La copie, elle, ne se deduit de rien -- un prestataire, le metier
+        proprietaire de l'application -- et se saisit hote par hote.
+
+        La liste globale ne sert que de **filet** : elle n'intervient que pour
+        un hote sans responsable ni equipe. Sans elle, une machine oubliee lors
+        de l'attribution alerterait dans le vide.
         """
         cfg = MessagingService._runtime_config(db)
-        to_list = list(cfg["recipients"] or [])
+        to_list: List[str] = []
         cc_list: List[str] = []
+
         if db is not None and agent is not None:
+            from src.models import AdminGroupMember, User
+
+            def _add(bucket: List[str], address: Optional[str]) -> None:
+                # Une adresse deja en destinataire principal n'est pas remise en
+                # copie : le meme lecteur recevrait deux exemplaires du meme
+                # incident et douterait d'en avoir manque un troisieme.
+                if address and address not in to_list and address not in cc_list:
+                    bucket.append(address)
+
             owner_id = getattr(agent, "owner_user_id", None)
             if owner_id:
-                from src.models import User
-
                 owner = db.query(User).filter(User.id == owner_id).first()
-                if owner and owner.email:
-                    to_list = [owner.email]
-                    # Walk manager chain (cap 8) for CC
-                    seen = {owner.id}
-                    mid = getattr(owner, "manager_id", None)
-                    depth = 0
-                    while mid and depth < 8:
-                        mgr = db.query(User).filter(User.id == mid).first()
-                        if not mgr or mgr.id in seen:
-                            break
-                        if mgr.email and mgr.email not in to_list and mgr.email not in cc_list:
-                            cc_list.append(mgr.email)
-                        seen.add(mgr.id)
-                        mid = getattr(mgr, "manager_id", None)
-                        depth += 1
+                # Un compte desactive ne recoit plus rien d'utile : l'adresse est
+                # souvent fermee avec lui, et l'alerte se perdrait en silence.
+                if owner is not None and owner.is_active:
+                    _add(to_list, owner.email)
+
+            team_id = getattr(agent, "admin_group_id", None)
+            if team_id:
+                members = (
+                    db.query(User)
+                    .join(AdminGroupMember, AdminGroupMember.user_id == User.id)
+                    .filter(AdminGroupMember.group_id == team_id, User.is_active.is_(True))
+                    .all()
+                )
+                for member in members:
+                    _add(to_list, member.email)
+
+            for address in MessagingService.parse_alert_cc(getattr(agent, "alert_cc", None)):
+                _add(cc_list, address)
+
+        if not to_list:
+            to_list = list(cfg["recipients"] or [])
+            cc_list = [a for a in cc_list if a not in to_list]
+
         return {"to": to_list, "cc": cc_list}
+
+    @staticmethod
+    def parse_alert_cc(raw: Any) -> List[str]:
+        """Liste des adresses en copie, telle qu'elle est stockee.
+
+        Tolerante a l'entree : une colonne vide, un JSON casse ou une valeur
+        heritee d'une version anterieure rendent une liste vide plutot qu'une
+        exception -- une notification ne doit pas echouer sur la forme d'un
+        champ accessoire.
+        """
+        if not raw:
+            return []
+        if isinstance(raw, list):
+            values = raw
+        else:
+            import json
+
+            try:
+                values = json.loads(raw)
+            except (ValueError, TypeError):
+                return []
+            if not isinstance(values, list):
+                return []
+        seen = set()
+        cleaned = []
+        for value in values:
+            address = str(value or "").strip()
+            key = address.lower()
+            if address and key not in seen:
+                seen.add(key)
+                cleaned.append(address)
+        return cleaned
 
     @staticmethod
     def send_alert_notification(

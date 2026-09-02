@@ -172,6 +172,15 @@ class Agent(Base):
     heartbeats = relationship("Heartbeat", back_populates="agent", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="agent", cascade="all, delete-orphan")
     group = relationship("MachineGroup", back_populates="agents")
+    #: Adresses mises en copie des alertes de cet hote, en JSON.
+    #:
+    #: Le destinataire principal n'est pas saisi : c'est le responsable de
+    #: l'hote, ou les membres de l'equipe responsable, dont l'adresse vient
+    #: de l'annuaire. La copie, elle, ne se deduit de rien -- un prestataire,
+    #: un chef de projet, le metier proprietaire de l'application -- et se
+    #: saisit donc a la main, hote par hote.
+    alert_cc = Column(Text, default="[]")
+
     owner = relationship("User", foreign_keys=[owner_user_id])
     admin_group = relationship("AdminGroup", back_populates="agents")
 
@@ -217,6 +226,7 @@ AGENT_EDITABLE_FIELDS = frozenset(
         "capability_level",
         "vlan",
         "heartbeat_interval_seconds",
+        "alert_cc",
     }
 )
 

@@ -281,6 +281,10 @@ export class DataMapper {
       vlanEffective: backendAgent.vlan_effective ?? null,
       vlanSource: backendAgent.vlan_source ?? null,
       ownerUserId: backendAgent.owner_user_id ?? null,
+      alertCc: (backendAgent as { alert_cc?: string[] }).alert_cc ?? [],
+      alertRecipients:
+        (backendAgent as { alert_recipients?: { to: string[]; cc: string[] } })
+          .alert_recipients ?? { to: [], cc: [] },
       ownerUsername: backendAgent.owner_username ?? null,
       adminGroupId: backendAgent.admin_group_id ?? null,
       adminGroupName: backendAgent.admin_group_name ?? null,
