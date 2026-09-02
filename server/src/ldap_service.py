@@ -327,6 +327,100 @@ class LdapService:
         return filters
 
     @staticmethod
+    def search_users(term: str, limit: int = 25, db=None) -> List["LdapProfile"]:
+        """Cherche des comptes d'annuaire correspondant à `term`.
+
+        Distinct de `find_user`, et volontairement. `find_user` sert
+        l'authentification : elle **refuse** plusieurs résultats, parce qu'un
+        filtre ambigu authentifierait un homonyme. Ici on est dans le cas
+        inverse — un administrateur cherche une personne et a besoin de voir
+        les homonymes pour choisir le bon.
+
+        La recherche est bornée : un annuaire d'entreprise compte des milliers
+        d'entrées, et « a » ne doit pas les rapatrier toutes.
+        """
+        if not LdapService.is_enabled():
+            return []
+        needle = (term or "").strip()
+        if len(needle) < 2:
+            # Deux caractères au minimum : en dessous, la recherche ramène le
+            # domaine entier et ne rend service à personne.
+            return []
+
+        conn = None
+        try:
+            conn = LdapService._connect(
+                settings.ldap_bind_dn or None, settings.ldap_bind_password or None
+            )
+            escaped = _escape(needle)
+            attrs = [
+                a for a in (
+                    settings.ldap_attr_username,
+                    settings.ldap_attr_email,
+                    settings.ldap_attr_display_name,
+                    settings.ldap_attr_member_of,
+                    settings.ldap_attr_department,
+                    settings.ldap_attr_title,
+                ) if a
+            ]
+            clauses = "".join(
+                "(%s=*%s*)" % (attr, escaped)
+                for attr in (
+                    settings.ldap_attr_username,
+                    settings.ldap_attr_display_name,
+                    settings.ldap_attr_email,
+                ) if attr
+            )
+            search_filter = "(&(objectClass=*)(|%s))" % clauses
+
+            conn.search(
+                search_base=settings.ldap_user_search_base,
+                search_filter=search_filter,
+                search_scope=ldap3.SUBTREE,
+                attributes=attrs,
+                time_limit=settings.ldap_timeout_seconds,
+                size_limit=max(1, min(int(limit or 25), 100)),
+            )
+
+            found: List[LdapProfile] = []
+            for entry in conn.entries:
+                username = LdapService._entry_value(entry, settings.ldap_attr_username)
+                if not username:
+                    continue
+                try:
+                    raw_groups = entry[settings.ldap_attr_member_of].value
+                    groups = [str(g) for g in (raw_groups if isinstance(raw_groups, (list, tuple)) else [raw_groups] if raw_groups else [])]
+                except Exception:  # noqa: BLE001
+                    groups = []
+
+                extra = {}
+                for name, attr in (("department", settings.ldap_attr_department), ("title", settings.ldap_attr_title)):
+                    if attr:
+                        value = LdapService._entry_value(entry, attr)
+                        if value:
+                            extra[name] = value
+
+                found.append(
+                    LdapProfile(
+                        username=username,
+                        email=LdapService._entry_value(entry, settings.ldap_attr_email),
+                        display_name=LdapService._entry_value(entry, settings.ldap_attr_display_name),
+                        dn=str(entry.entry_dn),
+                        groups=groups,
+                        role=LdapService.resolve_role(groups, db=db),
+                        attributes=extra,
+                    )
+                )
+            return found
+        except LdapConfigError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Recherche annuaire impossible : %s", exc)
+            return []
+        finally:
+            _safe_unbind(conn)
+
+    @staticmethod
     def find_user(username: str, db=None) -> Optional[LdapProfile]:
         """Recherche un utilisateur avec le compte de service, sans l'authentifier."""
         if not LdapService.is_enabled():

@@ -243,8 +243,14 @@ class MessagingService:
         mount: Optional[str] = None,
     ) -> bool:
         cfg = MessagingService._runtime_config(db)
-        if not cfg["enabled"]:
-            logger.info("Service de messagerie désactivé. Notification non envoyée.")
+        smtp_ready = MessagingService._smtp_ready(db)
+
+        # Deux canaux de courriel, indépendants et cumulatifs : l'API Mail CBC
+        # et le relais SMTP interne. Exiger le premier privait de notification
+        # une plateforme qui n'a que le second — ce qui était le cas ici, et
+        # rendait le réglage SMTP sans effet sur les alertes réelles.
+        if not cfg["enabled"] and not smtp_ready:
+            logger.info("Aucun canal de courriel actif. Notification non envoyée.")
             return False
 
         routed = MessagingService.resolve_recipients_for_agent(db, agent)
@@ -272,14 +278,53 @@ class MessagingService:
         )
         subject_tpl, body_tpl = resolve(db, "alert", alert_type, ctx.get("agent_id") or None)
         subject, body = render(subject_tpl, body_tpl, ctx)
-        return MessagingService._send_to_cbc_api(
-            to=to_list,
-            subject=subject,
-            body=body,
-            is_html=True,
-            cc=cc_list if cc_list else None,
-            db=db,
-        )
+
+        # Le succès d'un canal suffit : l'alerte est parvenue à son
+        # destinataire. Exiger les deux ferait passer pour un échec une
+        # notification effectivement reçue.
+        delivered = False
+
+        if cfg["enabled"] and cfg["configured"]:
+            delivered = MessagingService._send_to_cbc_api(
+                to=to_list, subject=subject, body=body, is_html=True,
+                cc=cc_list if cc_list else None, db=db,
+            ) or delivered
+
+        if smtp_ready:
+            delivered = MessagingService._send_via_smtp(
+                db, to=to_list + (cc_list or []), subject=subject, body_html=body
+            ) or delivered
+
+        return delivered
+
+    @staticmethod
+    def _smtp_ready(db: Optional[Session]) -> bool:
+        """Le relais SMTP est-il exploitable ?"""
+        if db is None:
+            return False
+        try:
+            from src import email_service
+
+            cfg = email_service.load_config(db)
+            return bool(cfg and cfg.smtp_enabled and cfg.smtp_host and cfg.smtp_from)
+        except Exception:  # noqa: BLE001
+            return False
+
+    @staticmethod
+    def _send_via_smtp(db: Session, *, to: Any, subject: str, body_html: str) -> bool:
+        """Envoie par le relais SMTP, sans laisser une panne remonter.
+
+        Un relais injoignable ne doit pas empêcher l'enregistrement de
+        l'alerte : la notification est un effet de bord de l'alerte, pas sa
+        condition.
+        """
+        try:
+            from src import email_service
+
+            return email_service.send(db, to=to, subject=subject, body_html=body_html)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Envoi SMTP échoué : %s", exc)
+            return False
 
     @staticmethod
     def send_task_notification(

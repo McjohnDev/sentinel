@@ -469,6 +469,14 @@ class MailTemplatePreviewRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
 
 
+class LdapImportRequest(BaseModel):
+    """Import d'un compte d'annuaire dans la plateforme."""
+
+    username: constr(min_length=1, max_length=128)
+    #: Rôle d'amorce. Sans valeur, celui déduit des groupes d'annuaire.
+    role: Optional[constr(max_length=20)] = None
+
+
 class SmtpConfigRequest(BaseModel):
     """Réglage du relais SMTP interne."""
 
@@ -5065,6 +5073,119 @@ def get_notification_channel_status(request: Request, current_user: User = Depen
     """
     status = MessagingService.health_check(db)
     return status
+
+
+@app.get("/api/settings/ldap/search")
+@limiter.limit("30/minute")
+def search_ldap_users(
+    request: Request,
+    q: str,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Cherche des comptes dans l'annuaire, pour les importer.
+
+    Distinct de l'authentification : celle-ci refuse plusieurs résultats,
+    parce qu'un filtre ambigu connecterait un homonyme. Ici l'administrateur
+    cherche une personne et doit justement voir les homonymes pour choisir.
+
+    Les comptes déjà présents dans la plateforme sont signalés, pour qu'on ne
+    tente pas de les importer deux fois.
+    """
+    from src.ldap_service import LdapService
+
+    if not LdapService.is_enabled():
+        raise HTTPException(status_code=400, detail="Annuaire non configuré ou désactivé.")
+
+    try:
+        profiles = LdapService.search_users(q, db=db)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail="Annuaire injoignable : %s" % exc)
+
+    existing = {
+        u.username: u for u in db.query(User).filter(
+            User.username.in_([p.username for p in profiles] or [""])
+        ).all()
+    }
+    return {
+        "data": [
+            {
+                "username": p.username,
+                "email": p.email,
+                "display_name": p.display_name,
+                "dn": p.dn,
+                "department": (p.attributes or {}).get("department"),
+                "title": (p.attributes or {}).get("title"),
+                "suggested_role": p.role.value if hasattr(p.role, "value") else str(p.role),
+                "already_imported": p.username in existing,
+            }
+            for p in profiles
+        ],
+        "count": len(profiles),
+    }
+
+
+@app.post("/api/settings/ldap/import")
+@limiter.limit("30/minute")
+def import_ldap_user(
+    request: Request,
+    body: LdapImportRequest,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Crée le compte local miroir d'un compte d'annuaire.
+
+    Aucun mot de passe n'est enregistré : l'authentification reste à
+    l'annuaire, et la révocation y reste immédiate. C'est la raison d'être de
+    l'import — préparer les accès à l'avance sans jamais détenir de secret.
+
+    Le rôle donné ici est un **amorçage** : comme pour un compte créé à la
+    première connexion, l'annuaire ne le réécrira plus ensuite. Une promotion
+    accordée dans la plateforme y survit.
+    """
+    from src.ldap_service import LdapService
+
+    if not LdapService.is_enabled():
+        raise HTTPException(status_code=400, detail="Annuaire non configuré ou désactivé.")
+
+    profile = LdapService.find_user(body.username, db=db)
+    if profile is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Compte introuvable dans l'annuaire, ou plusieurs entrées portent ce nom.",
+        )
+
+    if body.role:
+        try:
+            profile.role = UserRole(body.role.lower())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Rôle inconnu : %s" % body.role)
+
+    existing = (
+        db.query(User)
+        .filter((User.external_id == profile.dn) | (User.username == profile.username))
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Ce compte existe déjà dans la plateforme (%s)." % existing.username,
+        )
+
+    user = AuthService.sync_ldap_user(db, profile)
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="IMPORT_LDAP_USER",
+        details="compte=%s dn=%s role=%s" % (user.username, profile.dn, user.role.value),
+    )
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role.value,
+        "auth_source": "LDAP",
+    }
 
 
 @app.get("/api/settings/smtp")

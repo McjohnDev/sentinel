@@ -29,6 +29,7 @@ for p in (str(ROOT), str(SERVER)):
 
 from src.vlan_service import (  # noqa: E402
     SubnetRow,
+    explain_span,
     parse_span,
     VlanImportError,
     match_ip,
@@ -160,7 +161,11 @@ def test_an_empty_file_is_refused():
 def test_a_file_with_nothing_valid_is_refused_with_the_expected_shape():
     with pytest.raises(VlanImportError) as exc:
         parse(b"n'importe quoi;du tout\nencore;pire\n", "plan.csv")
-    assert "10.20.4.0/24" in str(exc.value)
+    # Le message nomme desormais chaque ligne fautive et rappelle la forme
+    # attendue, au lieu d'un « aucune ligne valide » inexploitable.
+    message = str(exc.value)
+    assert "ligne 1" in message
+    assert "172.16.10.0/24" in message
 
 
 def test_legacy_excel_is_refused_with_a_way_out():
@@ -332,3 +337,69 @@ def test_range_bounds_are_inclusive():
 
 def test_an_address_outside_every_range_matches_nothing():
     assert match_ip("192.168.1.1", RANGE_ROWS) is None
+
+
+# ------------------------------------------- diagnostics precis (cas reel)
+
+
+def test_a_missing_octet_is_named_with_the_correction():
+    """Cas rencontre sur un vrai fichier : « 172.16.10./24 ».
+
+    « Illisible » n'aide personne devant un tableur : la faute est
+    reconnaissable et la correction est mecanique, donc on la donne.
+    """
+    message = explain_span("172.16.10./24")
+    assert "incompl" in message
+    assert "172.16.10.0/24" in message
+
+
+def test_a_missing_octet_is_still_refused():
+    # Diagnostiquer n'est pas corriger : deviner l'adresse reseau
+    # rattacherait des hotes a un VLAN sur une supposition.
+    from src.vlan_service import parse_span
+
+    assert parse_span("172.16.10./24") is None
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("", "vide"),
+        ("172.16.10.0/99", "prefixe"),
+        ("10.0.0.1 - pas-une-ip", "plage"),
+        ("bonjour", "non reconnue"),
+    ],
+)
+def test_each_kind_of_mistake_gets_its_own_message(value, expected):
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKD", explain_span(value)).encode("ascii", "ignore").decode().lower()
+    assert expected in folded
+
+
+def test_a_wholly_invalid_file_names_the_offending_lines():
+    """Regression : les raisons ligne par ligne etaient calculees puis jetees.
+
+    L'exploitant recevait « aucune ligne valide » et devait deviner ce qui
+    clochait dans son fichier.
+    """
+    content = ("Plage;VLAN@172.16.10./24;10@aussi-faux;20@").replace("@", NL_REAL).encode("utf-8")
+
+    with pytest.raises(VlanImportError) as exc:
+        parse(content, "plan.csv")
+
+    message = str(exc.value)
+    assert "ligne 2" in message
+    assert "172.16.10.0/24" in message, "la correction doit etre proposee"
+    assert "ligne 3" in message
+
+
+def test_many_bad_lines_are_summarised_not_dumped():
+    rows = ["Plage;VLAN"] + ["faux-%d;10" % i for i in range(12)]
+    content = (NL_REAL.join(rows) + NL_REAL).encode("utf-8")
+
+    with pytest.raises(VlanImportError) as exc:
+        parse(content, "plan.csv")
+
+    # Cinq exemples suffisent ; le reste est compte.
+    assert "et 7 autre(s)" in str(exc.value)

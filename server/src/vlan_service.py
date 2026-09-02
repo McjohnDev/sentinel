@@ -161,6 +161,47 @@ def parse_span(value: Any) -> Optional[Tuple[int, int, str]]:
     return int(network.network_address), int(network.broadcast_address), str(network)
 
 
+def explain_span(value: Any) -> str:
+    """Dit *pourquoi* une saisie réseau est refusée, et ce qu'il faut écrire.
+
+    « Illisible » n'aide personne devant un tableur de deux cents lignes. Les
+    fautes de frappe d'un plan d'adressage sont peu nombreuses et
+    reconnaissables : un octet manquant, un masque absent, une plage dont une
+    borne est fautive. Les nommer économise un aller-retour avec l'équipe
+    réseau.
+    """
+    raw = _clean(value)
+    if not raw:
+        return "cellule vide"
+
+    # Octet manquant avant le préfixe : « 172.16.10./24 ».
+    match = re.match(r"^(\d{1,3}(?:\.\d{1,3})*)\.\s*/\s*(\d{1,2})$", raw)
+    if match:
+        head, prefix = match.group(1), match.group(2)
+        missing = 4 - len(head.split("."))
+        if missing > 0:
+            suggestion = head + "".join(".0" for _ in range(missing)) + "/" + prefix
+            return (
+                "adresse incomplète « %s » — il manque %d octet(s). Écrire « %s »."
+                % (raw, missing, suggestion)
+            )
+
+    if "/" in raw:
+        return (
+            "préfixe invalide « %s ». Attendu une adresse complète suivie du "
+            "préfixe, par exemple « 172.16.10.0/24 »." % raw
+        )
+    if any(sep in raw for sep in ("-", "–", "—")):
+        return (
+            "plage invalide « %s ». Attendu deux adresses complètes, par "
+            "exemple « 172.16.10.1 - 172.16.10.254 »." % raw
+        )
+    return (
+        "valeur « %s » non reconnue. Attendu « 172.16.10.0/24 » ou "
+        "« 172.16.10.1 - 172.16.10.254 »." % raw
+    )
+
+
 def normalise_cidr(value: Any) -> Optional[str]:
     """Forme lisible d'une saisie réseau, ou None. Conservée pour l'appelant."""
     parsed = parse_span(value)
@@ -316,9 +357,7 @@ def parse(content: bytes, filename: str = "") -> ImportReport:
         vlan = normalise_vlan(cell(columns.vlan))
 
         if parsed is None:
-            rejected.append(
-                {"line": line, "reason": "plage d'adresses illisible", "value": raw_span}
-            )
+            rejected.append({"line": line, "reason": explain_span(raw_span), "value": raw_span})
             continue
         if vlan is None:
             rejected.append(
@@ -354,9 +393,17 @@ def parse(content: bytes, filename: str = "") -> ImportReport:
         )
 
     if not accepted:
+        # Les raisons ligne par ligne ont été calculées : les jeter pour un
+        # message générique obligeait l'exploitant à deviner ce qui cloche
+        # dans son fichier. On les rend.
+        details = "; ".join(
+            "ligne %s : %s" % (r["line"], r["reason"]) for r in rejected[:5]
+        )
+        if len(rejected) > 5:
+            details += " ; et %d autre(s)" % (len(rejected) - 5)
         raise VlanImportError(
-            "Aucune ligne valide. Attendu : une plage (10.20.4.1-10.20.4.254 "
-            "ou 10.20.4.0/24), un VLAN (1-4094), un libellé facultatif."
+            "Aucune ligne exploitable. %s"
+            % (details or "Attendu : une plage, un VLAN (1-4094), un libellé facultatif.")
         )
     return ImportReport(rows=accepted, rejected=rejected)
 

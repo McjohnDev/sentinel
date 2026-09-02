@@ -226,6 +226,9 @@ def _enabled(db, **overrides):
         id="default", smtp_enabled=True, smtp_host="smtp.local", smtp_port=25,
         smtp_auth=True, smtp_username="u", smtp_password="p",
         smtp_encryption="none", smtp_from="sentinel@cbc.cm", smtp_from_name="Sentinel",
+        # Les destinataires sont partages par les deux canaux : sans eux, rien
+        # ne part, quel que soit le relais configure.
+        recipients='["ops@cbcam.cm"]',
     )
     values.update(overrides)
     cfg = MessagingConfig(**values)
@@ -352,3 +355,77 @@ def test_the_test_route_falls_back_to_the_caller_address(db, monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["to"] == "ops@cbcam.cm"
+
+
+# ------------------------------------ le relais sert reellement les alertes
+
+
+def test_an_alert_is_sent_through_smtp_when_the_cbc_api_is_absent(db, monkeypatch):
+    """Regression : configurer le SMTP ne changeait rien aux alertes.
+
+    Le chemin d'alerte n'appelait que l'API Mail CBC. Une plateforme n'ayant
+    que le relais interne n'envoyait donc aucune notification, alors que
+    l'ecran de reglage affichait une configuration valide et qu'un envoi
+    d'essai aboutissait.
+    """
+    from src.messaging_service import MessagingService
+
+    _enabled(db)  # SMTP actif ; aucune API Mail CBC configuree
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+
+    sent = MessagingService.send_alert_notification(
+        alert_type="disk_high", severity="critical",
+        message="Disque /u01 a 96 %", hostname="web-01",
+        value=96, threshold=85, db=db,
+    )
+
+    assert sent is True, "l'alerte doit partir par le relais SMTP"
+    assert fake.sent, "aucun message n'a atteint le relais"
+    message = fake.sent[0][0]
+    assert "web-01" in message["Subject"] or "Disque" in message["Subject"]
+
+
+def test_the_smtp_body_uses_the_per_verification_template(db, monkeypatch):
+    # Sinon deux mises en forme concurrentes pour le meme incident selon le
+    # canal emprunte.
+    from src.mail_templates import seed_defaults
+    from src.messaging_service import MessagingService
+
+    seed_defaults(db)
+    _enabled(db)
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+
+    MessagingService.send_alert_notification(
+        alert_type="disk_high", severity="critical", message="Disque plein",
+        hostname="web-01", db=db,
+    )
+
+    html = [p for p in fake.sent[0][0].iter_parts() if p.get_content_type() == "text/html"][0]
+    body = html.get_content()
+    assert "web-01" in body
+
+
+def test_a_broken_relay_does_not_prevent_the_alert_from_existing(db, monkeypatch):
+    # La notification est un effet de bord de l'alerte, pas sa condition.
+    from src.messaging_service import MessagingService
+
+    _enabled(db)
+
+    def refuse(_cfg):
+        raise OSError("relais injoignable")
+
+    monkeypatch.setattr(email_service, "_connect", refuse)
+
+    assert MessagingService.send_alert_notification(
+        alert_type="cpu_high", severity="major", message="CPU", hostname="web-01", db=db,
+    ) is False
+
+
+def test_no_channel_at_all_reports_no_delivery(db):
+    from src.messaging_service import MessagingService
+
+    assert MessagingService.send_alert_notification(
+        alert_type="cpu_high", severity="major", message="CPU", hostname="web-01", db=db,
+    ) is False

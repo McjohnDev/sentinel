@@ -265,6 +265,25 @@ export const AlertServicesPanel: React.FC = () => {
         )}
       </div>
 
+      <div className="cbc-card p-5 border-amber-200">
+        <div className="flex items-start gap-3">
+          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-[12.5px] text-slate-700">
+            <p className="m-0 font-semibold">
+              Les destinataires sont communs aux deux canaux.
+            </p>
+            <p className="m-0 mt-1.5">
+              Un relais correctement réglé n’envoie rien tant qu’aucun destinataire
+              n’est défini : la liste se saisit dans{' '}
+              <strong>Notifications API CBC</strong>, et gouverne aussi bien l’API que
+              ce relais SMTP. C’est la cause la plus fréquente d’une alerte qui
+              n’arrive pas alors que l’essai d’envoi aboutit — l’essai, lui, part vers
+              l’adresse de l’administrateur connecté.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="cbc-card p-5 flex items-start gap-3">
         <KeyRound className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
         <p className="text-[12.5px] text-slate-600 m-0">
