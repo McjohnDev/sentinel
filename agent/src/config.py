@@ -35,6 +35,10 @@ class AgentConfig:
     tls_verify: bool
     machine_type: str
     timeout_seconds: float
+    #: D'où la configuration a été lue. Affiché sur la fiche d'hôte : deux
+    #: fichiers concurrents sur une machine expliquent des réglages qui
+    #: « ne prennent pas ».
+    source_path: Optional[str] = None
 
     def api_url(self, path: str) -> str:
         """URL absolue d'une route de la plateforme."""
@@ -127,4 +131,5 @@ def load_config(
         tls_verify=tls_verify,
         machine_type=machine_type,
         timeout_seconds=timeout,
+        source_path=str(path) if path is not None else None,
     )

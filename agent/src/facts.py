@@ -12,9 +12,11 @@ nécessaires à l'enrôlement.
 
 from __future__ import annotations
 
+import os
 import platform
 import re
 import socket
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -215,19 +217,95 @@ def _hardware() -> Dict[str, Optional[float]]:
     }
 
 
-def runtime_info(agent_version: str) -> Dict[str, Any]:
-    """Comment et où l'agent s'exécute (préparation du point 10)."""
-    import os
-    import sys
+def _is_elevated() -> Optional[bool]:
+    """L'agent tourne-t-il avec des droits d'administration ?
 
-    return {
-        "executable": sys.executable,
-        "frozen": bool(getattr(sys, "frozen", False)),
+    Détermine ce qu'il pourra lire : sans élévation, certains services et
+    fichiers protégés remontent « inconnu » plutôt que leur état réel, et
+    l'exploitant doit pouvoir faire le lien plutôt que de croire à une panne.
+    """
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except Exception:
+            return None
+    try:
+        return os.geteuid() == 0
+    except AttributeError:
+        return None
+
+
+def _run_mode() -> str:
+    """Service installé, ou lancement à la main.
+
+    Le gestionnaire de services renseigne la variable ; à défaut, l'absence de
+    terminal attaché en tient lieu. La distinction compte pour l'exploitant :
+    un agent lancé à la main disparaît à la fermeture de la session, ce qui
+    explique un hôte qui « retombe hors ligne tous les soirs ».
+    """
+    declared = (os.environ.get("CBC_AGENT_RUN_MODE") or "").strip().lower()
+    if declared in ("service", "console"):
+        return declared
+    try:
+        return "console" if sys.stdin is not None and sys.stdin.isatty() else "service"
+    except Exception:
+        return "unknown"
+
+
+def runtime_info(agent_version: str, config: Any = None) -> Dict[str, Any]:
+    """Où et comment l'agent s'exécute sur l'hôte (point 10).
+
+    Les noms de champs suivent ce que la fiche d'hôte affiche : un relevé qui
+    ne porte pas les mêmes clés que le panneau produit un écran vide sans
+    qu'aucune erreur ne se produise nulle part.
+    """
+    from pathlib import Path
+
+    frozen = bool(getattr(sys, "frozen", False))
+    executable = sys.executable
+    install_dir = (
+        str(Path(executable).parent) if frozen else str(Path(__file__).resolve().parent)
+    )
+
+    info: Dict[str, Any] = {
+        "run_mode": _run_mode(),
+        "run_as_user": _current_user(),
+        "elevated": _is_elevated(),
+        "executable_path": executable,
+        "install_dir": install_dir,
+        "packaging": "pyinstaller" if frozen else "source",
+        "platform": "%s %s" % (platform.system(), platform.release()),
+        "python_version": platform.python_version(),
         "pid": os.getpid(),
-        "python": platform.python_version(),
+        "uptime_seconds": _process_uptime(),
         "agent_version": agent_version,
-        "user": _current_user(),
     }
+
+    if config is not None:
+        # Ce que l'agent croit joindre. Un hôte qui bat vers la mauvaise
+        # plateforme se diagnostique ici et nulle part ailleurs.
+        info["server_url"] = getattr(config, "server_url", None)
+        info["tls_verify"] = getattr(config, "tls_verify", None)
+        info["config_path"] = getattr(config, "source_path", None)
+
+    if info["run_mode"] == "service":
+        info["service_name"] = os.environ.get("CBC_AGENT_SERVICE_NAME") or "cbc-agent"
+
+    return info
+
+
+def _process_uptime() -> Optional[int]:
+    """Depuis combien de temps ce processus tourne."""
+    if psutil is None:
+        return None
+    try:
+        import time
+
+        return max(0, int(time.time() - psutil.Process(os.getpid()).create_time()))
+    except Exception:
+        return None
 
 
 def _current_user() -> Optional[str]:
@@ -239,7 +317,7 @@ def _current_user() -> Optional[str]:
         return None
 
 
-def collect(agent_version: str) -> HostFacts:
+def collect(agent_version: str, config: Any = None) -> HostFacts:
     """Relève l'état complet de l'hôte, matériel compris."""
     hardware = _hardware()
     return HostFacts(
@@ -250,12 +328,12 @@ def collect(agent_version: str) -> HostFacts:
         cpu_cores=hardware["cpu_cores"],
         ram_total_gb=hardware["ram_total_gb"],
         disk_total_gb=hardware["disk_total_gb"],
-        runtime=runtime_info(agent_version),
+        runtime=runtime_info(agent_version, config),
         vlan_observed=detect_vlan(),
     )
 
 
-def refreshed(previous: HostFacts, agent_version: str) -> HostFacts:
+def refreshed(previous: HostFacts, agent_version: str, config: Any = None) -> HostFacts:
     """Rafraîchit ce qui bouge, en gardant le matériel déjà relevé.
 
     Un agent installé en service tourne des mois sans redémarrer. Relever les
@@ -278,6 +356,6 @@ def refreshed(previous: HostFacts, agent_version: str) -> HostFacts:
         cpu_cores=previous.cpu_cores,
         ram_total_gb=previous.ram_total_gb,
         disk_total_gb=previous.disk_total_gb,
-        runtime=runtime_info(agent_version),
+        runtime=runtime_info(agent_version, config),
         vlan_observed=detect_vlan(),
     )

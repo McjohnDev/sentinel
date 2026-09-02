@@ -64,7 +64,7 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 | 7 | Prise en charge des métriques par l'agent | ingestion + alertes | `collectors` + inventaire | onglet Inventaire | **livré** |
 | 8 | Alerte mail + n8n, gabarit par vérification | gabarits + webhook signé | — | Courriels par vérification | **livré** |
 | 9 | Workflow de vérification, validation, prise en charge | verdict + attribution sur l'alerte | — | tiroir d'alerte | **livré** |
-| 10 | Voir où et comment l'agent tourne sur l'OS | colonne `runtime_json` | supprimé | — | vide |
+| 10 | Voir où et comment l'agent tourne sur l'OS | `runtime_json` + colonnes indexées | `runtime_info` | `AgentRuntimePanel` | **livré** |
 | 11 | Mettre l'UI en accord avec le livré | — | — | — | continu |
 
 > Les points 9 et 10 portent ici les deux entrées numérotées « 8 » et « 9 » de
@@ -480,3 +480,26 @@ git push -u mcjohn main
 Le dépôt doit exister et être vide. Ce push emporte **tout l'historique**, y
 compris le commit `a3dc085` de BRYAN-1-C. Si `McjohnDev/sentinel` doit être
 un dépôt neuf plutôt qu'une reprise de ce travail, le dire avant de pousser.
+
+---
+
+## Voir le produit tourner sur un poste
+
+```powershell
+.\scriptsun-test-agent.ps1 -Token demo-token-123
+```
+
+Enrôle ce poste auprès d'une plateforme de test et fait battre l'agent
+jusqu'à Ctrl+C. Trois précautions, parce que le script tourne sur un poste de
+travail et non sur un serveur :
+
+- l'état vit sous `%LOCALAPPDATA%\CBC Agent Demo`, **jamais** dans
+  ProgramData : le poste n'est pas « installé », et tout s'efface en
+  supprimant un dossier ;
+- le mode est déclaré `console`, pour que la fiche d'hôte dise la vérité — un
+  agent lancé à la main s'arrête avec la session, et cela doit se voir plutôt
+  que de ressembler à une panne ;
+- le jeton n'est jamais écrit dans un fichier du dépôt.
+
+Options : `-ServerUrl`, `-Interval`, `-Reset`. Pour retirer proprement l'hôte
+du parc à la fin, le script affiche la commande `uninstall`.

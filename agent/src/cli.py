@@ -147,7 +147,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("Configuration : %s" % exc, file=sys.stderr)
         return 2
 
-    host = collect(AGENT_VERSION)
+    host = collect(AGENT_VERSION, config)
     print(
         "Battement toutes les %ss vers %s (hôte %s)."
         % (args.interval, config.server_url, creds.agent_id)

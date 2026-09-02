@@ -90,7 +90,7 @@ def run(
     reprise après indisponibilité doit pouvoir être éprouvée sans attendre
     réellement, et sans dépendre de la machine qui exécute les tests.
     """
-    provider = host_provider or (lambda previous: refresh_facts(previous, AGENT_VERSION))
+    provider = host_provider or (lambda previous: refresh_facts(previous, AGENT_VERSION, config))
     http = session or requests.Session()
     outcome = RunnerOutcome(credentials=credentials)
     backoff = BACKOFF_START
