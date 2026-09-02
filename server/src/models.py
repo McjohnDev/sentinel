@@ -403,6 +403,24 @@ class Alert(Base):
     #: résolue par l'autre n'en gardait qu'un seul — le mauvais.
     resolved_by = Column(String, nullable=True)
 
+    # --- Relance périodique tant que l'alerte reste ouverte
+    #: Intervalle de relance propre à cette alerte, en heures. `None` : on suit
+    #: le réglage du parc. `0` : aucune relance, pour une alerte connue dont on
+    #: attend une intervention planifiée et qu'il est inutile de rappeler.
+    #:
+    #: Le réglage est porté par l'alerte plutôt que par le type de
+    #: vérification : c'est en la traitant qu'on sait si elle mérite un rappel
+    #: dans une heure ou plus du tout, et ce jugement ne vaut pas pour toutes
+    #: les alertes du même type.
+    reminder_hours = Column(Float, nullable=True)
+    #: Dernier rappel émis. Sert de point de départ au décompte suivant : sans
+    #: lui, le délai se recompterait depuis l'ouverture et toutes les relances
+    #: partiraient d'un coup au premier passage du planificateur.
+    last_reminder_at = Column(DateTime, nullable=True)
+    #: Nombre de rappels déjà émis, affiché à l'opérateur. Une alerte relancée
+    #: six fois ne se lit pas comme une alerte relancée une fois.
+    reminder_count = Column(Integer, default=0)
+
     #: Chargé de l'alerte, pour afficher un nom plutôt qu'un identifiant.
     assignee = relationship("User", foreign_keys=[assigned_to])
     
@@ -437,10 +455,13 @@ class GlobalSettings(Base):
     agent_ram_max_mb = Column(Float, default=300.0)  # AGT-007
     #: Cadence de battement par défaut pour tout le parc, en secondes.
     #: Doit rester nettement sous le seuil de bascule hors ligne du serveur
-    #: (`heartbeat_timeout_seconds`, 90 s) : une cadence plus lente que le
+    #: (`heartbeat_timeout_seconds`) : une cadence plus lente que le
     #: seuil ferait basculer tous les hôtes en permanence, sans qu'aucun ne
     #: soit en panne.
     heartbeat_interval_seconds = Column(Integer, default=30)
+    #: Délai de relance par courriel d'une alerte restée ouverte, en heures.
+    #: `0` désactive la relance pour tout le parc.
+    alert_reminder_hours = Column(Float, default=3.0)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
@@ -476,6 +497,14 @@ class MessagingConfig(Base):
     smtp_encryption = Column(String, default="none")
     smtp_from = Column(String, nullable=True)
     smtp_from_name = Column(String, nullable=True)
+    #: Vérifier le certificat du relais lors du STARTTLS.
+    #:
+    #: Un relais interne présente souvent un certificat auto-signé : la
+    #: vérification échoue alors et aucune alerte ne part. Le choix est
+    #: explicite plutôt que silencieux — désactiver la vérification protège
+    #: encore le mot de passe du regard passif, mais plus d'un interlocuteur
+    #: qui se ferait passer pour le relais.
+    smtp_verify_cert = Column(Boolean, default=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 

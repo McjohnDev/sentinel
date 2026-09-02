@@ -36,7 +36,13 @@ class Settings(BaseSettings):
     
     # Heartbeat
     heartbeat_interval_seconds: int = 30  # Intervalle d'envoi des heartbeats par l'agent
-    heartbeat_timeout_seconds: int = 90  # Timeout de réception des heartbeats côté serveur
+    #: Silence au-delà duquel un hôte est déclaré hors ligne.
+    #:
+    #: Porté de 90 s à 180 s : à 90 s, la cadence la plus lente encore sûre
+    #: était de 60 s, ce qui interdisait d'espacer les battements sur un
+    #: parc étendu. Contrepartie assumée : une panne réelle met désormais
+    #: jusqu'à trois minutes à devenir visible.
+    heartbeat_timeout_seconds: int = 180
     
     # Vérification offline
     offline_check_interval_seconds: int = 60  # Fréquence de vérification des agents offline

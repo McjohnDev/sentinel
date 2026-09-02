@@ -398,6 +398,13 @@ def job_tsdb_rollup(db: Session) -> Dict[str, Any]:
     return summary
 
 
+def job_alert_reminders(db: Session) -> Dict[str, int]:
+    """Relance les alertes ouvertes au-delà de leur délai."""
+    from src.alert_service import AlertService
+
+    return {"reminded": AlertService.send_due_reminders(db)}
+
+
 def register_default_jobs() -> None:
     """Enregistre les jobs de la plateforme. Idempotent."""
     scheduler.register(
@@ -423,3 +430,8 @@ def register_default_jobs() -> None:
     # demi-heure suffit à rattraper l'heure écoulée sans jamais agréger
     # l'intervalle courant.
     scheduler.register("tsdb_rollup", 1800, job_tsdb_rollup, run_on_start=False)
+    # Les délais de relance se comptent en heures : une passe toutes les cinq
+    # minutes suffit à les honorer de près. `run_on_start=False` évite qu'un
+    # redémarrage ne relance d'un coup tout ce qui est en retard — au premier
+    # passage, cinq minutes plus tard, les alertes réellement dues partiront.
+    scheduler.register("alert_reminders", 300, job_alert_reminders, run_on_start=False)

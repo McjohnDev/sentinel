@@ -168,6 +168,14 @@ export interface Alert {
   assignedBy?: string | null;
   /** Distinct de acknowledgedBy : valider et résoudre sont deux gestes. */
   resolvedBy?: string | null;
+  /**
+   * Délai de relance propre à cette alerte, en heures. `null` : on suit le
+   * réglage du parc. `0` : aucune relance pour celle-ci.
+   */
+  reminderHours?: number | null;
+  /** Rappels déjà émis — six relances ne se lisent pas comme une seule. */
+  reminderCount?: number;
+  lastReminderAt?: string | null;
   mailStatus?: string;
   webhookStatus?: string;
 }
@@ -199,6 +207,11 @@ export interface GlobalThresholds {
   diskCritical: number;
   durationSeconds: number;
   escalateAfterMinutes: number;
+  /**
+   * Delai de relance par courriel d'une alerte restee ouverte, en heures.
+   * `0` coupe la relance sur tout le parc.
+   */
+  alertReminderHours?: number;
   /** Per-partition ceilings; empty = use default diskWarning/diskCritical */
   diskMountRules: DiskMountThreshold[];
   /** Cadence de battement du parc, en secondes. */

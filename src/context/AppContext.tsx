@@ -47,6 +47,8 @@ interface AppContextType {
   autoRefresh: boolean;
   toggleAutoRefresh: () => void;
   refreshData: () => void;
+  /** Rafraîchissement réel : relit le parc et les alertes depuis le serveur. */
+  refreshFleet: () => Promise<void>;
   acknowledgeAlert: (alertId: string, comment?: string, operatorName?: string) => void;
   resolveAlert: (alertId: string, comment?: string, operatorName?: string) => void;
   acknowledgeAllAlerts: (operatorName?: string, comment?: string) => void;
@@ -111,6 +113,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     diskCritical: 95,
     durationSeconds: 300,
     escalateAfterMinutes: 15,
+    alertReminderHours: 3,
     heartbeatIntervalSeconds: 30,
     diskMountRules: [],
   });
@@ -887,6 +890,7 @@ function withAlertCounts(agents: Agent[], alerts: Alert[]): Agent[] {
         autoRefresh,
         toggleAutoRefresh,
         refreshData,
+        refreshFleet,
         acknowledgeAlert,
         resolveAlert,
         acknowledgeAllAlerts,

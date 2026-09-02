@@ -450,6 +450,17 @@ class AssignAlertRequest(BaseModel):
     user_id: Optional[constr(max_length=64)] = None
 
 
+class AlertReminderRequest(BaseModel):
+    """Délai de relance propre à une alerte.
+
+    `hours` absent rend l'alerte au réglage du parc ; `0` coupe la relance
+    pour cette alerte seule — le cas d'un incident connu dont on attend une
+    intervention planifiée, et qu'il est inutile de rappeler d'ici là.
+    """
+
+    hours: Optional[float] = None
+
+
 class ResolveAlertRequest(BaseModel):
     comment: Optional[str] = None
 
@@ -492,6 +503,9 @@ class SmtpConfigRequest(BaseModel):
     encryption: Optional[constr(max_length=20)] = None
     from_address: Optional[constr(max_length=255)] = None
     from_name: Optional[constr(max_length=120)] = None
+    #: Vérifier le certificat du relais. Un relais interne auto-signé impose
+    #: de le désactiver, et c'est un choix qui doit être posé sciemment.
+    verify_cert: Optional[bool] = None
 
 
 class SmtpTestRequest(BaseModel):
@@ -586,6 +600,17 @@ class UpdateAgentThresholdsRequest(BaseModel):
 
 
 # New Pydantic models for settings endpoints
+def _reminder_hours_of(settings) -> float:
+    """Délai de relance du parc, en heures.
+
+    Une base antérieure à la colonne rend `None` : l'interface afficherait
+    alors « aucune relance » alors que le planificateur, lui, appliquera la
+    valeur par défaut. Les deux doivent dire la même chose.
+    """
+    value = getattr(settings, "alert_reminder_hours", None)
+    return AlertService.DEFAULT_REMINDER_HOURS if value is None else float(value)
+
+
 class GlobalThresholdsRequest(BaseModel):
     cpu_warning: float
     cpu_critical: float
@@ -599,6 +624,9 @@ class GlobalThresholdsRequest(BaseModel):
     #: Cadence de battement du parc, en secondes. Bornée : au-delà du seuil de
     #: bascule hors ligne, tous les hôtes passeraient en panne à chaque cycle.
     heartbeat_interval_seconds: Optional[int] = None
+    #: Délai de relance d'une alerte restée ouverte, en heures. `0` désactive
+    #: la relance sur tout le parc.
+    alert_reminder_hours: Optional[float] = None
 
     @validator('cpu_warning', 'cpu_critical', 'ram_warning', 'ram_critical', 'disk_warning', 'disk_critical')
     def validate_threshold(cls, v):
@@ -2817,6 +2845,9 @@ def list_alerts(
                 "assigned_at": alert.assigned_at,
                 "assigned_by": alert.assigned_by,
                 "resolved_by": alert.resolved_by,
+                "reminder_hours": alert.reminder_hours,
+                "reminder_count": int(alert.reminder_count or 0),
+                "last_reminder_at": alert.last_reminder_at,
                 "mail_status": alert.mail_status,
                 "webhook_status": alert.webhook_status,
             }
@@ -2979,6 +3010,63 @@ def assign_alert(
         "assigned_to_username": assignee.username if assignee else None,
         "assigned_at": alert.assigned_at,
         "assigned_by": alert.assigned_by,
+    }
+
+
+@app.put("/api/alerts/{alert_id}/reminder")
+@limiter.limit("50/minute")
+def set_alert_reminder(
+    request: Request,
+    alert_id: str,
+    body: AlertReminderRequest,
+    current_user: User = Depends(require_operator_or_admin()),
+    db: Session = Depends(get_db),
+):
+    """Règle le délai de relance de cette alerte.
+
+    Le réglage vit sur l'alerte et non sur la vérification : c'est en la
+    traitant qu'on sait si elle mérite un rappel dans une heure, dans un
+    jour, ou plus du tout — et ce jugement ne vaut pas pour toutes les
+    alertes du même type.
+    """
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerte introuvable")
+
+    if body.hours is None:
+        alert.reminder_hours = None
+    else:
+        hours = float(body.hours)
+        if hours < 0:
+            raise HTTPException(
+                status_code=400, detail="Le délai de relance ne peut pas être négatif."
+            )
+        alert.reminder_hours = 0.0 if hours == 0 else max(hours, AlertService.MIN_REMINDER_HOURS)
+
+    # Le compteur repart : un délai raccourci doit se compter depuis
+    # maintenant, sinon la nouvelle valeur déclencherait un rappel immédiat
+    # pour une alerte ouverte de longue date.
+    alert.last_reminder_at = datetime.utcnow()
+
+    AlertService._record_event(
+        db,
+        "reminder_changed",
+        alert_id=alert.id,
+        agent_id=alert.agent_id,
+        actor=current_user.username,
+        comment=(
+            "réglage du parc" if alert.reminder_hours is None
+            else ("aucune relance" if alert.reminder_hours == 0
+                  else "%g h" % alert.reminder_hours)
+        ),
+    )
+    db.commit()
+
+    return {
+        "id": alert.id,
+        "reminder_hours": alert.reminder_hours,
+        "effective_hours": AlertService.reminder_interval_hours(db, alert),
+        "reminder_count": int(alert.reminder_count or 0),
     }
 
 
@@ -4818,6 +4906,8 @@ def get_global_thresholds(request: Request, current_user: User = Depends(require
         "disk_mount_rules": AlertService.parse_disk_mount_rules(getattr(settings, "disk_mount_rules", None)),
         "duration_seconds": settings.threshold_duration_seconds or 300,
         "escalate_after_minutes": settings.escalate_after_minutes or 15,
+        "alert_reminder_hours": _reminder_hours_of(settings),
+        "alert_reminder_min_hours": AlertService.MIN_REMINDER_HOURS,
         "heartbeat_interval_seconds": settings.heartbeat_interval_seconds or 30,
         # Bornes rendues avec la valeur : l'interface ne doit pas coder en dur
         # une limite qui dépend du seuil de bascule hors ligne du serveur.
@@ -4846,6 +4936,15 @@ def update_global_thresholds(request: Request, thresholds: GlobalThresholdsReque
         settings.threshold_duration_seconds = max(0, int(thresholds.duration_seconds))
     if thresholds.escalate_after_minutes is not None:
         settings.escalate_after_minutes = max(1, int(thresholds.escalate_after_minutes))
+    if thresholds.alert_reminder_hours is not None:
+        hours = float(thresholds.alert_reminder_hours)
+        # `0` est un choix valide : couper les relances pour tout le parc.
+        # Toute autre valeur est ramenée au plancher plutôt que refusée — un
+        # réglage à cinq minutes traduit une intention de rappel rapproché,
+        # qu'on honore au plus près sans transformer la relance en rafale.
+        if hours < 0:
+            raise HTTPException(status_code=400, detail="Le délai de relance ne peut pas être négatif.")
+        settings.alert_reminder_hours = 0.0 if hours == 0 else max(hours, AlertService.MIN_REMINDER_HOURS)
     if thresholds.disk_mount_rules is not None:
         cleaned = []
         seen = set()
@@ -4920,6 +5019,7 @@ def update_global_thresholds(request: Request, thresholds: GlobalThresholdsReque
         "disk_mount_rules": AlertService.parse_disk_mount_rules(getattr(settings, "disk_mount_rules", None)),
         "duration_seconds": settings.threshold_duration_seconds or 300,
         "escalate_after_minutes": settings.escalate_after_minutes or 15,
+        "alert_reminder_hours": _reminder_hours_of(settings),
         "updated_at": settings.updated_at
     }
 
@@ -5299,7 +5399,7 @@ def update_smtp_config(
         "enabled": "smtp_enabled", "host": "smtp_host", "port": "smtp_port",
         "auth": "smtp_auth", "username": "smtp_username",
         "encryption": "smtp_encryption", "from_address": "smtp_from",
-        "from_name": "smtp_from_name",
+        "from_name": "smtp_from_name", "verify_cert": "smtp_verify_cert",
     }
     for field, column in mapping.items():
         if field in submitted:

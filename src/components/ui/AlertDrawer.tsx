@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, X } from 'lucide-react';
+import { Bell, UserCheck, X } from 'lucide-react';
 import { Alert } from '../../types';
 import { alertsService, AlertTimelineEvent } from '../../services/api/alerts.service';
 import { alertStatusMeta, deliveryMeta, sevMeta } from './tones';
@@ -12,6 +12,10 @@ interface AlertDrawerProps {
   /** Comptes pouvant prendre en charge une alerte. */
   assignables?: Array<{ id: string; name: string }>;
   onAssign?: (alert: Alert, userId: string | null) => void;
+  /** Delai de relance de cette alerte. `null` : reglage du parc, `0` : aucune. */
+  onSetReminder?: (alert: Alert, hours: number | null) => void;
+  /** Delai du parc, pour nommer ce que « Reglage du parc » signifie ici. */
+  fleetReminderHours?: number | null;
   /** Compte connecté, pour proposer « M'attribuer » — le geste le plus courant. */
   currentUserId?: string | null;
   onOpenHost: (agentId: string) => void;
@@ -46,6 +50,8 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
   onResolve,
   assignables = [],
   onAssign,
+  onSetReminder,
+  fleetReminderHours,
   currentUserId,
   onOpenHost,
   canAck,
@@ -247,6 +253,57 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
                 </div>
               )}
             </div>
+
+            {/* La relance n'est pas un detail de configuration : c'est ce qui
+                empeche une alerte prise en charge puis oubliee de sombrer.
+                Elle se regle ici, au moment ou l'on juge l'incident, parce que
+                c'est la seule fois ou l'on sait s'il merite un rappel dans une
+                heure, dans un jour, ou plus du tout. */}
+            {onSetReminder && !resolved && (
+              <div className="rounded-xl border border-slate-200 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="w-4 h-4 text-slate-500" />
+                  <span className="text-[12.5px] font-bold">Relance par courriel</span>
+                  {(alert.reminderCount || 0) > 0 && (
+                    <span className="text-[11.5px] text-slate-500">
+                      — {alert.reminderCount} rappel{(alert.reminderCount || 0) > 1 ? 's' : ''} deja
+                      envoye{(alert.reminderCount || 0) > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={
+                    alert.reminderHours === null || alert.reminderHours === undefined
+                      ? ''
+                      : String(alert.reminderHours)
+                  }
+                  onChange={(e) =>
+                    onSetReminder(alert, e.target.value === '' ? null : Number(e.target.value))
+                  }
+                  className="cbc-input py-1.5 text-[12.5px] w-full"
+                >
+                  <option value="">
+                    Reglage du parc
+                    {fleetReminderHours !== null && fleetReminderHours !== undefined
+                      ? fleetReminderHours === 0
+                        ? ' (aucune relance)'
+                        : ` (${fleetReminderHours} h)`
+                      : ''}
+                  </option>
+                  <option value="0.5">Toutes les 30 minutes</option>
+                  <option value="1">Toutes les heures</option>
+                  <option value="3">Toutes les 3 heures</option>
+                  <option value="8">Toutes les 8 heures</option>
+                  <option value="24">Une fois par jour</option>
+                  <option value="0">Ne plus relancer cette alerte</option>
+                </select>
+                <p className="text-[11.5px] text-slate-500 mt-2 mb-0">
+                  Le rappel continue tant que l'alerte est ouverte, meme prise en
+                  charge : c'est l'alerte attribuee puis oubliee qu'il rattrape. La
+                  resolution y met fin.
+                </p>
+              </div>
+            )}
 
             {alert.acknowledgedBy && (
               <div className="flex items-center gap-2.5">

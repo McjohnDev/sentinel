@@ -685,6 +685,24 @@ export const SettingsView: React.FC = () => {
                   className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
                 />
               </div>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Relance des alertes ouvertes (heures)</label>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Rappel par courriel tant que l’alerte reste ouverte, même prise en
+                  charge : c’est l’alerte attribuée puis oubliée qu’il rattrape. La
+                  résolution y met fin. <strong>0</strong> coupe la relance sur tout le
+                  parc. Réglable alerte par alerte depuis son détail.
+                </p>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  disabled={currentRole !== 'Admin'}
+                  value={thresholdsForm.alertReminderHours ?? 3}
+                  onChange={(e) => setThresholdsForm({ ...thresholdsForm, alertReminderHours: Number(e.target.value) })}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                />
+              </div>
             </div>
 
             {currentRole === 'Admin' && (

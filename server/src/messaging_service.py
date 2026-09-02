@@ -241,7 +241,14 @@ class MessagingService:
         db: Optional[Session] = None,
         agent: Any = None,
         mount: Optional[str] = None,
+        reminder_number: int = 0,
     ) -> bool:
+        """Notifie une alerte. `reminder_number` > 0 : c'est une relance.
+
+        Une relance doit se distinguer au premier coup d'œil dans une boîte de
+        réception, sans quoi elle se lit comme un second incident et fait
+        rouvrir une investigation déjà en cours.
+        """
         cfg = MessagingService._runtime_config(db)
         smtp_ready = MessagingService._smtp_ready(db)
 
@@ -278,6 +285,20 @@ class MessagingService:
         )
         subject_tpl, body_tpl = resolve(db, "alert", alert_type, ctx.get("agent_id") or None)
         subject, body = render(subject_tpl, body_tpl, ctx)
+
+        if reminder_number > 0:
+            # Le gabarit par vérification reste celui de l'exploitant : on ne
+            # le remplace pas, on le préfixe. Un gabarit de relance distinct
+            # obligerait à maintenir deux mises en forme par vérification, et
+            # elles divergeraient.
+            subject = "[RELANCE %d] %s" % (reminder_number, subject)
+            body = (
+                '<p style="margin:0 0 12px;padding:8px 12px;border-left:3px solid #A68523;'
+                'background:#FBF7EC;font-family:sans-serif;font-size:13px;">'
+                "Rappel n°%d : cette alerte est toujours ouverte. "
+                "Elle cessera d’être relancée une fois résolue."
+                "</p>%s" % (reminder_number, body)
+            )
 
         # Le succès d'un canal suffit : l'alerte est parvenue à son
         # destinataire. Exiger les deux ferait passer pour un échec une

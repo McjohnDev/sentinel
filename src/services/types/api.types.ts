@@ -156,6 +156,7 @@ export interface BackendGlobalSettings {
   disk_mount_rules?: Array<{ mount: string; warning: number; critical: number }> | string;
   threshold_duration_seconds?: number;
   escalate_after_minutes?: number;
+  alert_reminder_hours?: number;
   duration_seconds?: number;
   updated_at: string;
 }

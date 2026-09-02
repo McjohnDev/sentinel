@@ -86,4 +86,15 @@ export const alertsService = {
   async assign(alertId: string, userId: string | null): Promise<void> {
     await axiosInstance.post(`/alerts/${alertId}/assign`, { user_id: userId });
   },
+
+  /**
+   * Délai de relance de cette alerte, en heures.
+   *
+   * `null` la rend au réglage du parc ; `0` coupe la relance pour elle
+   * seule — un incident connu dont on attend une intervention planifiée
+   * n'a pas besoin d'être rappelé toutes les trois heures d'ici là.
+   */
+  async setReminder(alertId: string, hours: number | null): Promise<void> {
+    await axiosInstance.put(`/alerts/${alertId}/reminder`, { hours });
+  },
 };

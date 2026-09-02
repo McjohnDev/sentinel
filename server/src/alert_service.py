@@ -444,7 +444,7 @@ class AlertService:
         return alert
 
     @staticmethod
-    def _notify(db: Session, alert: Alert) -> None:
+    def _notify(db: Session, alert: Alert, reminder: bool = False) -> None:
         # FS7-02 — detect→notify latency (wall clock from alert creation)
         try:
             from datetime import datetime, timezone
@@ -481,6 +481,7 @@ class AlertService:
                 db=db,
                 agent=agent,
                 mount=getattr(alert, "mount", None),
+                reminder_number=int(getattr(alert, "reminder_count", 0) or 0) if reminder else 0,
             )
         except Exception:
             mail_ok = False
@@ -1018,6 +1019,87 @@ class AlertService:
             float(dropped),
             0.0,
         )
+
+    # ------------------------------------------------------------ relances
+
+    #: Délai de relance par défaut, en heures. Trois heures : assez long pour
+    #: qu'une intervention en cours ne soit pas interrompue par un rappel,
+    #: assez court pour qu'une alerte ouverte en début de matinée ne traverse
+    #: pas la journée sans que personne ne la revoie.
+    DEFAULT_REMINDER_HOURS = 3.0
+
+    #: Plancher. En deçà, la relance cesse d'être un rappel et devient du
+    #: harcèlement : l'opérateur apprend à filtrer les messages de la
+    #: plateforme, et c'est la notification initiale qui se perd avec eux.
+    MIN_REMINDER_HOURS = 0.25
+
+    @staticmethod
+    def reminder_interval_hours(db: Session, alert: Alert) -> float:
+        """Délai de relance applicable à cette alerte, en heures.
+
+        `0` signifie « aucune relance » — à tous les niveaux. Une alerte peut
+        se taire sur un parc bavard, et un parc peut se taire entièrement.
+        """
+        own = getattr(alert, "reminder_hours", None)
+        if own is not None:
+            hours = float(own)
+        else:
+            gs = AlertService._global_settings(db)
+            configured = getattr(gs, "alert_reminder_hours", None)
+            hours = (
+                AlertService.DEFAULT_REMINDER_HOURS
+                if configured is None
+                else float(configured)
+            )
+        if hours <= 0:
+            return 0.0
+        return max(hours, AlertService.MIN_REMINDER_HOURS)
+
+    @staticmethod
+    def send_due_reminders(db: Session) -> int:
+        """Relance les alertes ouvertes depuis plus longtemps que leur délai.
+
+        La prise en charge n'interrompt pas la relance, et c'est délibéré :
+        une alerte attribuée puis oubliée est le cas exact que ce rappel
+        existe pour rattraper. Seule la résolution y met fin.
+
+        Le décompte repart du dernier rappel, sinon d'un éventuel palier
+        d'escalade, sinon de l'ouverture — un délai porté de trois heures à
+        une demi-heure doit se compter depuis le dernier message reçu, non
+        depuis un incident vieux de deux jours qui déclencherait aussitôt.
+        """
+        now = datetime.utcnow()
+        sent = 0
+        for alert in db.query(Alert).filter(Alert.status == AlertStatus.OPEN).all():
+            hours = AlertService.reminder_interval_hours(db, alert)
+            if hours <= 0:
+                continue
+            since = (
+                getattr(alert, "last_reminder_at", None)
+                or getattr(alert, "escalated_at", None)
+                or alert.started_at
+            )
+            if since is None or (now - since) < timedelta(hours=hours):
+                continue
+            # Une fenêtre de maintenance suspend la relance sans la perdre :
+            # au premier passage après la fenêtre, l'alerte est de nouveau
+            # éligible et repart avec son ancienneté réelle.
+            if AlertService.in_maintenance(db, alert.agent_id):
+                continue
+
+            alert.last_reminder_at = now
+            alert.reminder_count = int(getattr(alert, "reminder_count", 0) or 0) + 1
+            db.commit()
+            AlertService._record_event(
+                db, "reminded", alert_id=alert.id, agent_id=alert.agent_id,
+                comment="relance n°%d" % alert.reminder_count,
+            )
+            # Le compteur est écrit *avant* l'envoi : si le relais échoue, on
+            # réessaiera au prochain délai plutôt qu'à chaque passage du
+            # planificateur, ce qui inonderait un relais déjà en peine.
+            AlertService._notify(db, alert, reminder=True)
+            sent += 1
+        return sent
 
     @staticmethod
     def escalate_unacked(db: Session) -> int:

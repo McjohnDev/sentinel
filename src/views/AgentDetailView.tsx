@@ -65,7 +65,7 @@ export const AgentDetailView: React.FC = () => {
     users,
     currentUser,
     addToast,
-    refreshData,
+    refreshFleet,
     revokeAgent,
     deleteAgent,
     acknowledgeAlert,
@@ -591,7 +591,10 @@ export const AgentDetailView: React.FC = () => {
       )}
 
       <AlertDrawer
-        alert={drawer}
+        // L'alerte vivante, relue de la liste : un instantane pris a
+        // l'ouverture continuerait d'afficher « non attribuee » apres une
+        // attribution reussie, et le geste passerait pour sans effet.
+        alert={drawer ? alerts.find((a) => a.id === drawer.id) ?? drawer : null}
         onClose={() => setDrawer(null)}
         canAck={currentRole !== 'ReadOnly'}
         onAck={(a) => {
@@ -611,7 +614,7 @@ export const AgentDetailView: React.FC = () => {
         onAssign={async (a, userId) => {
           try {
             await alertsService.assign(a.id, userId);
-            refreshData();
+            await refreshFleet();
             addToast({
               type: 'success',
               title: userId ? 'Alerte attribuée' : 'Attribution retirée',
@@ -622,6 +625,29 @@ export const AgentDetailView: React.FC = () => {
               type: 'error',
               title: 'Attribution impossible',
               message: 'Vérifier que le compte est actif et l’alerte encore ouverte.',
+            });
+          }
+        }}
+        fleetReminderHours={globalThresholds.alertReminderHours ?? 3}
+        onSetReminder={async (a, hours) => {
+          try {
+            await alertsService.setReminder(a.id, hours);
+            await refreshFleet();
+            addToast({
+              type: 'success',
+              title: 'Relance modifiée',
+              message:
+                hours === null
+                  ? 'Cette alerte suit de nouveau le réglage du parc.'
+                  : hours === 0
+                    ? 'Cette alerte ne sera plus relancée.'
+                    : `Rappel toutes les ${hours} h tant que l’alerte reste ouverte.`,
+            });
+          } catch {
+            addToast({
+              type: 'error',
+              title: 'Réglage impossible',
+              message: 'Vérifier que l’alerte est encore ouverte.',
             });
           }
         }}

@@ -314,6 +314,10 @@ export class DataMapper {
       assignedAt: (backendAlert as { assigned_at?: string | null }).assigned_at ?? null,
       assignedBy: (backendAlert as { assigned_by?: string | null }).assigned_by ?? null,
       resolvedBy: (backendAlert as { resolved_by?: string | null }).resolved_by ?? null,
+      reminderHours: (backendAlert as { reminder_hours?: number | null }).reminder_hours ?? null,
+      reminderCount: (backendAlert as { reminder_count?: number }).reminder_count ?? 0,
+      lastReminderAt:
+        (backendAlert as { last_reminder_at?: string | null }).last_reminder_at ?? null,
       mailStatus: backendAlert.mail_status,
       webhookStatus: backendAlert.webhook_status,
     };
@@ -364,6 +368,7 @@ export class DataMapper {
       diskCritical: backendSettings.disk_critical_threshold,
       durationSeconds: backendSettings.threshold_duration_seconds ?? backendSettings.duration_seconds ?? 300,
       escalateAfterMinutes: backendSettings.escalate_after_minutes ?? 15,
+      alertReminderHours: backendSettings.alert_reminder_hours ?? 3,
     // Valeur réelle du serveur ; 30 s n'est qu'un repli si la plateforme est
     // d'une version antérieure au réglage.
     heartbeatIntervalSeconds:

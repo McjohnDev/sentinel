@@ -65,7 +65,7 @@ def describe(cfg: Optional[MessagingConfig]) -> Dict[str, Any]:
         return {
             "enabled": False, "host": None, "port": 25, "auth": False,
             "username": None, "password_set": False, "encryption": ENCRYPTION_NONE,
-            "from_address": None, "from_name": None,
+            "from_address": None, "from_name": None, "verify_cert": True,
         }
     return {
         "enabled": bool(cfg.smtp_enabled),
@@ -77,6 +77,7 @@ def describe(cfg: Optional[MessagingConfig]) -> Dict[str, Any]:
         "encryption": cfg.smtp_encryption or ENCRYPTION_NONE,
         "from_address": cfg.smtp_from,
         "from_name": cfg.smtp_from_name,
+        "verify_cert": bool(getattr(cfg, "smtp_verify_cert", True)),
     }
 
 
@@ -94,16 +95,32 @@ def _require_usable(cfg: Optional[MessagingConfig]) -> MessagingConfig:
     return cfg
 
 
+def _tls_context(cfg: MessagingConfig) -> ssl.SSLContext:
+    """Contexte TLS, selon que le certificat du relais est vérifié ou non."""
+    context = ssl.create_default_context()
+    if getattr(cfg, "smtp_verify_cert", True) is False:
+        # Choix explicite de l'exploitant. Le trafic reste chiffré — le mot de
+        # passe ne circule plus en clair — mais l'identité du relais n'est plus
+        # attestée. Acceptable sur un lien interne maîtrisé, jamais au-delà.
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        logger.warning(
+            "Certificat du relais SMTP non vérifié (réglage explicite) : le "
+            "trafic est chiffré mais l'identité du serveur n'est pas attestée."
+        )
+    return context
+
+
 def _connect(cfg: MessagingConfig):
     encryption = (cfg.smtp_encryption or ENCRYPTION_NONE).lower()
     host, port = cfg.smtp_host, int(cfg.smtp_port or 25)
 
     if encryption == ENCRYPTION_SSL:
-        return smtplib.SMTP_SSL(host, port, timeout=SMTP_TIMEOUT, context=ssl.create_default_context())
+        return smtplib.SMTP_SSL(host, port, timeout=SMTP_TIMEOUT, context=_tls_context(cfg))
 
     server = smtplib.SMTP(host, port, timeout=SMTP_TIMEOUT)
     if encryption == ENCRYPTION_STARTTLS:
-        server.starttls(context=ssl.create_default_context())
+        server.starttls(context=_tls_context(cfg))
     return server
 
 
