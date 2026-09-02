@@ -10,6 +10,7 @@ import { GlobalThresholds, MessagingNotificationConfig, ServicesMonitoringConfig
 import { Modal } from '../components/common/Modal';
 import { VlanPlanPanel } from '../components/settings/VlanPlanPanel';
 import { MailTemplatesPanel } from '../components/settings/MailTemplatesPanel';
+import { AlertServicesPanel } from '../components/settings/AlertServicesPanel';
 import { groupsService, MachineGroup, ConfigRevision, CoverageRow, CoverageOverlap } from '../services/api/groups.service';
 import {
   Sliders,
@@ -42,6 +43,7 @@ import {
   RefreshCw,
   Network,
   Mail,
+  Server,
 } from 'lucide-react';
 import { settingsService } from '../services/api/settings.service';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -61,10 +63,12 @@ type SettingsTab =
   | 'platform'
   | 'ldap'
   | 'vlan'
-  | 'templates';
+  | 'templates'
+  | 'alertservices';
 
 const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
   { id: 'thresholds', label: "Seuils d'alerte", icon: Sliders },
+  { id: 'alertservices', label: 'Services d’alerte (SMTP)', icon: Server },
   { id: 'messaging', label: 'Notifications API CBC', icon: MessageSquare },
   { id: 'groups', label: 'Groupes & config', icon: Users },
   { id: 'coverage', label: 'Couverture PS', icon: Map },
@@ -1436,6 +1440,8 @@ export const SettingsView: React.FC = () => {
       {activeTab === 'ldap' && <LdapPanel />}
 
       {activeTab === 'vlan' && <VlanPlanPanel />}
+
+      {activeTab === 'alertservices' && <AlertServicesPanel />}
 
       {activeTab === 'templates' && <MailTemplatesPanel />}
 

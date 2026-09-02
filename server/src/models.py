@@ -424,6 +424,24 @@ class MessagingConfig(Base):
     webhook_url = Column(String, nullable=True)
     webhook_secret = Column(String, nullable=True)
     webhook_enabled = Column(Boolean, default=False)
+
+    # --- Serveur SMTP interne -------------------------------------------
+    #: Second canal de courriel, indépendant de l'API Mail CBC. Les deux
+    #: coexistent : un relais SMTP interne reste joignable quand l'API est en
+    #: panne, et inversement.
+    smtp_enabled = Column(Boolean, default=False)
+    smtp_host = Column(String, nullable=True)
+    smtp_port = Column(Integer, default=25)
+    smtp_auth = Column(Boolean, default=False)
+    smtp_username = Column(String, nullable=True)
+    #: Stocké tel quel, comme `webhook_secret`, et **jamais** rendu par l'API :
+    #: une clé qui repart vers le navigateur finit dans un cache, un journal
+    #: de proxy ou une capture d'écran.
+    smtp_password = Column(String, nullable=True)
+    #: none | starttls | ssl
+    smtp_encryption = Column(String, default="none")
+    smtp_from = Column(String, nullable=True)
+    smtp_from_name = Column(String, nullable=True)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 

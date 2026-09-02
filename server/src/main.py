@@ -459,6 +459,27 @@ class MailTemplatePreviewRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
 
 
+class SmtpConfigRequest(BaseModel):
+    """Réglage du relais SMTP interne."""
+
+    enabled: Optional[bool] = None
+    host: Optional[constr(max_length=255)] = None
+    port: Optional[int] = None
+    auth: Optional[bool] = None
+    username: Optional[constr(max_length=255)] = None
+    #: Absent = inchangé ; chaîne vide = effacé. Sans cette distinction, un
+    #: enregistrement depuis un formulaire qui ne réaffiche pas le mot de
+    #: passe l'effacerait à chaque fois.
+    password: Optional[constr(max_length=255)] = None
+    encryption: Optional[constr(max_length=20)] = None
+    from_address: Optional[constr(max_length=255)] = None
+    from_name: Optional[constr(max_length=120)] = None
+
+
+class SmtpTestRequest(BaseModel):
+    to: Optional[constr(max_length=320)] = None
+
+
 class WebhookTestRequest(BaseModel):
     """Essai du webhook signé — le canal par lequel n8n est déclenché."""
 
@@ -4942,6 +4963,117 @@ def get_notification_channel_status(request: Request, current_user: User = Depen
     """
     status = MessagingService.health_check(db)
     return status
+
+
+@app.get("/api/settings/smtp")
+@limiter.limit("60/minute")
+def get_smtp_config(
+    request: Request,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Réglage du relais SMTP. Le mot de passe n'est jamais rendu."""
+    from src import email_service
+
+    return email_service.describe(email_service.load_config(db))
+
+
+@app.put("/api/settings/smtp")
+@limiter.limit("20/minute")
+def update_smtp_config(
+    request: Request,
+    body: SmtpConfigRequest,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Enregistre le relais SMTP."""
+    from src import email_service
+
+    valid_encryption = (
+        email_service.ENCRYPTION_NONE,
+        email_service.ENCRYPTION_STARTTLS,
+        email_service.ENCRYPTION_SSL,
+    )
+    if body.encryption is not None and body.encryption.lower() not in valid_encryption:
+        raise HTTPException(
+            status_code=400,
+            detail="Chiffrement invalide : attendu %s." % ", ".join(valid_encryption),
+        )
+    if body.port is not None and not (1 <= body.port <= 65535):
+        raise HTTPException(status_code=400, detail="Port hors bornes (1-65535).")
+
+    cfg = email_service.load_config(db)
+    if cfg is None:
+        cfg = MessagingConfig(id="default")
+        db.add(cfg)
+
+    submitted = body.model_dump(exclude_unset=True)
+    mapping = {
+        "enabled": "smtp_enabled", "host": "smtp_host", "port": "smtp_port",
+        "auth": "smtp_auth", "username": "smtp_username",
+        "encryption": "smtp_encryption", "from_address": "smtp_from",
+        "from_name": "smtp_from_name",
+    }
+    for field, column in mapping.items():
+        if field in submitted:
+            value = submitted[field]
+            setattr(cfg, column, value.lower() if column == "smtp_encryption" and value else value)
+
+    # Absent = inchangé ; chaîne vide = effacé. Un formulaire qui ne réaffiche
+    # pas le mot de passe — et il ne doit pas — l'effacerait sinon à chaque
+    # enregistrement.
+    if "password" in submitted:
+        cfg.smtp_password = submitted["password"] or None
+
+    db.commit()
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="UPDATE_SMTP_CONFIG",
+        details="hote=%s port=%s chiffrement=%s auth=%s"
+        % (cfg.smtp_host, cfg.smtp_port, cfg.smtp_encryption, bool(cfg.smtp_auth)),
+    )
+    return email_service.describe(cfg)
+
+
+@app.post("/api/settings/smtp/test")
+@limiter.limit("10/minute")
+def send_smtp_test(
+    request: Request,
+    body: SmtpTestRequest,
+    current_user: User = Depends(require_admin()),
+    db: Session = Depends(get_db),
+):
+    """Envoie un courriel d'essai par le relais SMTP.
+
+    Sans cet essai, la première alerte réelle sert de test — et un relais mal
+    réglé se découvre au moment où l'on comptait sur lui.
+    """
+    from src import email_service
+
+    destination = (body.to or "").strip() or current_user.email
+    if not destination:
+        raise HTTPException(status_code=400, detail="Aucun destinataire d'essai.")
+
+    try:
+        email_service.send(
+            db,
+            to=destination,
+            subject="[CBC Supervision] Essai du relais SMTP",
+            body_html=(
+                "<p>Cet essai confirme que la plateforme CBC Supervision atteint "
+                "votre relais SMTP interne.</p><p>Émis par <strong>%s</strong>.</p>"
+                % current_user.username
+            ),
+        )
+    except email_service.SmtpNotConfigured as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except email_service.SmtpSendFailed as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    audit_logger.log_action(
+        user_id=current_user.id, action="TEST_SMTP", details="destinataire=%s" % destination,
+    )
+    return {"status": "success", "to": destination}
 
 
 @app.delete("/api/settings/mail-templates")

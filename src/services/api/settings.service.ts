@@ -295,3 +295,35 @@ export const mailTemplatesService = {
     return data;
   },
 };
+
+export interface SmtpConfig {
+  enabled: boolean;
+  host: string | null;
+  port: number;
+  auth: boolean;
+  username: string | null;
+  /** Le mot de passe n'est jamais rendu : seule sa présence l'est. */
+  password_set: boolean;
+  encryption: string;
+  from_address: string | null;
+  from_name: string | null;
+}
+
+/** Relais SMTP interne — second canal d'alerte, à côté de l'API Mail CBC. */
+export const smtpService = {
+  async get(): Promise<SmtpConfig> {
+    const { data } = await axiosInstance.get('/settings/smtp');
+    return data;
+  },
+
+  /** Omettre `password` conserve celui enregistré ; le passer vide l'efface. */
+  async save(body: Partial<SmtpConfig> & { password?: string }): Promise<SmtpConfig> {
+    const { data } = await axiosInstance.put('/settings/smtp', body);
+    return data;
+  },
+
+  async test(to?: string): Promise<{ status: string; to: string }> {
+    const { data } = await axiosInstance.post('/settings/smtp/test', to ? { to } : {});
+    return data;
+  },
+};
