@@ -20,6 +20,8 @@ export const settingsService = {
       diskCritical: d.diskCritical ?? d.disk_critical ?? 95,
       durationSeconds: d.durationSeconds ?? d.duration_seconds ?? 300,
       escalateAfterMinutes: d.escalateAfterMinutes ?? d.escalate_after_minutes ?? 15,
+      heartbeatIntervalSeconds:
+        d.heartbeatIntervalSeconds ?? d.heartbeat_interval_seconds ?? 30,
       diskMountRules: Array.isArray(rulesRaw)
         ? rulesRaw.map((r: { mount?: string; warning?: number; critical?: number }) => ({
             mount: String(r.mount || ''),
@@ -40,6 +42,7 @@ export const settingsService = {
       disk_critical: thresholds.diskCritical,
       duration_seconds: thresholds.durationSeconds,
       escalate_after_minutes: thresholds.escalateAfterMinutes,
+      heartbeat_interval_seconds: thresholds.heartbeatIntervalSeconds,
       disk_mount_rules: (thresholds.diskMountRules || [])
         .filter((r) => r.mount?.trim())
         .map((r) => ({

@@ -211,10 +211,45 @@ def run(
         # bascule hors ligne.
         backoff = BACKOFF_START
 
+        # La cadence peut avoir été changée depuis la plateforme : elle voyage
+        # dans le plan, et l'agent la relit à chaque cycle plutôt qu'au seul
+        # démarrage. Sans cela, un réglage ne prendrait effet qu'au prochain
+        # redémarrage de l'agent — c'est-à-dire jamais, sur un service.
+        interval_seconds = _planned_interval(interval_seconds)
+
         if max_beats is None or beats < max_beats:
             sleeper(interval_seconds)
 
     return outcome
+
+
+#: Bornes appliquées à la cadence reçue. La plateforme la borne déjà ; on ne
+#: lui fait pas aveuglément confiance, un plan corrompu ou d'une version
+#: antérieure ne devant pas rendre l'agent muet ou frénétique.
+MIN_INTERVAL = 5.0
+MAX_INTERVAL = 3600.0
+
+
+def _planned_interval(current: float) -> float:
+    """Cadence demandée par le plan, ou celle en cours si rien n'est demandé."""
+    try:
+        stored = plan_module.read_plan()
+        if stored is None:
+            return current
+        section = (stored.payload or {}).get("agent")
+        if not isinstance(section, dict):
+            return current
+        wanted = section.get("heartbeat_interval_seconds")
+        if wanted is None:
+            return current
+        value = float(wanted)
+    except (TypeError, ValueError, AttributeError):
+        return current
+
+    bounded = max(MIN_INTERVAL, min(value, MAX_INTERVAL))
+    if bounded != current:
+        logger.info("Cadence de battement portée à %.0f s par la plateforme.", bounded)
+    return bounded
 
 
 def _push_inventory(config, credentials, http, outcome: RunnerOutcome) -> None:

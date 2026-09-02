@@ -58,6 +58,8 @@ _COLUMNS = [
     # pas connaître leur VLAN — voir models.Agent.
     ("vlan_subnets", "range_start", "VARCHAR"),
     ("vlan_subnets", "range_end", "VARCHAR"),
+    ("global_settings", "heartbeat_interval_seconds", "INTEGER DEFAULT 30"),
+    ("agents", "heartbeat_interval_seconds", "INTEGER"),
     ("agents", "inventory_json", "TEXT"),
     ("agents", "inventory_at", "TIMESTAMP"),
     ("agents", "vlan_observed", "VARCHAR"),

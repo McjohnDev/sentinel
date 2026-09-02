@@ -114,6 +114,8 @@ export interface Agent {
   vlanObserved?: string | null;
   /** VLAN déclaré par l'exploitation — modifiable. */
   vlan?: string | null;
+  /** Cadence propre à l'hôte ; vide = suit la cadence du parc. */
+  heartbeatIntervalSeconds?: number | null;
   /** VLAN déduit du plan d'adressage importé, d'après l'IP constatée. */
   vlanDerived?: string | null;
   /** Sous-réseau du plan ayant produit la déduction. */
@@ -199,6 +201,8 @@ export interface GlobalThresholds {
   escalateAfterMinutes: number;
   /** Per-partition ceilings; empty = use default diskWarning/diskCritical */
   diskMountRules: DiskMountThreshold[];
+  /** Cadence de battement du parc, en secondes. */
+  heartbeatIntervalSeconds: number;
 }
 
 export interface MessagingNotificationConfig {

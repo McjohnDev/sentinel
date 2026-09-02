@@ -56,6 +56,9 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
   // au lieu de saisir. Une faute de frappe produirait une surveillance qui
   // ne surveille rien : le service resterait « inconnu » plutôt qu'« arrêté ».
   const [offeredServices, setOfferedServices] = useState<HostInventory['services']>([]);
+  const [heartbeat, setHeartbeat] = useState<number | null>(null);
+  const [savingHeartbeat, setSavingHeartbeat] = useState(false);
+  const [heartbeatError, setHeartbeatError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -70,6 +73,34 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
       setLoading(false);
     }
   }, [agentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    agentsService
+      .getAgent(agentId)
+      .then((row) => {
+        if (!cancelled) setHeartbeat(row.heartbeatIntervalSeconds ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [agentId]);
+
+  const saveHeartbeat = async () => {
+    setSavingHeartbeat(true);
+    setHeartbeatError(null);
+    try {
+      await agentsService.patchAgent(agentId, { heartbeat_interval_seconds: heartbeat });
+    } catch (err) {
+      // Le serveur explique la borne franchie : la relayer telle quelle,
+      // « valeur invalide » n'apprendrait rien.
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      setHeartbeatError(typeof detail === 'string' ? detail : 'Cadence refusée.');
+    } finally {
+      setSavingHeartbeat(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -210,6 +241,48 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Cadence propre à cet hôte. Un serveur SWIFT mérite dix secondes là où
+          un poste de bureau se contente d'une minute : imposer la même cadence
+          à tout le parc oblige à choisir entre surveiller trop peu les
+          machines critiques et trop souvent les autres. */}
+      <div className="cbc-card p-[18px]">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold m-0">Cadence de battement</h2>
+            <p className="text-[12.5px] text-slate-500 mt-1 mb-0 max-w-2xl">
+              Laisser vide pour suivre la cadence du parc. Le réglage descend à l’hôte
+              au battement suivant, sans intervention sur la machine.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={5}
+              max={60}
+              placeholder="parc"
+              disabled={disabled}
+              value={heartbeat ?? ''}
+              onChange={(e) => setHeartbeat(e.target.value === '' ? null : Number(e.target.value))}
+              className="cbc-input py-1.5 text-[13px] w-24 tnum"
+            />
+            <span className="text-[12.5px] text-slate-500">secondes</span>
+            {canEdit && (
+              <button
+                type="button"
+                disabled={disabled || savingHeartbeat}
+                onClick={() => void saveHeartbeat()}
+                className="cbc-btn-secondary py-1.5 px-3 text-[12.5px] disabled:opacity-50"
+              >
+                {savingHeartbeat ? 'Envoi…' : 'Appliquer'}
+              </button>
+            )}
+          </div>
+        </div>
+        {heartbeatError && (
+          <p className="text-[12.5px] text-rose-600 mt-2.5 mb-0">{heartbeatError}</p>
+        )}
+      </div>
+
       {/* --- CPU / RAM / Disque --- */}
       <div className="cbc-card overflow-hidden">
         <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-start justify-between gap-4">

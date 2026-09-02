@@ -379,3 +379,70 @@ def test_a_failed_inventory_does_not_break_the_beat(monkeypatch):
     )
     assert outcome.beats_sent == 2
     assert outcome.inventories_sent == 0
+
+
+# ----------------------------------------- cadence pilotee par la plateforme
+
+
+def test_the_cadence_follows_the_plan_without_a_restart():
+    """Un service tourne des mois : un reglage qui n'agirait qu'au demarrage
+    n'agirait jamais."""
+    import plan as plan_module
+
+    plan_module.write_plan(1, {"agent": {"heartbeat_interval_seconds": 12}})
+    sleeps = []
+
+    runner.run(
+        CONFIG, CREDS, HOST, interval_seconds=30.0, max_beats=2,
+        session=_Scripted([_ok()]), sleeper=sleeps.append, clock=_Clock(),
+        sampler=lambda: SAMPLE, host_provider=lambda p: p, inventory_every=0,
+    )
+
+    assert sleeps == [12.0]
+
+
+def test_a_plan_without_a_cadence_leaves_the_current_one():
+    import plan as plan_module
+
+    plan_module.write_plan(1, {"services_monitoring": {"services": []}})
+    sleeps = []
+
+    runner.run(
+        CONFIG, CREDS, HOST, interval_seconds=30.0, max_beats=2,
+        session=_Scripted([_ok()]), sleeper=sleeps.append, clock=_Clock(),
+        sampler=lambda: SAMPLE, host_provider=lambda p: p, inventory_every=0,
+    )
+
+    assert sleeps == [30.0]
+
+
+def test_an_absurd_cadence_in_the_plan_is_bounded():
+    # La plateforme borne deja ; l'agent ne lui fait pas aveuglement confiance,
+    # un plan corrompu ne devant pas le rendre muet ni frenetique.
+    import plan as plan_module
+
+    for value, expected in ((0, runner.MIN_INTERVAL), (999999, runner.MAX_INTERVAL)):
+        plan_module.write_plan(1, {"agent": {"heartbeat_interval_seconds": value}})
+        sleeps = []
+        runner.run(
+            CONFIG, CREDS, HOST, interval_seconds=30.0, max_beats=2,
+            session=_Scripted([_ok()]), sleeper=sleeps.append, clock=_Clock(),
+            sampler=lambda: SAMPLE, host_provider=lambda p: p, inventory_every=0,
+        )
+        assert sleeps == [expected], value
+
+
+def test_a_malformed_cadence_does_not_break_the_loop():
+    import plan as plan_module
+
+    plan_module.write_plan(1, {"agent": {"heartbeat_interval_seconds": "vite"}})
+    sleeps = []
+
+    outcome = runner.run(
+        CONFIG, CREDS, HOST, interval_seconds=30.0, max_beats=2,
+        session=_Scripted([_ok()]), sleeper=sleeps.append, clock=_Clock(),
+        sampler=lambda: SAMPLE, host_provider=lambda p: p, inventory_every=0,
+    )
+
+    assert outcome.beats_sent == 2
+    assert sleeps == [30.0]

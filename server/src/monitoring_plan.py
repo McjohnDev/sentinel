@@ -45,6 +45,48 @@ DEFAULT_CPU = (80.0, 90.0)
 DEFAULT_RAM = (80.0, 90.0)
 DEFAULT_DISK = (85.0, 95.0)
 
+#: Cadence de battement retenue quand rien n'est réglé.
+DEFAULT_HEARTBEAT_SECONDS = 30
+
+#: Bornes acceptées. Le plancher évite qu'un réglage à une seconde noie la
+#: plateforme sous les battements d'un parc entier ; le plafond est imposé par
+#: le seuil de bascule hors ligne du serveur, qu'une cadence plus lente
+#: franchirait à chaque cycle.
+HEARTBEAT_MIN_SECONDS = 5
+
+
+def max_heartbeat_seconds() -> int:
+    """Cadence la plus lente encore compatible avec la détection hors ligne.
+
+    Le serveur déclare un hôte hors ligne au-delà de `heartbeat_timeout_seconds`.
+    Battre exactement à ce rythme le placerait à la limite en permanence : on
+    garde une marge d'un tiers, de quoi absorber un battement perdu sans
+    déclencher une fausse absence.
+    """
+    from src.config import settings
+
+    timeout = int(getattr(settings, "heartbeat_timeout_seconds", 90) or 90)
+    return max(HEARTBEAT_MIN_SECONDS, int(timeout * 2 / 3))
+
+
+def effective_heartbeat_seconds(db: Session, agent: Agent) -> int:
+    """Cadence retenue pour cet hôte : la sienne, sinon celle du parc.
+
+    La valeur est bornée à l'écriture *et* ici : un réglage introduit
+    directement en base, ou hérité d'une version antérieure, ne doit pas
+    pouvoir rendre un hôte perpétuellement hors ligne.
+    """
+    from src.models import GlobalSettings
+
+    own = getattr(agent, "heartbeat_interval_seconds", None)
+    if own:
+        chosen = int(own)
+    else:
+        row = db.query(GlobalSettings).filter(GlobalSettings.id == "default").first()
+        chosen = int(getattr(row, "heartbeat_interval_seconds", None) or DEFAULT_HEARTBEAT_SECONDS)
+
+    return max(HEARTBEAT_MIN_SECONDS, min(chosen, max_heartbeat_seconds()))
+
 
 def _parse_mount_rules(raw: Optional[str]) -> List[Dict[str, Any]]:
     if not raw:
@@ -279,7 +321,24 @@ def agent_config_payload(db: Session, agent: Agent) -> Dict[str, Any]:
             ],
         },
         "metrics": {"disk": {"alert_mounts": mounts}},
+        # Cadence de battement : l'agent la relit du plan à chaque cycle, ce
+        # qui permet de la changer depuis la plateforme sans intervenir sur
+        # l'hôte.
+        "agent": {"heartbeat_interval_seconds": effective_heartbeat_seconds(db, agent)},
     }
+
+
+def bump_version(db: Session, agent: Agent) -> int:
+    """Marque le plan d'un hôte comme à republier.
+
+    Nécessaire dès qu'un réglage porté par le plan change ailleurs que dans
+    `replace_plan` — la cadence de battement, par exemple. Sans incrément, la
+    plateforme considère l'hôte à jour et ne lui pousse rien : le réglage
+    resterait visible à l'écran sans jamais atteindre la machine.
+    """
+    agent.monitoring_version = int(agent.monitoring_version or 0) + 1
+    db.commit()
+    return agent.monitoring_version
 
 
 def pending_for_agent(db: Session, agent: Agent) -> Optional[Dict[str, Any]]:

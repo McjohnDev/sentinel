@@ -271,6 +271,8 @@ export class DataMapper {
       retired: backendAgent.retired ?? false,
       uninstalled: backendAgent.uninstalled ?? false,
       uninstalledAt: backendAgent.uninstalled_at ?? null,
+      heartbeatIntervalSeconds:
+        (backendAgent as { heartbeat_interval_seconds?: number | null }).heartbeat_interval_seconds ?? null,
       vlanObserved: backendAgent.vlan_observed ?? null,
       vlan: backendAgent.vlan ?? null,
       vlanDerived: backendAgent.vlan_derived ?? null,
@@ -362,6 +364,10 @@ export class DataMapper {
       diskCritical: backendSettings.disk_critical_threshold,
       durationSeconds: backendSettings.threshold_duration_seconds ?? backendSettings.duration_seconds ?? 300,
       escalateAfterMinutes: backendSettings.escalate_after_minutes ?? 15,
+    // Valeur réelle du serveur ; 30 s n'est qu'un repli si la plateforme est
+    // d'une version antérieure au réglage.
+    heartbeatIntervalSeconds:
+      (backendSettings as { heartbeat_interval_seconds?: number }).heartbeat_interval_seconds ?? 30,
       diskMountRules: rules,
     };
   }

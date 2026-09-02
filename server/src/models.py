@@ -110,6 +110,13 @@ class Agent(Base):
     #: information que l'équipe réseau détient et que la machine ignore.
     vlan = Column(String, nullable=True)
 
+    #: Cadence de battement propre à cet hôte. Vide = suit la cadence globale.
+    #: Un serveur SWIFT peut mériter dix secondes là où un poste de bureau se
+    #: contente d'une minute : imposer la même cadence à tout le parc, c'est
+    #: choisir entre surveiller trop peu les machines critiques ou trop
+    #: souvent les autres.
+    heartbeat_interval_seconds = Column(Integer, nullable=True)
+
     #: Inventaire logiciel remonté par l'agent : services offerts, applications
     #: et pilotes installés. Stocké en JSON plutôt qu'en tables dédiées : c'est
     #: un document par hôte, consulté en entier (fiche, sélecteur de services)
@@ -209,6 +216,7 @@ AGENT_EDITABLE_FIELDS = frozenset(
         "group_id",
         "capability_level",
         "vlan",
+        "heartbeat_interval_seconds",
     }
 )
 
@@ -427,6 +435,12 @@ class GlobalSettings(Base):
     escalate_after_minutes = Column(Integer, default=15)  # ALR-006
     agent_cpu_max_percent = Column(Float, default=2.0)  # AGT-007
     agent_ram_max_mb = Column(Float, default=300.0)  # AGT-007
+    #: Cadence de battement par défaut pour tout le parc, en secondes.
+    #: Doit rester nettement sous le seuil de bascule hors ligne du serveur
+    #: (`heartbeat_timeout_seconds`, 90 s) : une cadence plus lente que le
+    #: seuil ferait basculer tous les hôtes en permanence, sans qu'aucun ne
+    #: soit en panne.
+    heartbeat_interval_seconds = Column(Integer, default=30)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 

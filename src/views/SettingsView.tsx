@@ -399,6 +399,40 @@ export const SettingsView: React.FC = () => {
           )}
 
           <form onSubmit={handleSaveThresholds} className="space-y-6">
+            {/* Cadence de battement du parc. Bornée côté serveur : au-delà du
+                seuil de bascule hors ligne, chaque hôte serait affiché en
+                panne à chaque cycle sans qu'aucun ne le soit. */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="min-w-0">
+                  <label className="block text-[13px] font-bold">
+                    Cadence de battement du parc
+                  </label>
+                  <p className="text-[12px] text-slate-500 mt-1 mb-0 max-w-2xl">
+                    Intervalle entre deux battements, pour les hôtes qui n’ont pas leur
+                    propre cadence. Un hôte critique peut la resserrer depuis sa fiche,
+                    onglet Configuration.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={5}
+                    max={60}
+                    value={thresholdsForm.heartbeatIntervalSeconds}
+                    onChange={(e) =>
+                      setThresholdsForm({
+                        ...thresholdsForm,
+                        heartbeatIntervalSeconds: Number(e.target.value),
+                      })
+                    }
+                    className="cbc-input py-1.5 text-[13px] w-24 tnum"
+                  />
+                  <span className="text-[12.5px] text-slate-500">secondes</span>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* CPU */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-4">

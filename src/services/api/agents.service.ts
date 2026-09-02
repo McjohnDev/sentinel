@@ -22,6 +22,8 @@ export interface AgentPatch {
   location?: string;
   machine_type?: 'server' | 'workstation';
   vlan?: string | null;
+  /** Cadence propre a l'hote. null = suit la cadence du parc. */
+  heartbeat_interval_seconds?: number | null;
   owner_user_id?: string | null;
   admin_group_id?: string | null;
   group_id?: string | null;

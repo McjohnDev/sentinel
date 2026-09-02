@@ -111,6 +111,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     diskCritical: 95,
     durationSeconds: 300,
     escalateAfterMinutes: 15,
+    heartbeatIntervalSeconds: 30,
     diskMountRules: [],
   });
   const [messagingConfig, setMessagingConfig] = useState<MessagingNotificationConfig>({

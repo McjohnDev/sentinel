@@ -596,6 +596,9 @@ class GlobalThresholdsRequest(BaseModel):
     duration_seconds: Optional[int] = 300
     escalate_after_minutes: Optional[int] = 15
     disk_mount_rules: Optional[List[DiskMountRule]] = None
+    #: Cadence de battement du parc, en secondes. Bornée : au-delà du seuil de
+    #: bascule hors ligne, tous les hôtes passeraient en panne à chaque cycle.
+    heartbeat_interval_seconds: Optional[int] = None
 
     @validator('cpu_warning', 'cpu_critical', 'ram_warning', 'ram_critical', 'disk_warning', 'disk_critical')
     def validate_threshold(cls, v):
@@ -2330,6 +2333,22 @@ def patch_agent(
         elif field == "owner_user_id" and value:
             if not db.query(User.id).filter(User.id == value).first():
                 raise HTTPException(status_code=400, detail="Responsable inconnu")
+        elif field == "heartbeat_interval_seconds" and value is not None:
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Cadence invalide.")
+            ceiling = monitoring_plan.max_heartbeat_seconds()
+            if not (monitoring_plan.HEARTBEAT_MIN_SECONDS <= value <= ceiling):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Cadence hors bornes : attendu entre %d et %d secondes. "
+                        "Au-delà, l'hôte franchirait le seuil de bascule hors ligne "
+                        "à chaque cycle et serait affiché en panne en permanence."
+                        % (monitoring_plan.HEARTBEAT_MIN_SECONDS, ceiling)
+                    ),
+                )
         elif field == "admin_group_id" and value:
             if not db.query(AdminGroup.id).filter(AdminGroup.id == value).first():
                 raise HTTPException(status_code=400, detail="Équipe d'administration inconnue")
@@ -2347,6 +2366,11 @@ def patch_agent(
     agent.updated_at = datetime.utcnow()
     db.commit()
     cache_service.delete_pattern("agents:*")
+
+    # La cadence voyage dans le plan : sans republication, le réglage
+    # resterait affiché sans jamais atteindre la machine.
+    if "heartbeat_interval_seconds" in changes:
+        monitoring_plan.bump_version(db, agent)
 
     audit_logger.log_action(
         user_id=current_user.id,
@@ -2451,6 +2475,7 @@ def get_agent(request: Request, agent_id: str, current_user: User = Depends(requ
         "machine_type": agent.machine_type.value if hasattr(agent.machine_type, "value") else str(agent.machine_type or ""),
         # Caractéristiques constatées de l'hôte (point 2)
         "cpu_cores": agent.cpu_cores,
+        "heartbeat_interval_seconds": agent.heartbeat_interval_seconds,
         # Segmentation réseau : constaté par l'hôte, déclaré par
         # l'exploitation, déduit du plan d'adressage. Les trois, parce qu'ils
         # peuvent diverger — et cette divergence est justement ce qu'on veut
@@ -4793,6 +4818,11 @@ def get_global_thresholds(request: Request, current_user: User = Depends(require
         "disk_mount_rules": AlertService.parse_disk_mount_rules(getattr(settings, "disk_mount_rules", None)),
         "duration_seconds": settings.threshold_duration_seconds or 300,
         "escalate_after_minutes": settings.escalate_after_minutes or 15,
+        "heartbeat_interval_seconds": settings.heartbeat_interval_seconds or 30,
+        # Bornes rendues avec la valeur : l'interface ne doit pas coder en dur
+        # une limite qui dépend du seuil de bascule hors ligne du serveur.
+        "heartbeat_interval_min": monitoring_plan.HEARTBEAT_MIN_SECONDS,
+        "heartbeat_interval_max": monitoring_plan.max_heartbeat_seconds(),
         "updated_at": settings.updated_at
     }
 
@@ -4836,7 +4866,41 @@ def update_global_thresholds(request: Request, thresholds: GlobalThresholdsReque
             })
         settings.disk_mount_rules = json.dumps(cleaned)
 
+    republish = False
+    if thresholds.heartbeat_interval_seconds is not None:
+        wanted = int(thresholds.heartbeat_interval_seconds)
+        ceiling = monitoring_plan.max_heartbeat_seconds()
+        if not (monitoring_plan.HEARTBEAT_MIN_SECONDS <= wanted <= ceiling):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Cadence hors bornes : attendu entre %d et %d secondes. "
+                    "Au-delà, chaque hôte franchirait le seuil de bascule hors "
+                    "ligne à chaque cycle et serait affiché en panne en permanence."
+                    % (monitoring_plan.HEARTBEAT_MIN_SECONDS, ceiling)
+                ),
+            )
+        republish = wanted != int(settings.heartbeat_interval_seconds or 0)
+        settings.heartbeat_interval_seconds = wanted
+
     db.commit()
+
+    if republish:
+        # Seuls les hôtes qui suivent la cadence globale sont concernés :
+        # republier à ceux qui ont leur propre réglage les ferait réappliquer
+        # un plan inchangé, pour rien.
+        followers = (
+            db.query(Agent)
+            .filter(Agent.heartbeat_interval_seconds.is_(None))
+            .all()
+        )
+        for follower in followers:
+            follower.monitoring_version = int(follower.monitoring_version or 0) + 1
+        db.commit()
+        logger.info(
+            "Cadence globale portée à %s s — %d hôte(s) à resynchroniser.",
+            settings.heartbeat_interval_seconds, len(followers),
+        )
     db.refresh(settings)
 
     audit_logger.log_action(
