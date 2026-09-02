@@ -157,6 +157,15 @@ export interface Alert {
   acknowledgedBy?: string;
   acknowledgedAt?: string;
   comment?: string;
+  /** Verdict de la validation : l'incident est-il réel ? */
+  verdict?: 'real' | 'false_positive' | null;
+  /** Qui a la charge de l'alerte. */
+  assignedTo?: string | null;
+  assignedToUsername?: string | null;
+  assignedAt?: string | null;
+  assignedBy?: string | null;
+  /** Distinct de acknowledgedBy : valider et résoudre sont deux gestes. */
+  resolvedBy?: string | null;
   mailStatus?: string;
   webhookStatus?: string;
 }

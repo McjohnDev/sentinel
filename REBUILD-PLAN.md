@@ -63,7 +63,7 @@ deux moitiés, à rouvrir seulement si le point 6 le rend faux.
 | 6 | Métriques paramétrables par hôte | plan d'hôte + poussée au battement | réception + accusé | onglet Configuration | **livré** |
 | 7 | Prise en charge des métriques par l'agent | ingestion + alertes | `collectors` + inventaire | onglet Inventaire | **livré** |
 | 8 | Alerte mail + n8n, gabarit par vérification | gabarits + webhook signé | — | Courriels par vérification | **livré** |
-| 9 | Workflow de vérification, validation, prise en charge | `action_approvals`, `/api/approvals` | — | **retirée** | à revoir |
+| 9 | Workflow de vérification, validation, prise en charge | verdict + attribution sur l'alerte | — | tiroir d'alerte | **livré** |
 | 10 | Voir où et comment l'agent tourne sur l'OS | colonne `runtime_json` | supprimé | — | vide |
 | 11 | Mettre l'UI en accord avec le livré | — | — | — | continu |
 

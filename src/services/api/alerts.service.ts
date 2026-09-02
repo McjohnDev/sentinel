@@ -75,4 +75,15 @@ export const alertsService = {
     const events = response.data?.events;
     return Array.isArray(events) ? events : [];
   },
+
+  /**
+   * Prise en charge (point 9). `userId` à null rend l'alerte à personne.
+   *
+   * Distinct de l'acquittement : savoir qu'un incident est réel ne dit pas
+   * qui le traite, et une alerte validée sans responsable reste ouverte
+   * pendant que chacun suppose qu'un autre s'en occupe.
+   */
+  async assign(alertId: string, userId: string | null): Promise<void> {
+    await axiosInstance.post(`/alerts/${alertId}/assign`, { user_id: userId });
+  },
 };

@@ -438,6 +438,16 @@ class RefreshTokenResponse(BaseModel):
 
 class AcknowledgeAlertRequest(BaseModel):
     comment: Optional[str] = None
+    #: `real` ou `false_positive`. Un faux positif compte autant qu'un vrai :
+    #: une vérification qui crie pour rien doit se voir, sinon on ne la
+    #: corrige jamais et les opérateurs apprennent à ignorer ses alertes.
+    verdict: Optional[constr(max_length=20)] = None
+
+
+class AssignAlertRequest(BaseModel):
+    """Prise en charge. `user_id` vide rend l'alerte à personne."""
+
+    user_id: Optional[constr(max_length=64)] = None
 
 
 class ResolveAlertRequest(BaseModel):
@@ -2766,6 +2776,14 @@ def list_alerts(
                 "acknowledged_at": alert.acknowledged_at,
                 "acknowledged_by": alert.acknowledged_by,
                 "comment": alert.acknowledged_comment,
+                # Workflow interne (point 9) : verdict de validation, et qui
+                # a la charge de l'incident.
+                "verdict": alert.verdict,
+                "assigned_to": alert.assigned_to,
+                "assigned_to_username": alert.assignee.username if alert.assignee else None,
+                "assigned_at": alert.assigned_at,
+                "assigned_by": alert.assigned_by,
+                "resolved_by": alert.resolved_by,
                 "mail_status": alert.mail_status,
                 "webhook_status": alert.webhook_status,
             }
@@ -2830,12 +2848,22 @@ def acknowledge_alert(
     if alert.status != AlertStatus.OPEN:
         raise HTTPException(status_code=400, detail="Seules les alertes ouvertes peuvent être acquittées")
     
+    verdict = (ack_request.verdict or "").strip().lower() or None
+    if verdict is not None and verdict not in ("real", "false_positive"):
+        raise HTTPException(
+            status_code=400, detail="Verdict invalide : attendu 'real' ou 'false_positive'."
+        )
+
     alert.status = AlertStatus.ACKNOWLEDGED
     alert.acknowledged_at = datetime.utcnow()
     alert.acknowledged_by = current_user.username
     alert.acknowledged_comment = ack_request.comment
+    alert.verdict = verdict
     AlertService._record_event(
-        db, "acknowledged", alert_id=alert.id, agent_id=alert.agent_id, actor=current_user.username, comment=ack_request.comment
+        db,
+        "acknowledged" if verdict != "false_positive" else "dismissed_false_positive",
+        alert_id=alert.id, agent_id=alert.agent_id, actor=current_user.username,
+        comment=ack_request.comment,
     )
     
     db.commit()
@@ -2848,7 +2876,76 @@ def acknowledge_alert(
         "status": alert.status.value,
         "acknowledged_at": alert.acknowledged_at,
         "acknowledged_by": alert.acknowledged_by,
+        "verdict": alert.verdict,
         "message": "Alerte acquittée avec succès"
+    }
+
+
+@app.post("/api/alerts/{alert_id}/assign")
+@limiter.limit("50/minute")
+def assign_alert(
+    request: Request,
+    alert_id: str,
+    body: AssignAlertRequest,
+    current_user: User = Depends(require_operator_or_admin()),
+    db: Session = Depends(get_db),
+):
+    """Confie l'alerte à quelqu'un, ou la rend à personne (point 9).
+
+    Une alerte validée mais non attribuée n'appartient à personne — et c'est
+    ainsi qu'un incident reste ouvert pendant que chacun suppose qu'un autre
+    s'en occupe. L'attribution est donc distincte de la validation : savoir
+    qu'un incident est réel ne dit pas qui le traite.
+
+    Une alerte résolue n'est plus attribuable : lui donner un responsable
+    après coup ferait apparaître du travail à faire là où il n'y en a plus.
+    """
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerte non trouvée")
+    if alert.status in (AlertStatus.RESOLVED, AlertStatus.ARCHIVED):
+        raise HTTPException(
+            status_code=400, detail="Une alerte close ne peut plus être attribuée."
+        )
+
+    target_id = (body.user_id or "").strip() or None
+    assignee = None
+    if target_id:
+        assignee = db.query(User).filter(User.id == target_id).first()
+        if assignee is None:
+            raise HTTPException(status_code=400, detail="Utilisateur inconnu")
+        if not assignee.is_active:
+            # Confier un incident à un compte désactivé revient à ne le
+            # confier à personne, en donnant l'apparence du contraire.
+            raise HTTPException(
+                status_code=400, detail="Ce compte est désactivé : il ne peut pas prendre en charge une alerte."
+            )
+
+    alert.assigned_to = target_id
+    alert.assigned_at = datetime.utcnow() if target_id else None
+    alert.assigned_by = current_user.username if target_id else None
+
+    AlertService._record_event(
+        db,
+        "assigned" if target_id else "unassigned",
+        alert_id=alert.id,
+        agent_id=alert.agent_id,
+        actor=current_user.username,
+        comment=(assignee.username if assignee else None),
+    )
+    db.commit()
+
+    audit_logger.log_action(
+        user_id=current_user.id,
+        action="ASSIGN_ALERT" if target_id else "UNASSIGN_ALERT",
+        details="alerte=%s responsable=%s" % (alert_id, assignee.username if assignee else "-"),
+    )
+    return {
+        "id": alert.id,
+        "assigned_to": alert.assigned_to,
+        "assigned_to_username": assignee.username if assignee else None,
+        "assigned_at": alert.assigned_at,
+        "assigned_by": alert.assigned_by,
     }
 
 
@@ -2871,8 +2968,13 @@ def resolve_alert(
     
     alert.status = AlertStatus.RESOLVED
     alert.resolved_at = datetime.utcnow()
-    alert.acknowledged_by = current_user.username
-    alert.acknowledged_comment = resolve_request.comment
+    # `resolved_by`, et non `acknowledged_by` : écraser le second faisait
+    # qu'une alerte validée par l'un et résolue par l'autre ne gardait qu'un
+    # seul nom — celui du résolveur — et la trace de la validation
+    # disparaissait au moment où elle devenait un fait établi.
+    alert.resolved_by = current_user.username
+    if resolve_request.comment:
+        alert.acknowledged_comment = resolve_request.comment
     AlertService._record_event(
         db, "resolved", alert_id=alert.id, agent_id=alert.agent_id, actor=current_user.username, comment=resolve_request.comment
     )

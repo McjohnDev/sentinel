@@ -305,6 +305,13 @@ export class DataMapper {
       acknowledgedBy: backendAlert.acknowledged_by,
       acknowledgedAt: backendAlert.acknowledged_at,
       comment: backendAlert.comment,
+      verdict: (backendAlert as { verdict?: string }).verdict as Alert['verdict'],
+      assignedTo: (backendAlert as { assigned_to?: string | null }).assigned_to ?? null,
+      assignedToUsername:
+        (backendAlert as { assigned_to_username?: string | null }).assigned_to_username ?? null,
+      assignedAt: (backendAlert as { assigned_at?: string | null }).assigned_at ?? null,
+      assignedBy: (backendAlert as { assigned_by?: string | null }).assigned_by ?? null,
+      resolvedBy: (backendAlert as { resolved_by?: string | null }).resolved_by ?? null,
       mailStatus: backendAlert.mail_status,
       webhookStatus: backendAlert.webhook_status,
     };

@@ -6,6 +6,7 @@
 import React, { useMemo, useState } from 'react';
 import { MailCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { alertsService } from '../services/api/alerts.service';
 import { useI18n } from '../i18n';
 import { Alert, AlertSeverity, AlertStatus, AlertType } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -19,8 +20,11 @@ export const AlertsListView: React.FC = () => {
   const { t } = useI18n();
   const {
     alerts,
+    users,
     currentRole,
     currentUser,
+    addToast,
+    refreshData,
     acknowledgeAlert,
     acknowledgeAllAlerts,
     resolveAlert,
@@ -173,6 +177,29 @@ export const AlertsListView: React.FC = () => {
         onResolve={(a) => {
           setDrawer(null);
           setResolveTarget(a);
+        }}
+        // Seuls les comptes actifs peuvent prendre en charge : confier un
+        // incident à un compte désactivé revient à ne le confier à personne,
+        // en donnant l'apparence du contraire. Le serveur le refuse aussi.
+        assignables={users
+          .filter((u) => u.status === 'active')
+          .map((u) => ({ id: u.id, name: u.name }))}
+        onAssign={async (a, userId) => {
+          try {
+            await alertsService.assign(a.id, userId);
+            refreshData();
+            addToast({
+              type: 'success',
+              title: userId ? 'Alerte attribuée' : 'Attribution retirée',
+              message: a.message,
+            });
+          } catch {
+            addToast({
+              type: 'error',
+              title: 'Attribution impossible',
+              message: 'Vérifier que le compte est actif et l’alerte encore ouverte.',
+            });
+          }
         }}
         onOpenHost={(id) => {
           setDrawer(null);

@@ -377,6 +377,26 @@ class Alert(Base):
     acknowledged_at = Column(DateTime, nullable=True)
     acknowledged_by = Column(String, nullable=True)  # User ID
     acknowledged_comment = Column(String, nullable=True)
+
+    # --- Workflow interne : validation, prise en charge, résolution (point 9)
+    #: Verdict de la validation : l'alerte décrit-elle un incident réel ?
+    #: `false_positive` compte autant que `real` — une vérification qui crie
+    #: pour rien doit se voir, sinon on la corrige jamais et les opérateurs
+    #: apprennent à ignorer ses alertes.
+    verdict = Column(String, nullable=True)  # real | false_positive
+    #: Qui a la charge de l'alerte. Une alerte validée mais non attribuée
+    #: n'appartient à personne, et c'est ainsi qu'un incident reste ouvert
+    #: pendant que chacun suppose qu'un autre s'en occupe.
+    assigned_to = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    assigned_at = Column(DateTime, nullable=True)
+    assigned_by = Column(String, nullable=True)
+    #: Distinct de `acknowledged_by` : la résolution écrasait jusqu'ici le nom
+    #: de celui qui avait validé, si bien qu'une alerte validée par l'un et
+    #: résolue par l'autre n'en gardait qu'un seul — le mauvais.
+    resolved_by = Column(String, nullable=True)
+
+    #: Chargé de l'alerte, pour afficher un nom plutôt qu'un identifiant.
+    assignee = relationship("User", foreign_keys=[assigned_to])
     
     archived_at = Column(DateTime, nullable=True)
     mail_status = Column(String, nullable=True)  # pending|sent|failed|skipped

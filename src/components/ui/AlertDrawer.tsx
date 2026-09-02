@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Alert } from '../../types';
 import { alertsService, AlertTimelineEvent } from '../../services/api/alerts.service';
 import { alertStatusMeta, deliveryMeta, sevMeta } from './tones';
@@ -9,6 +9,9 @@ interface AlertDrawerProps {
   onClose: () => void;
   onAck: (alert: Alert) => void;
   onResolve: (alert: Alert) => void;
+  /** Comptes pouvant prendre en charge une alerte. */
+  assignables?: Array<{ id: string; name: string }>;
+  onAssign?: (alert: Alert, userId: string | null) => void;
   onOpenHost: (agentId: string) => void;
   canAck: boolean;
 }
@@ -39,6 +42,8 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
   onClose,
   onAck,
   onResolve,
+  assignables = [],
+  onAssign,
   onOpenHost,
   canAck,
 }) => {
@@ -158,6 +163,65 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
 
           {/* Livraison des notifications — état réel écrit par le serveur
               (sent / failed / skipped / pending), pas une valeur décorative. */}
+          {/* Workflow interne (point 9). Trois moments distincts : le verdict
+              dit si l'incident est réel, la prise en charge dit qui le traite.
+              Une alerte validée sans responsable reste ouverte pendant que
+              chacun suppose qu'un autre s'en occupe. */}
+          <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-3.5 mt-2">
+            Traitement
+          </div>
+          <div className="space-y-2.5 mb-5">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12.5px] text-slate-700 flex-1">Validation</span>
+              {alert.verdict === 'real' ? (
+                <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                  incident réel
+                </span>
+              ) : alert.verdict === 'false_positive' ? (
+                <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                  faux positif
+                </span>
+              ) : (
+                <span className="text-[12px] text-slate-400">non prononcée</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12.5px] text-slate-700 flex-1">Prise en charge</span>
+              {onAssign && !resolved ? (
+                <select
+                  value={alert.assignedTo || ''}
+                  onChange={(e) => onAssign(alert, e.target.value || null)}
+                  className="cbc-input py-1 text-[12.5px] max-w-[190px]"
+                >
+                  <option value="">Personne</option>
+                  {assignables.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-[12.5px] text-slate-700">
+                  {alert.assignedToUsername || <span className="text-amber-700">non attribuée</span>}
+                </span>
+              )}
+            </div>
+
+            {alert.acknowledgedBy && (
+              <div className="flex items-center gap-2.5">
+                <span className="text-[12.5px] text-slate-700 flex-1">Validée par</span>
+                <span className="text-[12.5px] text-slate-600">{alert.acknowledgedBy}</span>
+              </div>
+            )}
+            {alert.resolvedBy && (
+              <div className="flex items-center gap-2.5">
+                <span className="text-[12.5px] text-slate-700 flex-1">Résolue par</span>
+                <span className="text-[12.5px] text-slate-600">{alert.resolvedBy}</span>
+              </div>
+            )}
+          </div>
+
           <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-3.5 mt-2">
             Notifications
           </div>
@@ -194,10 +258,7 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
           <button type="button" onClick={() => onOpenHost(alert.agentId)} className="cbc-btn-secondary">
             Voir l'hôte
           </button>
-          <button type="button" className="cbc-btn-secondary ml-auto">
-            Lancer un scénario
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
+
         </div>
       </aside>
     </>
