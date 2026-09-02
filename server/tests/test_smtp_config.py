@@ -429,3 +429,53 @@ def test_no_channel_at_all_reports_no_delivery(db):
     assert MessagingService.send_alert_notification(
         alert_type="cpu_high", severity="major", message="CPU", hostname="web-01", db=db,
     ) is False
+
+
+# --------------------------------------------- verification du certificat
+
+
+def test_the_certificate_is_verified_by_default(db):
+    """L'abaissement doit etre un geste, jamais un etat initial."""
+    _enabled(db)
+    assert email_service.describe(email_service.load_config(db))["verify_cert"] is True
+
+
+def test_the_context_verifies_when_the_option_is_on(db):
+    import ssl
+
+    cfg = _enabled(db, smtp_encryption="starttls")
+    context = email_service._tls_context(cfg)
+
+    assert context.check_hostname is True
+    assert context.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_turning_it_off_stops_verifying(db):
+    """Un relais interne auto-signe : sans cela, aucune alerte ne part."""
+    import ssl
+
+    cfg = _enabled(db, smtp_encryption="starttls", smtp_verify_cert=False)
+    context = email_service._tls_context(cfg)
+
+    assert context.check_hostname is False
+    assert context.verify_mode == ssl.CERT_NONE
+
+
+def test_the_choice_survives_a_save(db):
+    client = _client(db)
+    _enabled(db)
+
+    client.put("/api/settings/smtp", json={"verify_cert": False})
+
+    assert client.get("/api/settings/smtp").json()["verify_cert"] is False
+
+
+def test_a_configuration_predating_the_option_still_verifies(db):
+    """Une base anterieure rend `None` ; l'absence de reglage ne vaut pas renoncement."""
+    cfg = _enabled(db, smtp_encryption="starttls")
+    cfg.smtp_verify_cert = None
+    db.commit()
+
+    import ssl
+
+    assert email_service._tls_context(cfg).verify_mode == ssl.CERT_REQUIRED

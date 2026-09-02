@@ -312,6 +312,14 @@ export interface SmtpConfig {
   encryption: string;
   from_address: string | null;
   from_name: string | null;
+  /**
+   * Vérifier le certificat du relais lors du STARTTLS.
+   *
+   * Un relais interne présente souvent un certificat auto-signé, que la
+   * vérification rejette — et aucune alerte ne part. Le décocher garde le
+   * trafic chiffré mais n'atteste plus l'identité du serveur.
+   */
+  verify_cert: boolean;
 }
 
 /** Relais SMTP interne — second canal d'alerte, à côté de l'API Mail CBC. */

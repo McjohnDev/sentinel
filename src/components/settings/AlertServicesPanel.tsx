@@ -67,6 +67,7 @@ export const AlertServicesPanel: React.FC = () => {
         encryption: cfg.encryption,
         from_address: cfg.from_address || '',
         from_name: cfg.from_name || '',
+        verify_cert: cfg.verify_cert,
         // Champ laissé vide = mot de passe conservé. L'envoyer vide
         // l'effacerait à chaque enregistrement.
         ...(password ? { password } : {}),
@@ -169,6 +170,22 @@ export const AlertServicesPanel: React.FC = () => {
               ))}
             </select>
           </Field>
+          {/* Un relais interne presente souvent un certificat auto-signe : la
+              verification echoue alors et plus aucune alerte ne part. Le choix
+              est pose explicitement plutot que contourne en silence, parce
+              qu'il abaisse reellement une garantie. */}
+          <Field label="Certificat du relais">
+            <label className="inline-flex items-start gap-2 text-[12.5px] mt-2">
+              <input
+                type="checkbox"
+                checked={cfg.verify_cert !== false}
+                disabled={!isAdmin || busy || cfg.encryption === 'none'}
+                onChange={(e) => patch({ verify_cert: e.target.checked })}
+                className="mt-0.5"
+              />
+              <span>Vérifier le certificat</span>
+            </label>
+          </Field>
           <Field label="Authentification">
             <label className="inline-flex items-center gap-2 text-[12.5px] mt-2">
               <input
@@ -234,6 +251,18 @@ export const AlertServicesPanel: React.FC = () => {
               Authentification demandée sans chiffrement : l’identifiant et le mot de
               passe circulent en clair sur le réseau. Acceptable sur un lien interne
               maîtrisé ; préférer STARTTLS si le relais le propose.
+            </p>
+          </div>
+        )}
+
+        {cfg.verify_cert === false && cfg.encryption !== 'none' && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+            <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            <p className="text-[12px] text-amber-900 m-0">
+              Certificat non vérifié : le trafic reste chiffré, mais la plateforme
+              ne distingue plus le vrai relais d’un serveur qui s’en réclamerait.
+              Nécessaire tant que le relais présente un certificat auto-signé.
+              Faire signer ce certificat par l’autorité interne, puis recocher.
             </p>
           </div>
         )}

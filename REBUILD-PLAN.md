@@ -357,6 +357,61 @@ précisément la raison pour laquelle l'acquittement n'est pas facultatif.
 
 **Hors périmètre :** mesurer d'après ce plan. C'est le point 7.
 
+### Relance des alertes ouvertes — livré le 2 septembre 2026
+
+Demande ajoutée en cours de route : *« mail reminder at 3hrs defaults, mais
+configurable même par alerte »*.
+
+Une alerte notifiée une fois puis oubliée ne vaut guère mieux qu'une alerte
+jamais émise. Un rappel périodique part donc tant qu'elle reste ouverte.
+
+| Réglage | Où | Valeur |
+|---|---|---|
+| Parc entier | Paramètres → Seuils globaux | 3 h par défaut, `0` coupe tout |
+| Une alerte | Tiroir d'alerte → Relance par courriel | 30 min à 1 jour, ou plus du tout |
+
+Trois décisions valent d'être notées, parce qu'elles auraient pu être prises
+autrement :
+
+- **Le décompte repart du dernier message**, pas de l'ouverture. Sans cela, un
+  délai raccourci de trois heures à une demi-heure déclencherait aussitôt un
+  rappel pour un incident vieux de deux jours.
+- **La prise en charge n'interrompt pas la relance.** L'alerte attribuée puis
+  oubliée est exactement le cas que ce rappel existe pour rattraper ; l'arrêter
+  à l'acquittement le rendrait sans effet, puisqu'on acquitte immédiatement.
+  Seule la résolution y met fin.
+- **Le réglage vit sur l'alerte, pas sur la vérification.** C'est en traitant
+  un incident qu'on sait s'il mérite un rappel rapproché ou aucun, et ce
+  jugement ne vaut pas pour toutes les alertes du même type.
+
+Le courriel porte un préfixe `[RELANCE n]` et un bandeau : sans marque, une
+relance se lit comme un second incident et fait rouvrir une investigation déjà
+en cours. Le gabarit par vérification reste celui de l'exploitant — on le
+préfixe plutôt que de le remplacer, faute de quoi il faudrait maintenir deux
+mises en forme par vérification, qui divergeraient.
+
+Une fenêtre de maintenance suspend la relance sans la perdre. Un plancher d'un
+quart d'heure empêche que le rappel devienne du harcèlement : passé un certain
+rythme, l'opérateur apprend à filtrer les messages de la plateforme, et c'est
+la notification initiale qui se perd avec eux.
+
+23 tests (`server/tests/test_alert_reminders.py`).
+
+### Prise en charge — correction du 2 septembre 2026
+
+Signalé à l'usage : *« Attribuer à, n'attribue pas réellement »*. Le geste
+aboutissait pourtant côté serveur. Deux causes indépendantes se cumulaient :
+
+1. `refreshData()` ne rechargeait rien. Il parcourait les hôtes en mémoire pour
+   leur réécrire un horodatage, puis affichait « Données actualisées ». Le nom
+   et le message affirmaient tous deux le contraire de ce que la fonction
+   faisait.
+2. Le tiroir conservait l'alerte telle qu'elle était à son ouverture. Même un
+   rechargement réel n'aurait rien changé à l'écran.
+
+Le vrai `refreshFleet` est exposé, et le tiroir lit l'alerte vivante dans la
+liste plutôt qu'un instantané.
+
 ### Déjà acquis, à ne pas réécrire
 
 - **Identifiant d'hôte** — `server/src/agent_identity.py` produit déjà
@@ -409,24 +464,22 @@ Audit, Paramètres, Profil, Connexion.
 
 ## Ce qui bloque
 
-### 1. La suite de tests serveur se fige — bloque la CI
+### 1. La suite de tests serveur se figeait — résolu le 1er septembre
 
-`pytest server/tests` s'arrête invariablement après **33 tests**, sur
-`test_agent_uninstall.py::test_deregister_marks_instead_of_deleting`, et
-n'avance plus.
+`pytest server/tests` s'arrêtait invariablement après **33 tests** et n'avançait
+plus. Cause : `server/tests/load_test.py` correspondait au motif de collecte par
+défaut `*_test.py`. Le collecter importait Locust, qui applique le
+*monkey-patching* gevent sur `ssl`, `socket` et `threading` — **après** que la
+suite ait importé ces modules. Le portail bloquant d'anyio, sur lequel repose
+`TestClient`, attendait alors indéfiniment.
 
-Établi : le processus consomme environ 0,1 s de CPU pendant que le temps
-s'écoule — il est **bloqué sur une entrée-sortie**, pas en calcul. Les trois
-fichiers concernés passent ensemble en 13 s ; le blocage n'apparaît qu'avec la
-suite complète. `--timeout=30 --timeout-method=thread` ne se déclenche jamais :
-le blocage est donc **hors du corps d'un test**. `test_api.py` — dernier
-fichier sur le `test.db` partagé — a été écarté sans effet.
-
-Non reproduit sous Linux à ce jour. La CI tourne sous Linux et tranchera.
+Corrigé en deux gestes : le fichier est parti sous
+`tools/load_test/locustfile.py` (ce n'est pas un test, il ne doit pas être
+collecté), et `pyproject.toml` fixe `python_files = ["test_*.py"]` pour que le
+motif `*_test.py` ne rattrape plus rien d'autre par accident.
 
 > Piège de diagnostic : la sortie de pytest est bufferisée par bloc. Sans
-> `python -u`, une suite en bonne santé ressemble à un blocage. Toujours
-> `python -u -m pytest`.
+> `python -u`, une suite en bonne santé ressemble à un blocage.
 
 ### 2. Workflow CI invalide — corrigé
 
@@ -435,34 +488,43 @@ Non reproduit sous Linux à ce jour. La CI tourne sous Linux et tranchera.
 deux-points, que YAML refuse. Le fichier était donc **invalide depuis son
 ajout et n'a jamais pu s'exécuter**, malgré son envoi sur le dépôt. Corrigé
 par mise entre guillemets ; le document se lit désormais et expose trois
-tâches : `linux-tests`, `lint`, `dashboard`.
+tâches : `linux-tests`, `lint`, `dashboard`. Les trois passent.
 
-Le job `agent-os-matrix` est retiré avec l'implémentation de l'agent : il
-lançait `agent/tests/test_os_smoke.py` et construisait un bundle PyInstaller
-à partir de modules supprimés. Il revient avec le point 7.
+### 3. Dette pré-existante — résorbée
 
-Le service `agent` de `docker/docker-compose.yml` est commenté pour la même
-raison : `docker compose up` démarre la plateforme sans agent.
+`ruff` signalait 3 clés de dictionnaire dupliquées dans `server/src/main.py`
+(`ram_total_gb` ligne 1798, `disk_total_gb` et `ram_total_gb` ligne 2304).
+Python conserve la dernière liaison : la fiche d'hôte réécrivait la valeur
+d'inventaire avec celle du dernier battement, si bien qu'un hôte fraîchement
+enrôlé — qui n'a pas encore battu — affichait `None` là où l'inventaire avait
+la donnée. Corrigé par repli sur la valeur d'inventaire. `ruff` est propre.
 
-### 3. Dette pré-existante
+### 4. Le relais SMTP présente un certificat auto-signé — contourné, à trancher
 
-`ruff` signale 3 erreurs dans `server/src/main.py` : des clés de dictionnaire
-dupliquées. Vérifié par analyse syntaxique (`ast`) plutôt qu'à l'œil :
+Le relais interne (`smtp.gie.local`, Exchange) n'annonce `AUTH NTLM` que sur le
+port 25 en clair — inutilisable depuis `smtplib` — et `NTLM LOGIN` après
+STARTTLS. STARTTLS est donc obligatoire, mais son certificat n'est signé par
+aucune autorité connue et la vérification échouait : **aucune alerte ne
+partait**.
 
-| Dictionnaire | Clés en double |
-|---|---|
-| ligne 1798 | `ram_total_gb` |
-| ligne 2304 | `disk_total_gb`, `ram_total_gb` |
+Une option explicite `smtp_verify_cert` (vraie par défaut) permet de l'accepter.
+Le trafic reste chiffré — le mot de passe ne circule plus en clair — mais
+l'identité du relais n'est plus attestée : la plateforme ne distingue plus le
+vrai relais d'un interlocuteur qui s'en réclamerait. Acceptable sur un lien
+interne maîtrisé, et c'est un choix qui doit rester celui de l'exploitant, d'où
+le réglage plutôt qu'un contournement silencieux.
 
-Python conserve la **dernière** liaison. Conséquence concrète : la fiche
-d'hôte (dict de la ligne 2304) expose `"disk_total_gb": agent.disk_total_gb`
-en 2322, puis la réécrit en 2352 avec la valeur du dernier battement. La
-colonne d'inventaire `agents.disk_total_gb` est donc **écrite mais jamais
-lue** — `grep -rn "agent\.disk_total_gb" server/` ne rend que cette ligne
-masquée. Ce n'est pas visible pour un exploitant aujourd'hui, mais c'est une
-donnée entretenue pour rien et une clé qui ment sur sa source.
+**À faire côté infrastructure :** faire signer le certificat du relais par
+l'autorité interne, puis remettre la vérification. Tant que ce n'est pas fait,
+la case reste décochée.
 
-Antérieur à cette reprise ; la tâche `lint` de la CI échouera dessus.
+### 5. Destinataires d'alerte non renseignés
+
+`recipients` est vide. Aucun canal — API Mail CBC ou relais SMTP — ne peut
+livrer quoi que ce soit tant qu'aucune adresse n'est saisie, et l'échec se
+produit **avant** que le canal soit sollicité. L'écran des services d'alerte le
+signale désormais explicitement plutôt que de laisser croire à une panne de
+relais.
 
 ---
 
@@ -486,7 +548,7 @@ un dépôt neuf plutôt qu'une reprise de ce travail, le dire avant de pousser.
 ## Voir le produit tourner sur un poste
 
 ```powershell
-.\scriptsun-test-agent.ps1 -Token demo-token-123
+.\scripts\run-test-agent.ps1 -Token demo-token-123
 ```
 
 Enrôle ce poste auprès d'une plateforme de test et fait battre l'agent
