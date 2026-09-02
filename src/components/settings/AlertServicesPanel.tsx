@@ -299,15 +299,22 @@ export const AlertServicesPanel: React.FC = () => {
           <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-[12.5px] text-slate-700">
             <p className="m-0 font-semibold">
-              Les destinataires sont communs aux deux canaux.
+              Les destinataires ne se saisissent pas ici.
             </p>
             <p className="m-0 mt-1.5">
-              Un relais correctement réglé n’envoie rien tant qu’aucun destinataire
-              n’est défini : la liste se saisit dans{' '}
-              <strong>Notifications API CBC</strong>, et gouverne aussi bien l’API que
-              ce relais SMTP. C’est la cause la plus fréquente d’une alerte qui
-              n’arrive pas alors que l’essai d’envoi aboutit — l’essai, lui, part vers
-              l’adresse de l’administrateur connecté.
+              Une alerte part au <strong>responsable de l’hôte</strong> et aux membres
+              de l’<strong>équipe responsable</strong> — leur adresse vient de
+              l’annuaire, elle suit donc les mouvements de poste. Les copies se
+              saisissent hôte par hôte, dans l’onglet <strong>Configuration</strong> de
+              sa fiche, à côté du plan de surveillance.
+            </p>
+            <p className="m-0 mt-1.5">
+              Un hôte sans responsable ni équipe n’alerte personne : sa fiche le dit en
+              toutes lettres. C’est la cause la plus fréquente d’une alerte qui n’arrive
+              pas alors que l’essai d’envoi aboutit — l’essai, lui, part vers l’adresse
+              de l’administrateur connecté. La liste de{' '}
+              <strong>Notifications API CBC</strong> ne sert plus que de filet, pour les
+              hôtes à qui personne n’a encore été attribué.
             </p>
           </div>
         </div>

@@ -518,13 +518,31 @@ le réglage plutôt qu'un contournement silencieux.
 l'autorité interne, puis remettre la vérification. Tant que ce n'est pas fait,
 la case reste décochée.
 
-### 5. Destinataires d'alerte non renseignés
+### 5. Destinataires d'alerte — résolu le 2 septembre 2026
 
-`recipients` est vide. Aucun canal — API Mail CBC ou relais SMTP — ne peut
-livrer quoi que ce soit tant qu'aucune adresse n'est saisie, et l'échec se
-produit **avant** que le canal soit sollicité. L'écran des services d'alerte le
-signale désormais explicitement plutôt que de laisser croire à une panne de
-relais.
+`recipients` était vide et bloquait tout envoi, quel que soit le canal. Mais
+cette liste globale n'aurait de toute façon pas dû être le mécanisme principal :
+tenue à la main, elle diverge le jour où quelqu'un change de poste, et les
+alertes continuent de partir vers une personne qui n'a plus la machine en
+charge, sans que rien ne le signale.
+
+Le destinataire est désormais **le responsable de l'hôte** et les membres de
+l'**équipe responsable**, dont l'adresse vient de l'annuaire. Les copies se
+saisissent hôte par hôte, dans l'onglet Configuration de sa fiche.
+
+Au passage, un défaut qui ne s'était jamais vu : l'équipe responsable était
+purement et simplement ignorée. Un hôte confié à une équipe plutôt qu'à une
+personne n'alertait personne, alors que l'attribution s'affichait comme faite.
+
+Vérifié sur la plateforme en service :
+
+| Hôte | Responsable | Équipe | Destinataires |
+|---|---|---|---|
+| `B20E58` | jkoum (annuaire) | Équipe Monétique | jkoum@groupecommercialbank.com, operator@cbcam.cm |
+| `587A2B` | aucun | Équipe Monétique | operator@cbcam.cm |
+
+La liste globale ne sert plus que de filet, pour un hôte sans responsable ni
+équipe.
 
 ---
 
