@@ -6,11 +6,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { PageHeader } from '../components/layout/PageHeader';
+import { LdapImportModal } from '../components/settings/LdapImportModal';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { User, Role } from '../types';
 import {
   Users,
+  Building2,
   UserPlus,
   Pencil,
   Trash2,
@@ -24,13 +26,14 @@ import {
 } from 'lucide-react';
 
 export const UsersView: React.FC = () => {
-  const { users, currentRole, createUser, updateUser, deleteUser } = useApp();
+  const { users, currentRole, createUser, updateUser, deleteUser, refreshData } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [ldapOpen, setLdapOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
@@ -139,15 +142,35 @@ export const UsersView: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      <LdapImportModal
+        open={ldapOpen}
+        onClose={() => setLdapOpen(false)}
+        onImported={() => refreshData()}
+      />
       <PageHeader
         title="Utilisateurs"
         subtitle="Comptes et rôles d'accès à la plateforme CBC Supervision."
         primaryAction={
           currentRole === 'Admin' ? (
-            <button type="button" onClick={handleOpenCreateModal} className="cbc-btn-primary">
-              <UserPlus className="w-4 h-4" />
-              Créer un utilisateur
-            </button>
+            <div className="flex items-center gap-2">
+              {/* L'import d'annuaire précède la création locale : sur un parc
+                  bancaire, la plupart des comptes existent déjà côté annuaire,
+                  et en recréer un localement ferait détenir un mot de passe
+                  que la plateforme n'a pas à connaître. */}
+              <button
+                type="button"
+                onClick={() => setLdapOpen(true)}
+                className="cbc-btn-secondary"
+                title="Créer un compte à partir de l'annuaire, sans mot de passe local"
+              >
+                <Building2 className="w-4 h-4" />
+                Importer depuis l’annuaire
+              </button>
+              <button type="button" onClick={handleOpenCreateModal} className="cbc-btn-primary">
+                <UserPlus className="w-4 h-4" />
+                Compte local
+              </button>
+            </div>
           ) : undefined
         }
       />

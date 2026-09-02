@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { UserCheck, X } from 'lucide-react';
 import { Alert } from '../../types';
 import { alertsService, AlertTimelineEvent } from '../../services/api/alerts.service';
 import { alertStatusMeta, deliveryMeta, sevMeta } from './tones';
@@ -12,6 +12,8 @@ interface AlertDrawerProps {
   /** Comptes pouvant prendre en charge une alerte. */
   assignables?: Array<{ id: string; name: string }>;
   onAssign?: (alert: Alert, userId: string | null) => void;
+  /** Compte connecté, pour proposer « M'attribuer » — le geste le plus courant. */
+  currentUserId?: string | null;
   onOpenHost: (agentId: string) => void;
   canAck: boolean;
 }
@@ -44,6 +46,7 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
   onResolve,
   assignables = [],
   onAssign,
+  currentUserId,
   onOpenHost,
   canAck,
 }) => {
@@ -186,25 +189,62 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
               )}
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <span className="text-[12.5px] text-slate-700 flex-1">Prise en charge</span>
-              {onAssign && !resolved ? (
-                <select
-                  value={alert.assignedTo || ''}
-                  onChange={(e) => onAssign(alert, e.target.value || null)}
-                  className="cbc-input py-1 text-[12.5px] max-w-[190px]"
-                >
-                  <option value="">Personne</option>
-                  {assignables.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Bloc mis en avant plutôt qu'une ligne parmi d'autres : une
+                alerte sans responsable reste ouverte pendant que chacun
+                suppose qu'un autre s'en occupe. L'état « non attribuée » doit
+                sauter aux yeux, et l'action être à portée immédiate. */}
+            <div
+              className={`rounded-xl border p-3 ${
+                alert.assignedToUsername
+                  ? 'bg-emerald-50/60 border-emerald-200'
+                  : 'bg-amber-50 border-amber-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <UserCheck
+                  className={`w-4 h-4 ${alert.assignedToUsername ? 'text-emerald-700' : 'text-amber-700'}`}
+                />
+                <span className="text-[12.5px] font-bold">Prise en charge</span>
+              </div>
+
+              {alert.assignedToUsername ? (
+                <p className="text-[13px] m-0 mb-2">
+                  <strong>{alert.assignedToUsername}</strong>
+                  {alert.assignedBy ? (
+                    <span className="text-slate-500"> — confiée par {alert.assignedBy}</span>
+                  ) : null}
+                </p>
               ) : (
-                <span className="text-[12.5px] text-slate-700">
-                  {alert.assignedToUsername || <span className="text-amber-700">non attribuée</span>}
-                </span>
+                <p className="text-[12.5px] text-amber-900 m-0 mb-2">
+                  Personne n’en a la charge. Tant qu’elle n’est attribuée à personne,
+                  cette alerte reste ouverte sans que quiconque s’en occupe.
+                </p>
+              )}
+
+              {onAssign && !resolved && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentUserId && alert.assignedTo !== currentUserId && (
+                    <button
+                      type="button"
+                      onClick={() => onAssign(alert, currentUserId)}
+                      className="cbc-btn-primary py-1.5 px-3 text-[12.5px]"
+                    >
+                      M’attribuer
+                    </button>
+                  )}
+                  <select
+                    value={alert.assignedTo || ''}
+                    onChange={(e) => onAssign(alert, e.target.value || null)}
+                    className="cbc-input py-1.5 text-[12.5px] flex-1 min-w-[150px]"
+                  >
+                    <option value="">Confier à…</option>
+                    {assignables.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 

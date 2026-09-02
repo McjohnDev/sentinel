@@ -13,6 +13,17 @@ export interface CreateUserRequest {
   role: string;
 }
 
+export interface LdapCandidate {
+  username: string;
+  email?: string | null;
+  display_name?: string | null;
+  dn: string;
+  department?: string | null;
+  title?: string | null;
+  suggested_role: string;
+  already_imported: boolean;
+}
+
 export interface UpdateUserRequest {
   username?: string;
   email?: string;
@@ -110,6 +121,29 @@ export const usersService = {
       current_password: currentPassword,
       new_password: newPassword,
     });
+  },
+
+  /**
+   * Recherche dans l'annuaire, pour importer un compte existant.
+   *
+   * Distinct de l'authentification : celle-ci refuse plusieurs résultats,
+   * parce qu'un filtre ambigu connecterait un homonyme. Ici l'administrateur
+   * cherche une personne et doit justement voir les homonymes pour choisir.
+   */
+  async searchLdap(term: string): Promise<LdapCandidate[]> {
+    const { data } = await axiosInstance.get('/settings/ldap/search', { params: { q: term } });
+    return data.data || [];
+  },
+
+  /**
+   * Crée le compte miroir d'un compte d'annuaire.
+   *
+   * Aucun mot de passe n'est enregistré : l'authentification reste à
+   * l'annuaire, et la révocation y reste immédiate.
+   */
+  async importFromLdap(username: string, role?: string): Promise<{ username: string; role: string }> {
+    const { data } = await axiosInstance.post('/settings/ldap/import', { username, role });
+    return data;
   },
 
   async deleteUser(id: string): Promise<void> {

@@ -181,6 +181,7 @@ export const AlertsListView: React.FC = () => {
         // Seuls les comptes actifs peuvent prendre en charge : confier un
         // incident à un compte désactivé revient à ne le confier à personne,
         // en donnant l'apparence du contraire. Le serveur le refuse aussi.
+        currentUserId={currentUser?.id ?? null}
         assignables={users
           .filter((u) => u.status === 'active')
           .map((u) => ({ id: u.id, name: u.name }))}

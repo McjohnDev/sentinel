@@ -9,6 +9,7 @@ import { ArrowLeft, Lock, RefreshCw } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { agentsService } from '../services/api/agents.service';
+import { alertsService } from '../services/api/alerts.service';
 import { AgentRuntimePanel } from '../components/agents/AgentRuntimePanel';
 import { EditableAgentField } from '../components/agents/EditableAgentField';
 import { AgentOwnerField } from '../components/agents/AgentOwnerField';
@@ -34,6 +35,24 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+/**
+ * Périodes du graphe de métriques.
+ *
+ * Le pas suit la fenêtre : une heure au pas de la minute montre les
+ * variations réelles, sept jours au pas de l'heure restent lisibles. Une
+ * fenêtre de 24 h au pas de 5 minutes — l'ancien réglage figé — rendait un
+ * hôte fraîchement enrôlé parfaitement plat, faute de données sur la majeure
+ * partie de la période.
+ */
+const RANGES = [
+  { id: '1h', label: '1 h', hours: 1, step: '1m' },
+  { id: '6h', label: '6 h', hours: 6, step: '2m' },
+  { id: '24h', label: '24 h', hours: 24, step: '5m' },
+  { id: '7d', label: '7 j', hours: 168, step: '1h' },
+] as const;
+
+type RangeId = (typeof RANGES)[number]['id'];
+
 export const AgentDetailView: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -43,6 +62,10 @@ export const AgentDetailView: React.FC = () => {
     alerts,
     currentRole,
     globalThresholds,
+    users,
+    currentUser,
+    addToast,
+    refreshData,
     revokeAgent,
     deleteAgent,
     acknowledgeAlert,
@@ -66,6 +89,9 @@ export const AgentDetailView: React.FC = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [history, setHistory] = useState<Array<{ t: string; cpu?: number; ram?: number; disk?: number }>>([]);
+  // Une heure par défaut : c'est la fenêtre utile pour diagnostiquer, et la
+  // seule qui montre quelque chose sur un hôte enrôlé depuis peu.
+  const [range, setRange] = useState<RangeId>('1h');
   // Pas de valeur par défaut : pré-remplir avec un nom de service inventé
   // laissait croire que cet hôte l'héberge. L'opérateur saisit le sien.
 
@@ -158,14 +184,28 @@ export const AgentDetailView: React.FC = () => {
       { key: 'ram' as const, name: 'memory.used.percent' },
       { key: 'disk' as const, name: 'disk.used.percent' },
     ];
-    Promise.all(names.map(async ({ key, name }) => ({ key, res: await agentsService.getAgentMetricHistory(agent.id, { name, hours: 24, step: '5m' }) })))
+    const window = RANGES.find((r) => r.id === range) || RANGES[0];
+    Promise.all(
+      names.map(async ({ key, name }) => ({
+        key,
+        res: await agentsService.getAgentMetricHistory(agent.id, {
+          name,
+          hours: window.hours,
+          step: window.step,
+        }),
+      }))
+    )
       .then((rows) => {
         if (cancelled) return;
         const byTs: Record<string, { t: string; cpu?: number; ram?: number; disk?: number }> = {};
         for (const { key, res } of rows) {
           for (const series of res.result || []) {
             for (const p of series.points || []) {
-              const t = new Date(p.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const moment = new Date(p.ts);
+              const t =
+                window.hours > 24
+                  ? moment.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
+                  : moment.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               byTs[p.ts] = { ...(byTs[p.ts] || { t }), [key]: p.value };
             }
           }
@@ -176,7 +216,7 @@ export const AgentDetailView: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [agent?.id, tab]);
+  }, [agent?.id, tab, range]);
 
   if (!id || (loadError && !agent)) {
     return (
@@ -470,21 +510,58 @@ export const AgentDetailView: React.FC = () => {
       )}
 
       {tab === 'metriques' && (
-        <div className="cbc-card p-5 h-80">
-          {history.length === 0 ? (
-            <p className="text-sm text-slate-500">Historique TSDB indisponible — affichage des jauges live uniquement.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={history}>
-                <XAxis dataKey="t" tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="cpu" stroke="#D0B335" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="ram" stroke="#64748B" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="disk" stroke="#059669" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
+        <div className="cbc-card p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            {/* Une légende, qui manquait : sans elle, une courbe plate ne se
+                distingue pas d'une mesure figée. Le disque est légitimement
+                plat — son occupation ne bouge pas d'une minute à l'autre. */}
+            <div className="flex items-center gap-4 flex-wrap">
+              {[
+                { label: 'CPU', color: '#D0B335' },
+                { label: 'Mémoire', color: '#64748B' },
+                { label: 'Disque', color: '#059669' },
+              ].map((serie) => (
+                <span key={serie.label} className="inline-flex items-center gap-1.5 text-[12px] text-slate-600">
+                  <span className="w-3 h-0.5 rounded" style={{ background: serie.color }} />
+                  {serie.label}
+                </span>
+              ))}
+            </div>
+            <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+              {RANGES.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setRange(r.id)}
+                  className={`px-2.5 py-1 text-[12px] font-semibold ${
+                    range === r.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-72">
+            {history.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Aucune mesure sur cette période. Un hôte enrôlé depuis peu n’a pas encore
+                d’historique : essayer une fenêtre plus courte.
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={history}>
+                  <XAxis dataKey="t" tick={{ fontSize: 11 }} minTickGap={24} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                  <Tooltip formatter={(v: number) => `${Math.round(v * 10) / 10} %`} />
+                  <Line type="monotone" dataKey="cpu" name="CPU" stroke="#D0B335" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="ram" name="Mémoire" stroke="#64748B" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="disk" name="Disque" stroke="#059669" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       )}
 
@@ -524,6 +601,29 @@ export const AgentDetailView: React.FC = () => {
         onResolve={(a) => {
           setDrawer(null);
           setResolveTarget(a);
+        }}
+        // La prise en charge manquait ici : le tiroir ouvert depuis la fiche
+        // d'hôte n'affichait qu'un état en lecture seule, sans moyen d'agir.
+        currentUserId={currentUser?.id ?? null}
+        assignables={users
+          .filter((u) => u.status === 'active')
+          .map((u) => ({ id: u.id, name: u.name }))}
+        onAssign={async (a, userId) => {
+          try {
+            await alertsService.assign(a.id, userId);
+            refreshData();
+            addToast({
+              type: 'success',
+              title: userId ? 'Alerte attribuée' : 'Attribution retirée',
+              message: a.message,
+            });
+          } catch {
+            addToast({
+              type: 'error',
+              title: 'Attribution impossible',
+              message: 'Vérifier que le compte est actif et l’alerte encore ouverte.',
+            });
+          }
         }}
         onOpenHost={() => setDrawer(null)}
       />
