@@ -161,7 +161,15 @@ export const VlanPlanPanel: React.FC = () => {
               </div>
             )}
 
-            {error && <p className="text-[12.5px] text-rose-600 mt-3 mb-0">{error}</p>}
+            {error && (
+              <div className="mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[12.5px] font-semibold text-rose-800 m-0">Import refusé</p>
+                  <p className="text-[12.5px] text-rose-700 mt-1 mb-0 leading-relaxed">{error}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

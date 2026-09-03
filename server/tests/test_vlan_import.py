@@ -403,3 +403,34 @@ def test_many_bad_lines_are_summarised_not_dumped():
 
     # Cinq exemples suffisent ; le reste est compte.
     assert "et 7 autre(s)" in str(exc.value)
+
+
+def test_an_out_of_range_prefix_names_the_reason(db_unused=None):
+    """Regression : « 172.16.10.0/250 » se voyait juste dire « prefixe
+    invalide », sans dire pourquoi ni ce que /250 devrait etre. C'est
+    precisement la faute de frappe la plus courante -- un masque /24 mal
+    saisi -- et celle qu'un exploitant non reseau comprend le moins sans aide.
+    """
+    message = explain_span("172.16.10.0/250")
+
+    assert "/32" in message, "dire la borne reelle, pas seulement <<invalide>>"
+    assert "172.16.10.0/24" in message, "proposer la correction la plus probable"
+
+
+def test_the_whole_file_error_carries_the_out_of_range_explanation():
+    content = "172.16.10.0/250;20;Informaticiens".encode("utf-8")
+
+    with pytest.raises(VlanImportError) as exc:
+        parse(content, "passerelle.csv")
+
+    message = str(exc.value)
+    assert "/32" in message
+    assert "172.16.10.0/24" in message
+
+
+def test_a_prefix_within_range_is_not_treated_as_out_of_range():
+    """/24 n'est pas /250 : le nouveau message ne doit pas s'appliquer a une
+    valeur simplement absente de la table (deja couverte ailleurs)."""
+    message = explain_span("999.999.999.999/24")
+
+    assert "/32" not in message

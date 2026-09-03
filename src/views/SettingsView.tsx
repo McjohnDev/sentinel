@@ -48,6 +48,7 @@ import {
 import { settingsService } from '../services/api/settings.service';
 import { PageHeader } from '../components/layout/PageHeader';
 import { LdapPanel } from '../components/settings/LdapPanel';
+import { AppearancePanel } from '../components/settings/AppearancePanel';
 import type { LucideIcon } from 'lucide-react';
 
 type SettingsTab =
@@ -64,7 +65,8 @@ type SettingsTab =
   | 'ldap'
   | 'vlan'
   | 'templates'
-  | 'alertservices';
+  | 'alertservices'
+  | 'appearance';
 
 const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
   { id: 'thresholds', label: "Seuils d'alerte", icon: Sliders },
@@ -81,6 +83,7 @@ const SETTINGS_NAV: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> 
   { id: 'ldap', label: 'Annuaire (LDAP)', icon: ShieldCheck },
   { id: 'vlan', label: 'Plan d’adressage', icon: Network },
   { id: 'templates', label: 'Courriels par vérification', icon: Mail },
+  { id: 'appearance', label: 'Apparence', icon: Sparkles },
 ];
 
 export const SettingsView: React.FC = () => {
@@ -1496,6 +1499,8 @@ export const SettingsView: React.FC = () => {
       {activeTab === 'alertservices' && <AlertServicesPanel />}
 
       {activeTab === 'templates' && <MailTemplatesPanel />}
+
+      {activeTab === 'appearance' && <AppearancePanel />}
 
       {activeTab === 'platform' && (
         <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-4">

@@ -22,7 +22,7 @@ export const ChannelHealthPills: React.FC<ChannelHealthPillsProps> = ({ channels
     onClick={onClick}
     title="Canaux de notification"
     className="hidden md:flex items-center gap-2.5 px-2.5 py-1 rounded-full border cursor-pointer transition-colors"
-    style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx2)' }}
+    style={{ borderColor: 'var(--surface-fg3, var(--color-ln))', color: 'var(--surface-fg2, var(--color-tx2))' }}
   >
     {channels.map((c) => (
       <span key={c.label} className="flex items-center gap-1.5">

@@ -187,6 +187,18 @@ def explain_span(value: Any) -> str:
             )
 
     if "/" in raw:
+        head, _, tail = raw.partition("/")
+        # Le prefixe est present mais hors bornes -- « /250 », « /33 » -- le
+        # cas le plus deroutant a lire : la forme est correcte, seul le
+        # nombre ne l'est pas, et « invalide » seul n'explique pas pourquoi.
+        if tail.strip().isdigit():
+            prefix_n = int(tail.strip())
+            if prefix_n > 32:
+                return (
+                    "préfixe « /%d » impossible sur une adresse IPv4 : le maximum "
+                    "est /32. « %s » ressemble à un masque sur 24 bits mal saisi — "
+                    "vouliez-vous dire « %s/24 » ?" % (prefix_n, raw, head)
+                )
         return (
             "préfixe invalide « %s ». Attendu une adresse complète suivie du "
             "préfixe, par exemple « 172.16.10.0/24 »." % raw

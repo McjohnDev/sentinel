@@ -4,6 +4,16 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  AppearanceConfig,
+  AppearancePreset,
+  darken,
+  defaultAppearance,
+  isDarkColor,
+  lighten,
+  ResolvedSurface,
+  resolveSurface,
+} from '../theme/appearance';
 import { useNavigate } from 'react-router-dom';
 import {
   Agent,
@@ -33,6 +43,13 @@ interface AppContextType {
   /** Clair ou sombre. Choix explicite uniquement, memorise. */
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  /** Personnalisation active pour le theme courant. */
+  appearance: AppearanceConfig;
+  setAppearance: (patch: Partial<AppearanceConfig>) => void;
+  resetAppearance: () => void;
+  applyAppearancePreset: (preset: AppearancePreset) => void;
+  sidebarSurface: ResolvedSurface;
+  navbarSurface: ResolvedSurface;
   setCurrentRole: (role: Role) => void;
   selectedAgentId: string | null;
   setSelectedAgentId: (id: string | null) => void;
@@ -116,6 +133,86 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem(`${STORAGE_KEY_PREFIX}theme`, theme);
   }, [theme]);
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+
+  // Personnalisation visuelle -- distincte du choix clair/sombre lui-meme.
+  // Un jeu de reglages par theme : ce qui est choisi en clair ne s'impose
+  // pas en sombre, ou l'inverse pourrait rendre un degrade illisible.
+  const [appearanceByTheme, setAppearanceByTheme] = useState<{
+    light: AppearanceConfig;
+    dark: AppearanceConfig;
+  }>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}appearance`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.light && parsed.dark) return parsed;
+      } catch {
+        /* ignore, repli sur les valeurs d'origine */
+      }
+    }
+    return { light: defaultAppearance('light'), dark: defaultAppearance('dark') };
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}appearance`, JSON.stringify(appearanceByTheme));
+  }, [appearanceByTheme]);
+
+  const appearance = appearanceByTheme[theme];
+
+  const setAppearance = (patch: Partial<AppearanceConfig>) => {
+    setAppearanceByTheme((prev) => ({ ...prev, [theme]: { ...prev[theme], ...patch } }));
+  };
+
+  const resetAppearance = () => {
+    setAppearanceByTheme((prev) => ({ ...prev, [theme]: defaultAppearance(theme) }));
+  };
+
+  const applyAppearancePreset = (preset: AppearancePreset) => {
+    setAppearanceByTheme({ light: preset.light, dark: preset.dark });
+  };
+
+  // Applique la personnalisation active a la coquille. Portee sur le
+  // conteneur racine plutot que sur `document.documentElement` seul : la
+  // barre laterale et le bandeau lisent leurs propres variables
+  // `--surface-*`, calculees ici une fois pour les deux au lieu d'etre
+  // recalculees dans chaque composant.
+  useEffect(() => {
+    const root = document.documentElement.style;
+    if (appearance.accent) {
+      root.setProperty('--color-acc', appearance.accent);
+      // Les boutons pleins (« Enrôler », « Importer »…) suivent l'accent
+      // choisi plutôt que de rester figés sur l'or d'origine : sans quoi
+      // changer l'accent ne reskinnerait que les liens et les focus, pas
+      // l'élément le plus visible de chaque écran.
+      const gold = lighten(appearance.accent, 0.18);
+      root.setProperty('--color-gold', gold);
+      root.setProperty('--color-gold-hover', darken(gold, 0.08));
+      root.setProperty('--color-gold-ink', isDarkColor(gold) ? '#F4F6FA' : '#1c1607');
+    } else {
+      root.removeProperty('--color-acc');
+      root.removeProperty('--color-gold');
+      root.removeProperty('--color-gold-hover');
+      root.removeProperty('--color-gold-ink');
+    }
+    if (appearance.content.mode === 'custom' && appearance.content.color) {
+      root.setProperty('--content-tint', appearance.content.color);
+    } else {
+      root.removeProperty('--content-tint');
+    }
+  }, [appearance]);
+
+  const sidebarSurface = resolveSurface(
+    appearance.sidebar,
+    'var(--color-panel)',
+    appearance.accent,
+    appearance.hover
+  );
+  const navbarSurface = resolveSurface(
+    appearance.navbar,
+    'var(--color-panel)',
+    appearance.accent,
+    appearance.hover
+  );
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -892,6 +989,12 @@ function withAlertCounts(agents: Agent[], alerts: Alert[]): Agent[] {
         setCurrentRole,
         theme,
         toggleTheme,
+        appearance,
+        setAppearance,
+        resetAppearance,
+        applyAppearancePreset,
+        sidebarSurface,
+        navbarSurface,
         selectedAgentId,
         setSelectedAgentId,
         agents,

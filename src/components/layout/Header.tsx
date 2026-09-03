@@ -32,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
     toggleTheme,
     autoRefresh,
     toggleAutoRefresh,
+    navbarSurface: sf,
   } = useApp();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -103,16 +104,27 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
         ? 'Système opérationnel'
         : 'System operational';
 
+  // Meme principe que la sidebar : les variables sont posees localement sur
+  // le bandeau, lues avec repli par les regles partagees.
+  const scopeVars: React.CSSProperties = {
+    background: sf.background,
+    borderColor: sf.ln,
+    ['--surface-fg' as string]: sf.fg,
+    ['--surface-fg2' as string]: sf.fg2,
+    ['--surface-fg3' as string]: sf.fg3,
+    ['--surface-hover' as string]: sf.hover,
+  };
+
   return (
     <header
       className="h-12 border-b flex items-center gap-2 px-4 sticky top-0 z-30 shrink-0"
-      style={{ background: 'var(--color-panel)', borderColor: 'var(--color-ln)' }}
+      style={scopeVars}
     >
       <button
         type="button"
         onClick={onToggleSidebarMobile}
         className="lg:hidden p-2 rounded-lg -ml-2"
-        style={{ color: 'var(--color-tx2)' }}
+        style={{ color: 'var(--surface-fg2)' }}
         aria-label="Ouvrir le menu"
       >
         <Menu className="w-5 h-5" />
@@ -121,14 +133,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
       <nav aria-label="Fil d'ariane" className="hidden sm:flex items-center gap-2 min-w-0 truncate">
         <span
           className="font-mono text-[9.5px] tracking-[0.1em]"
-          style={{ color: 'var(--color-tx3)' }}
+          style={{ color: 'var(--surface-fg3)' }}
         >
           {groupLabel.toUpperCase()}
         </span>
-        <span className="text-[11px]" style={{ color: 'var(--color-tx3)' }}>
+        <span className="text-[11px]" style={{ color: 'var(--surface-fg3)' }}>
           /
         </span>
-        <span className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--color-tx)' }}>
+        <span className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--surface-fg)' }}>
           {pageLabel}
         </span>
       </nav>
@@ -164,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
           onClick={toggleAutoRefresh}
           title={autoRefresh ? 'Mettre en pause' : 'Reprendre'}
           className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border cursor-pointer"
-          style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx2)' }}
+          style={{ borderColor: 'var(--surface-fg3)', color: 'var(--surface-fg2)', opacity: 0.92 }}
         >
           {autoRefresh ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
           <span className="text-[11px]">{autoRefresh ? 'Auto · 30 s' : 'En pause'}</span>
@@ -175,14 +187,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
           onClick={onOpenPalette}
           title="Rechercher (⌘K)"
           className="w-[30px] h-[30px] border rounded-lg flex items-center justify-center sm:hidden"
-          style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx2)' }}
+          style={{ borderColor: 'var(--surface-fg3)', color: 'var(--surface-fg2)' }}
         >
           <Search className="w-4 h-4" />
         </button>
 
         <span
           className="font-mono text-[11px] tnum hidden md:inline-block min-w-[58px] text-right"
-          style={{ color: 'var(--color-tx2)' }}
+          style={{ color: 'var(--surface-fg2)' }}
         >
           {now}
         </span>
@@ -233,7 +245,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
             type="button"
             onClick={() => setNotificationsOpen(!notificationsOpen)}
             className="relative w-[30px] h-[30px] border rounded-lg flex items-center justify-center"
-            style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx2)' }}
+            style={{ borderColor: 'var(--surface-fg3)', color: 'var(--surface-fg2)' }}
           >
             <Bell className="w-4 h-4" />
             {openAlerts.length > 0 && (
@@ -311,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebarMobile, onOpenPal
           onClick={toggleTheme}
           title={theme === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre'}
           className="w-[30px] h-[30px] border rounded-lg flex items-center justify-center"
-          style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx2)' }}
+          style={{ borderColor: 'var(--surface-fg3)', color: 'var(--surface-fg2)' }}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>

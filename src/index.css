@@ -27,10 +27,14 @@
   --color-tx2: #5d6472;
   --color-tx3: #9aa1ad;
 
-  /* Accent — or CBC, assez sombre pour rester lisible en texte sur blanc. */
+  /* Accent — or CBC, assez sombre pour rester lisible en texte sur blanc.
+     -t/-b sont calcules a partir de --color-acc via color-mix() plutot que
+     figes en rgba : une personnalisation d'apparence qui ne change QUE
+     --color-acc (src/theme/appearance.ts) met ainsi a jour d'un coup les
+     teintes et bordures d'accent partout, sans recalcul cote composant. */
   --color-acc: #a68523;
-  --color-acc-t: rgba(166, 133, 35, 0.09);
-  --color-acc-b: rgba(166, 133, 35, 0.32);
+  --color-acc-t: color-mix(in srgb, var(--color-acc) 9%, transparent);
+  --color-acc-b: color-mix(in srgb, var(--color-acc) 32%, transparent);
 
   /* Or de marque, plus clair — fonds de bouton pleins, badge du logo. */
   --color-gold: #d0b335;
@@ -71,8 +75,8 @@
   --color-tx3: #5f6774;
 
   --color-acc: #d8b458;
-  --color-acc-t: rgba(216, 180, 88, 0.12);
-  --color-acc-b: rgba(216, 180, 88, 0.36);
+  --color-acc-t: color-mix(in srgb, var(--color-acc) 12%, transparent);
+  --color-acc-b: color-mix(in srgb, var(--color-acc) 36%, transparent);
 
   --color-gold: #d8b458;
   --color-gold-hover: #c9a24a;
@@ -307,19 +311,25 @@ body {
 
 /* Navigation latérale — la sidebar suit désormais le thème (panneau clair
    ou sombre) au lieu d'un navy fixe : c'est le changement le plus visible
-   du modèle repris. */
+   du modèle repris.
+
+   `--surface-*` : quand une barre latérale ou un bandeau reçoit une couleur
+   personnalisée (voir src/theme/appearance.ts), le conteneur pose ces
+   variables en style local ; ces règles les lisent avec un repli sur les
+   jetons de thème habituels. Un conteneur qui ne personnalise rien n'y
+   touche jamais, et le comportement reste identique à avant. */
 .cbc-nav-active {
-  background: var(--color-acc-t);
-  color: var(--color-acc);
+  background: var(--surface-acc-t, var(--color-acc-t));
+  color: var(--surface-acc, var(--color-acc));
 }
 
 .cbc-nav-item {
-  color: var(--color-tx2);
+  color: var(--surface-fg2, var(--color-tx2));
 }
 
 .cbc-nav-item:hover {
-  background: var(--color-ln2);
-  color: var(--color-tx);
+  background: var(--surface-hover, var(--color-ln2));
+  color: var(--surface-fg, var(--color-tx));
 }
 
 /* Survol générique pour lignes de tableau, cartes cliquables, entrées de
@@ -330,5 +340,5 @@ body {
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .cbc-hover:hover {
-  background: var(--color-ln2);
+  background: var(--surface-hover, var(--color-ln2));
 }

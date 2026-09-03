@@ -62,7 +62,14 @@ const MainLayout: React.FC = () => {
   return (
     <div
       className="flex min-h-screen font-sans antialiased"
-      style={{ background: 'var(--color-bg)', color: 'var(--color-tx)' }}
+      style={{
+        // Une teinte de contenu personnalisee n'est jamais qu'un lavis a 14%
+        // sur le fond du theme : au-dela, tout le texte courant de
+        // l'application -- qui suppose un fond neutre -- deviendrait
+        // difficile a lire loin de ce seul reglage.
+        background: 'color-mix(in srgb, var(--content-tint, var(--color-bg)) 14%, var(--color-bg))',
+        color: 'var(--color-tx)',
+      }}
     >
       <Sidebar
         isMobileOpen={mobileSidebarOpen}
@@ -76,8 +83,13 @@ const MainLayout: React.FC = () => {
           onOpenPalette={() => setPaletteOpen(true)}
         />
 
-        <main className="flex-1 px-4 sm:px-7 lg:px-8 py-6 lg:py-7 overflow-y-auto animate-fade-in">
-          <div className="max-w-[1280px] mx-auto space-y-6">
+        <main className="flex-1 px-4 sm:px-5 pt-4 pb-8 overflow-y-auto animate-fade-in">
+          {/* Pas de centrage (`mx-auto`) : sur un ecran large, une colonne
+              centree a 1280px laissait un vide symetrique enorme entre le
+              contenu et la sidebar comme le bandeau. Le contenu s'appuie
+              desormais contre la marge, plafonne pour rester lisible sur
+              tres grand ecran. */}
+          <div className="max-w-[1680px] space-y-6">
             <Routes>
               <Route path="/dashboard" element={<DashboardView />} />
               <Route path="/agents" element={<AgentsListView />} />
