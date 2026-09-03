@@ -206,11 +206,6 @@ export const agentsService = {
    * toute écriture sur un champ constaté par l'agent (nom machine, IP, OS,
    * matériel) plutôt que de l'ignorer en silence.
    */
-  /** Alias court de `patchAgent`. */
-  async patch(id: string, changes: AgentPatch): Promise<PatchAgentResponse> {
-    return this.patchAgent(id, changes);
-  },
-
   async patchAgent(id: string, changes: AgentPatch): Promise<PatchAgentResponse> {
     const { data } = await axiosInstance.patch(`/agents/${id}`, changes);
     return data;

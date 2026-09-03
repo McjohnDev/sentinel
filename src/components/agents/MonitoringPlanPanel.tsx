@@ -45,10 +45,27 @@ interface Props {
   agentId: string;
   /** Partitions réellement remontées par l'hôte, pour ne proposer que l'existant. */
   discoveredMounts: string[];
+  /**
+   * Les mêmes, avec de quoi les reconnaître. Un point de montage seul ne suffit
+   * pas à identifier un disque : sur un serveur qui en porte huit, « /u04 » ne
+   * dit ni sa taille ni son étiquette, et l'exploitant choisit au jugé.
+   */
+  discoveredPartitions?: Array<{
+    mount: string;
+    name?: string;
+    letter?: string | null;
+    label?: string | null;
+    total_gb?: number;
+  }>;
   canEdit: boolean;
 }
 
-export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts, canEdit }) => {
+export const MonitoringPlanPanel: React.FC<Props> = ({
+  agentId,
+  discoveredMounts,
+  discoveredPartitions,
+  canEdit,
+}) => {
   const [plan, setPlan] = useState<MonitoringPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -362,6 +379,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
               key={i}
               rule={p}
               mounts={discoveredMounts}
+              partitions={discoveredPartitions}
               disabled={disabled}
               onChange={(next) => {
                 const partitions = [...plan.disk.partitions];
@@ -544,13 +562,51 @@ const SeveritySelect: React.FC<{
   </select>
 );
 
+/**
+ * Comment nommer une partition dans la liste de choix.
+ *
+ * Le point de montage seul ne suffit pas a l'identifier : sur un serveur qui
+ * porte huit volumes, « /u04 » ne dit ni sa taille ni son role, et l'on choisit
+ * au jugé. On y joint donc ce que l'hote remonte -- lettre, etiquette,
+ * capacite -- sans jamais inventer : un champ absent est simplement omis
+ * plutot que remplace par un tiret qui se lirait comme une mesure.
+ */
+const libellePartition = (
+  mount: string,
+  partitions?: Array<{
+    mount: string;
+    name?: string;
+    letter?: string | null;
+    label?: string | null;
+    total_gb?: number;
+  }>
+): string => {
+  const p = (partitions || []).find((x) => x.mount === mount);
+  if (!p) return mount;
+
+  const parts: string[] = [];
+  const tete = p.letter ? `${p.letter}:` : p.name && p.name !== mount ? p.name : mount;
+  parts.push(tete);
+  if (p.label) parts.push(`« ${p.label} »`);
+  if (tete !== mount) parts.push(`— ${mount}`);
+  if (typeof p.total_gb === 'number') parts.push(`· ${p.total_gb} Go`);
+  return parts.join(' ');
+};
+
 const PartitionRow: React.FC<{
   rule: PartitionRule;
   mounts: string[];
+  partitions?: Array<{
+    mount: string;
+    name?: string;
+    letter?: string | null;
+    label?: string | null;
+    total_gb?: number;
+  }>;
   disabled: boolean;
   onChange: (r: PartitionRule) => void;
   onRemove: () => void;
-}> = ({ rule, mounts, disabled, onChange, onRemove }) => (
+}> = ({ rule, mounts, partitions, disabled, onChange, onRemove }) => (
   <div className="grid grid-cols-[1fr_110px_110px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
     {/* Une liste deroulante, non un champ libre avec datalist.
         Le datalist ne se montrait qu'en tapant : l'ecran n'annoncait jamais
@@ -567,7 +623,7 @@ const PartitionRow: React.FC<{
       <option value="">Choisir une partition…</option>
       {mounts.map((m) => (
         <option key={m} value={m}>
-          {m}
+          {libellePartition(m, partitions)}
         </option>
       ))}
       {/* Une regle posee sur une partition que l'hote ne remonte plus est

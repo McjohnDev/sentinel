@@ -588,6 +588,7 @@ export const AgentDetailView: React.FC = () => {
           <MonitoringPlanPanel
             agentId={agent.id}
             discoveredMounts={partitionOptions.map((p) => p.mount).filter(Boolean)}
+            discoveredPartitions={partitionOptions}
             canEdit={currentRole === 'Admin' || currentRole === 'Operator'}
           />
           {/* A cote du plan de surveillance : decider ce qu'on surveille et
