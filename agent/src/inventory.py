@@ -37,6 +37,8 @@ try:
 except ImportError:  # pragma: no cover - dépendance déclarée
     psutil = None
 
+from transport import build_session
+
 logger = logging.getLogger("cbc-agent.inventory")
 
 #: Les commandes d'inventaire sont lentes ; au-delà, on renonce plutôt que de
@@ -447,7 +449,7 @@ def push(config, credentials, report: "Inventory", *, session=None) -> Dict[str,
     """Envoie l'inventaire à la plateforme."""
     import requests
 
-    http = session or requests.Session()
+    http = session or build_session(config)
     try:
         response = http.post(
             config.api_url("agents/inventory"),

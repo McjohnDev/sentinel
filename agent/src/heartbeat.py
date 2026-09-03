@@ -33,6 +33,7 @@ from config import AgentConfig
 from enrollment import AGENT_VERSION, Credentials
 from facts import HostFacts
 from metrics import SystemSample
+from transport import build_session
 
 logger = logging.getLogger("cbc-agent.heartbeat")
 
@@ -177,7 +178,7 @@ def send(
     session: Optional[requests.Session] = None,
 ) -> HeartbeatResult:
     """Envoie un battement et interprète la réponse."""
-    http = session or requests.Session()
+    http = session or build_session(config)
 
     try:
         response = http.post(

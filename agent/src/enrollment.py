@@ -23,6 +23,7 @@ import requests
 from agent_paths import credentials_file
 from config import AgentConfig
 from facts import HostFacts
+from transport import build_session
 
 AGENT_VERSION = "2.0.0-dev"
 
@@ -106,7 +107,7 @@ def deregister(
     volontaire d'une panne — sans lui, la machine resterait « hors ligne »
     dans le parc et déclencherait des alertes pour une absence voulue.
     """
-    http = session or requests.Session()
+    http = session or build_session(config)
     body = {"reason": reason} if reason else {}
 
     try:
@@ -189,7 +190,7 @@ def enroll(
             "CBC_ENROLLMENT_TOKEN, ou server.enrollment_token."
         )
 
-    http = session or requests.Session()
+    http = session or build_session(config)
     payload = build_payload(config, machine_id, host)
 
     try:

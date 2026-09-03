@@ -35,6 +35,8 @@ from facts import refreshed as refresh_facts
 from metrics import MetricsUnavailable, SystemSample
 from metrics import collect as collect_metrics
 
+from transport import build_session
+
 logger = logging.getLogger("cbc-agent.runner")
 
 #: Attente initiale après un échec, en secondes.
@@ -91,7 +93,7 @@ def run(
     réellement, et sans dépendre de la machine qui exécute les tests.
     """
     provider = host_provider or (lambda previous: refresh_facts(previous, AGENT_VERSION, config))
-    http = session or requests.Session()
+    http = session or build_session(config)
     outcome = RunnerOutcome(credentials=credentials)
     backoff = BACKOFF_START
     beats = 0

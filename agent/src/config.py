@@ -35,6 +35,10 @@ class AgentConfig:
     tls_verify: bool
     machine_type: str
     timeout_seconds: float
+    #: La plateforme est interne : on ne passe pas par le proxy sortant, sauf
+    #: demande explicite. Valeur par defaut sure, pour que tout appelant qui
+    #: construit une configuration a la main herite du bon comportement.
+    use_proxy: bool = False
     #: D'où la configuration a été lue. Affiché sur la fiche d'hôte : deux
     #: fichiers concurrents sur une machine expliquent des réglages qui
     #: « ne prennent pas ».
@@ -108,6 +112,9 @@ def load_config(
     ).strip()
 
     tls_verify = _as_bool(server.get("tls_verify"), True)
+    # La plateforme de supervision est interne : la joindre par le proxy
+    # sortant d'entreprise la rend injoignable sur la plupart des postes.
+    use_proxy = _as_bool(server.get("use_proxy"), False)
     if server_url.startswith("http://") and tls_verify:
         # Pas une erreur : le laboratoire sert du HTTP en clair. On ne prétend
         # simplement pas vérifier un certificat qui n'existe pas.
@@ -129,6 +136,7 @@ def load_config(
         server_url=server_url,
         enrollment_token=token,
         tls_verify=tls_verify,
+        use_proxy=use_proxy,
         machine_type=machine_type,
         timeout_seconds=timeout,
         source_path=str(path) if path is not None else None,

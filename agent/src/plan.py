@@ -35,6 +35,8 @@ from agent_paths import state_dir
 from config import AgentConfig
 from enrollment import Credentials
 
+from transport import build_session
+
 logger = logging.getLogger("cbc-agent.plan")
 
 
@@ -107,7 +109,7 @@ def acknowledge(
     session: Optional[requests.Session] = None,
 ) -> None:
     """Signale à la plateforme que cette version est appliquée."""
-    http = session or requests.Session()
+    http = session or build_session(config)
     try:
         response = http.post(
             config.api_url("agents/config/ack"),
