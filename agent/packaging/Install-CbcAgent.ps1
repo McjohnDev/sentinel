@@ -67,6 +67,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# L'agent ecrit ses messages en UTF-8. Sans cette ligne la console Windows les
+# decode en CP850 et « Hote » s'affiche « H¶te » : l'exploitant doute du
+# binaire au moment ou il lit un diagnostic.
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
+
 $InstallDir = Join-Path $env:ProgramFiles 'CBC Agent'
 $ConfigPath = Join-Path $InstallDir 'config.yaml'
 $ExePath = Join-Path $InstallDir 'cbc-agent.exe'
@@ -136,8 +141,22 @@ agent:
 }
 
 function Invoke-Agent([string[]] $Arguments) {
-    & $ExePath @Arguments
+    # La sortie de l'agent part vers la console, et la fonction ne rend que le
+    # code de retour.
+    #
+    # Sans le `Out-Host`, PowerShell verse tout le flux de sortie dans la
+    # valeur de retour : `$code` valait alors les lignes affichees par l'agent
+    # SUIVIES du code, et le message d'echec devenait
+    # « Enrolement refuse (code Hote : ... 1) ». Illisible au seul moment ou
+    # on a besoin de le lire.
+    & $ExePath @Arguments | Out-Host
     return $LASTEXITCODE
+}
+
+function Get-AgentOutput([string[]] $Arguments) {
+    # Rend la sortie de l'agent, pour les commandes qu'on interroge plutot
+    # que d'en surveiller le code de retour (`version`).
+    return (& $ExePath @Arguments 2>$null)
 }
 
 # ---------------------------------------------------------------- Status
@@ -148,7 +167,7 @@ if ($Action -eq 'Status') {
         exit 1
     }
     Write-Etape "Etat de l'agent"
-    Invoke-Agent @('--config', $ConfigPath, 'status') | Out-Host
+    [void](Invoke-Agent @('--config', $ConfigPath, 'status'))
     if (Test-ServiceInstalle) {
         $svc = Get-Service -Name $ServiceName
         Write-Host "  Service       : $($svc.Status)"
@@ -215,7 +234,7 @@ if ($Action -eq 'Update') {
     if (-not (Test-Path $SourceExe)) { throw "cbc-agent.exe introuvable a cote du script ($SourceExe)." }
 
     Write-Etape "Mise a jour de l'agent"
-    $avant = (Invoke-Agent @('version')) 2>$null
+    $avant = Get-AgentOutput @('version')
     Stop-AgentService
 
     # Le binaire sortant est conserve jusqu'au demarrage reussi du nouveau :
@@ -225,7 +244,7 @@ if ($Action -eq 'Update') {
     try {
         Copy-Item $SourceExe $ExePath -Force
         if (Test-ServiceInstalle) { Start-Service -Name $ServiceName }
-        $apres = (Invoke-Agent @('version')) 2>$null
+        $apres = Get-AgentOutput @('version')
         Write-Ok "Version $avant -> $apres"
         Remove-Item $sauvegarde -Force -ErrorAction SilentlyContinue
     } catch {
