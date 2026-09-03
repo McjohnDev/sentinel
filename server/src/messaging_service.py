@@ -371,7 +371,7 @@ class MessagingService:
 
         if smtp_ready:
             delivered = MessagingService._send_via_smtp(
-                db, to=to_list + (cc_list or []), subject=subject, body_html=body
+                db, to=to_list, cc=cc_list or None, subject=subject, body_html=body
             ) or delivered
 
         return delivered
@@ -390,7 +390,9 @@ class MessagingService:
             return False
 
     @staticmethod
-    def _send_via_smtp(db: Session, *, to: Any, subject: str, body_html: str) -> bool:
+    def _send_via_smtp(
+        db: Session, *, to: Any, subject: str, body_html: str, cc: Any = None
+    ) -> bool:
         """Envoie par le relais SMTP, sans laisser une panne remonter.
 
         Un relais injoignable ne doit pas empêcher l'enregistrement de
@@ -400,7 +402,7 @@ class MessagingService:
         try:
             from src import email_service
 
-            return email_service.send(db, to=to, subject=subject, body_html=body_html)
+            return email_service.send(db, to=to, cc=cc, subject=subject, body_html=body_html)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Envoi SMTP échoué : %s", exc)
             return False

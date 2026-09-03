@@ -325,8 +325,9 @@ def test_the_alert_is_addressed_to_the_owner_and_copies_the_host_list(db, monkey
 
     captured = {}
 
-    def _capture(db_, *, to, subject, body_html):
+    def _capture(db_, *, to, subject, body_html, cc=None):
         captured["to"] = to
+        captured["cc"] = cc
         return True
 
     monkeypatch.setattr(MessagingService, "_send_via_smtp", staticmethod(_capture))
@@ -337,7 +338,11 @@ def test_the_alert_is_addressed_to_the_owner_and_copies_the_host_list(db, monkey
     )
 
     assert delivered is True
-    assert captured["to"] == ["resp@cbcam.cm", "copie@cbcam.cm"]
+    # La copie reste une copie. Elle etait auparavant versee dans `to`, si bien
+    # qu'un destinataire en copie se lisait comme destinataire direct -- et sur
+    # une alerte, cela change qui se croit charge de la traiter.
+    assert captured["to"] == ["resp@cbcam.cm"]
+    assert captured["cc"] == ["copie@cbcam.cm"]
 
 
 def test_a_host_with_no_one_responsible_sends_nothing(db):

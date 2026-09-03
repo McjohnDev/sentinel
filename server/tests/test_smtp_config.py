@@ -479,3 +479,80 @@ def test_a_configuration_predating_the_option_still_verifies(db):
     import ssl
 
     assert email_service._tls_context(cfg).verify_mode == ssl.CERT_REQUIRED
+
+
+# ------------------------------------------------------------ copie (Cc)
+
+
+def test_a_copy_carries_a_real_cc_header(db, monkeypatch):
+    """Verser la copie dans `To` presentait des personnes en copie comme des
+    destinataires directs. Sur une alerte, cela change qui se croit charge de
+    la traiter."""
+    _enabled(db)
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+
+    email_service.send(db, to="a@cbcam.cm", cc="b@cbcam.cm", subject="s", body_html="<p>x</p>")
+
+    message, _ = fake.sent[0]
+    assert message["To"] == "a@cbcam.cm"
+    assert message["Cc"] == "b@cbcam.cm"
+
+
+def test_the_envelope_carries_recipients_and_copies(db, monkeypatch):
+    """L'en-tete `Cc` n'affiche que : sans l'enveloppe, la copie ne part pas."""
+    _enabled(db)
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+
+    email_service.send(
+        db, to=["a@cbcam.cm"], cc=["b@cbcam.cm", "c@cbcam.cm"],
+        subject="s", body_html="<p>x</p>",
+    )
+
+    _, to_addrs = fake.sent[0]
+    assert sorted(to_addrs) == ["a@cbcam.cm", "b@cbcam.cm", "c@cbcam.cm"]
+
+
+def test_someone_already_a_recipient_is_not_copied_as_well(db, monkeypatch):
+    _enabled(db)
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+
+    email_service.send(db, to="a@cbcam.cm", cc="a@cbcam.cm", subject="s", body_html="<p>x</p>")
+
+    message, to_addrs = fake.sent[0]
+    assert message["Cc"] is None
+    assert to_addrs == ["a@cbcam.cm"]
+
+
+def test_no_copy_leaves_the_header_out(db, monkeypatch):
+    _enabled(db)
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+
+    email_service.send(db, to="a@cbcam.cm", subject="s", body_html="<p>x</p>")
+
+    assert fake.sent[0][0]["Cc"] is None
+
+
+def test_the_alert_path_passes_copies_as_copies(db, monkeypatch):
+    """Le chemin d'alerte reel, non seulement l'envoi brut."""
+    from src.messaging_service import MessagingService
+
+    _enabled(db)
+    fake = _FakeServer()
+    monkeypatch.setattr(email_service, "_connect", lambda _cfg: fake)
+    monkeypatch.setattr(
+        MessagingService, "resolve_recipients_for_agent",
+        staticmethod(lambda db_, agent=None: {"to": ["resp@cbcam.cm"], "cc": ["copie@cbcam.cm"]}),
+    )
+
+    MessagingService.send_alert_notification(
+        alert_type="cpu_high", severity="major", message="CPU", hostname="web-01", db=db,
+    )
+
+    message, to_addrs = fake.sent[0]
+    assert message["To"] == "resp@cbcam.cm"
+    assert message["Cc"] == "copie@cbcam.cm"
+    assert sorted(to_addrs) == ["copie@cbcam.cm", "resp@cbcam.cm"]

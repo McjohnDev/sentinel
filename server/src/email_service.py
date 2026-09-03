@@ -124,24 +124,36 @@ def _connect(cfg: MessagingConfig):
     return server
 
 
+def _as_list(value: Any) -> list:
+    """Normalise une adresse ou une liste d'adresses en liste propre."""
+    values = [value] if isinstance(value, str) else list(value or [])
+    return [str(v).strip() for v in values if v and str(v).strip()]
+
+
 def send(
     db: Session,
     *,
     to: Any,
     subject: str,
     body_html: str,
+    cc: Any = None,
     cfg: Optional[MessagingConfig] = None,
 ) -> bool:
     """Envoie un courriel par le relais SMTP configuré.
 
-    `to` accepte une adresse ou une liste : toujours normalisé en liste, comme
-    pour l'API Mail — faire varier le type d'un champ avec le nombre de
-    destinataires oblige à supporter les deux formes partout.
+    `to` et `cc` acceptent une adresse ou une liste : toujours normalisés en
+    liste, comme pour l'API Mail — faire varier le type d'un champ avec le
+    nombre de destinataires oblige à supporter les deux formes partout.
+
+    La copie porte un vrai en-tête `Cc`. Les verser dans `To`, comme c'était
+    fait, présentait au lecteur des personnes en copie comme des destinataires
+    directs : sur une alerte, cela change qui se croit responsable de la
+    traiter.
     """
     settings = _require_usable(cfg if cfg is not None else load_config(db))
 
-    recipients = [to] if isinstance(to, str) else list(to or [])
-    recipients = [r for r in recipients if r]
+    recipients = _as_list(to)
+    copies = [c for c in _as_list(cc) if c not in recipients]
     if not recipients:
         raise SmtpSendFailed("Aucun destinataire.")
 
@@ -149,6 +161,8 @@ def send(
     message["Subject"] = subject
     message["From"] = formataddr((settings.smtp_from_name or "", settings.smtp_from))
     message["To"] = ", ".join(recipients)
+    if copies:
+        message["Cc"] = ", ".join(copies)
     # Une version texte accompagne le HTML : certains clients de messagerie
     # bancaires refusent le HTML seul, et un courriel d'alerte illisible ne
     # vaut pas mieux qu'un courriel non envoyé.
@@ -163,7 +177,9 @@ def send(
     try:
         if settings.smtp_auth:
             server.login(settings.smtp_username, settings.smtp_password)
-        server.send_message(message, to_addrs=recipients)
+        # L'enveloppe porte destinataires **et** copies : l'en-tete `Cc` ne
+        # fait qu'afficher, il ne remet rien au relais.
+        server.send_message(message, to_addrs=recipients + copies)
     except smtplib.SMTPAuthenticationError as exc:
         raise SmtpSendFailed("Authentification refusée par le relais : %s" % exc)
     except (OSError, smtplib.SMTPException) as exc:
@@ -176,5 +192,8 @@ def send(
             # succès en échec.
             pass
 
-    logger.info("Courriel SMTP envoyé à %d destinataire(s).", len(recipients))
+    logger.info(
+        "Courriel SMTP envoyé à %d destinataire(s) et %d en copie.",
+        len(recipients), len(copies),
+    )
     return True
