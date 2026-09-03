@@ -365,7 +365,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _force_utf8_output() -> None:
+    """Ecrit en UTF-8, quelle que soit la console.
+
+    Sous Windows, Python choisit l'encodage local (cp1252) des que sa sortie
+    est redirigee — ce que fait l'installateur. « Hote » arrivait alors comme
+    « H¶te » dans les messages de diagnostic, et l'exploitant se met a
+    douter du binaire au lieu de lire ce qu'on lui dit.
+    """
+    for flux in (sys.stdout, sys.stderr):
+        try:
+            flux.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            # Flux exotique ou deja consomme : mieux vaut un accent abime
+            # qu'un agent qui refuse de demarrer.
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8_output()
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):

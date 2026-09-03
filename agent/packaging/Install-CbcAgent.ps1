@@ -211,13 +211,44 @@ if ($Action -eq 'Install') {
 
     Write-Etape "Enregistrement du service Windows"
     $binPath = "`"$ExePath`" --config `"$ConfigPath`" run"
-    sc.exe create $ServiceName binPath= $binPath start= auto DisplayName= "CBC Supervision Agent" | Out-Null
-    sc.exe description $ServiceName "Agent de supervision CBC : remonte metriques, services et fichiers surveilles." | Out-Null
+
+    # La sortie de sc.exe etait jetee dans Out-Null et son code de retour
+    # jamais lu : un echec de creation passait inapercu, et la faute
+    # ressurgissait plus loin en « Impossible de trouver un service assorti
+    # du nom CBCAgent » -- un message qui ne designe pas sa cause.
+    $creation = sc.exe create $ServiceName binPath= $binPath start= auto DisplayName= "CBC Supervision Agent" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Avert ($creation -join ' ')
+        throw @"
+Creation du service impossible (sc.exe a rendu $LASTEXITCODE).
+
+L'hote est enrole et le binaire est en place : la supervision fonctionne des
+maintenant en avant-plan, mais elle ne survivra pas a une deconnexion :
+
+    & "$ExePath" --config "$ConfigPath" run
+
+Pour retirer ce qui vient d'etre installe : -Action Uninstall
+"@
+    }
+
+    sc.exe description $ServiceName "Agent de supervision CBC : remonte metriques, services et fichiers surveilles." 2>&1 | Out-Null
     # Redemarrage automatique : un agent qui meurt et ne revient pas laisse
     # l'hote muet, et le parc l'affiche « hors ligne » sans qu'aucune panne
     # reelle ne le justifie.
-    sc.exe failure $ServiceName reset= 86400 actions= restart/5000/restart/15000/restart/60000 | Out-Null
-    Start-Service -Name $ServiceName
+    sc.exe failure $ServiceName reset= 86400 actions= restart/5000/restart/15000/restart/60000 2>&1 | Out-Null
+
+    try {
+        Start-Service -Name $ServiceName -ErrorAction Stop
+    } catch {
+        # Erreur 1053 attendue tant que l'agent n'a pas de mode service :
+        # `run` est une boucle d'avant-plan, elle ne signale jamais
+        # SERVICE_RUNNING au gestionnaire de services, qui la tue au bout du
+        # delai. Le dire plutot que de laisser l'exploitant chercher.
+        Write-Avert "Service enregistre mais non demarre : $($_.Exception.Message)"
+        Write-Avert "L'agent n'expose pas encore de mode service. En attendant :"
+        Write-Host  "    & `"$ExePath`" --config `"$ConfigPath`" run"
+        exit 1
+    }
     Write-Ok "Service enregistre et demarre."
 
     Write-Host ""
