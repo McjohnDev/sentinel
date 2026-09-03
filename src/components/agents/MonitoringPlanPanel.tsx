@@ -322,8 +322,10 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
           {canEdit && (
             <button
               type="button"
-              className="cbc-btn-secondary"
-              disabled={disabled}
+              className="cbc-btn-secondary disabled:opacity-50"
+              // Rien a choisir : proposer l'ajout produirait une regle vide,
+              // enregistree puis silencieusement ignoree cote serveur.
+              disabled={disabled || discoveredMounts.length === 0}
               onClick={() =>
                 mutate({
                   disk: {
@@ -341,8 +343,19 @@ export const MonitoringPlanPanel: React.FC<Props> = ({ agentId, discoveredMounts
             </button>
           )}
         </div>
+        {discoveredMounts.length === 0 && (
+          <p className="px-[18px] pt-3 pb-0 text-[12.5px] text-amber-800 m-0">
+            Aucune partition remontée par cet hôte. L’agent transmet ses disques à
+            chaque battement : si la liste reste vide, c’est qu’aucun battement n’est
+            parvenu depuis son démarrage.
+          </p>
+        )}
         {plan.disk.partitions.length === 0 ? (
-          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">Aucune partition ciblée.</p>
+          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">
+            Aucune partition ciblée.
+            {discoveredMounts.length > 0 &&
+              ` ${discoveredMounts.length} partition(s) disponible(s) : ${discoveredMounts.join(', ')}.`}
+          </p>
         ) : (
           plan.disk.partitions.map((p, i) => (
             <PartitionRow
@@ -539,19 +552,32 @@ const PartitionRow: React.FC<{
   onRemove: () => void;
 }> = ({ rule, mounts, disabled, onChange, onRemove }) => (
   <div className="grid grid-cols-[1fr_110px_110px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
-    <input
-      list="partitions-decouvertes"
-      value={rule.mount}
+    {/* Une liste deroulante, non un champ libre avec datalist.
+        Le datalist ne se montrait qu'en tapant : l'ecran n'annoncait jamais
+        « voici les partitions de cet hote ». Il etait de surcroit rendu
+        *dans* chaque ligne de regle -- sans regle existante, aucune ligne,
+        donc aucune suggestion possible. On choisit desormais parmi ce que
+        l'hote remonte, comme pour les services. */}
+    <select
+      value={!rule.mount || mounts.includes(rule.mount) ? rule.mount : '__absente__'}
       disabled={disabled}
-      placeholder="point de montage"
       onChange={(e) => onChange({ ...rule, mount: e.target.value })}
       className="cbc-input py-1 text-[13px] tnum"
-    />
-    <datalist id="partitions-decouvertes">
+    >
+      <option value="">Choisir une partition…</option>
       {mounts.map((m) => (
-        <option key={m} value={m} />
+        <option key={m} value={m}>
+          {m}
+        </option>
       ))}
-    </datalist>
+      {/* Une regle posee sur une partition que l'hote ne remonte plus est
+          conservee et signalee, jamais effacee en silence : un disque
+          demonte ou temporairement absent ne doit pas faire disparaitre le
+          seuil que l'exploitant a defini pour lui. */}
+      {rule.mount && !mounts.includes(rule.mount) && (
+        <option value="__absente__">{rule.mount} — non remontée actuellement</option>
+      )}
+    </select>
     <input
       type="number"
       value={rule.warning}
