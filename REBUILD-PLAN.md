@@ -499,24 +499,55 @@ d'inventaire avec celle du dernier battement, si bien qu'un hôte fraîchement
 enrôlé — qui n'a pas encore battu — affichait `None` là où l'inventaire avait
 la donnée. Corrigé par repli sur la valeur d'inventaire. `ruff` est propre.
 
-### 4. Le relais SMTP présente un certificat auto-signé — contourné, à trancher
+### 4. Relais SMTP — résolu le 3 septembre 2026
 
-Le relais interne (`smtp.gie.local`, Exchange) n'annonce `AUTH NTLM` que sur le
-port 25 en clair — inutilisable depuis `smtplib` — et `NTLM LOGIN` après
-STARTTLS. STARTTLS est donc obligatoire, mais son certificat n'est signé par
-aucune autorité connue et la vérification échouait : **aucune alerte ne
-partait**.
+Premier envoi réussi, par le chemin du produit. Il aura fallu défaire trois
+obstacles empilés, dont deux ne se voyaient pas.
 
-Une option explicite `smtp_verify_cert` (vraie par défaut) permet de l'accepter.
-Le trafic reste chiffré — le mot de passe ne circule plus en clair — mais
-l'identité du relais n'est plus attestée : la plateforme ne distingue plus le
-vrai relais d'un interlocuteur qui s'en réclamerait. Acceptable sur un lien
-interne maîtrisé, et c'est un choix qui doit rester celui de l'exploitant, d'où
-le réglage plutôt qu'un contournement silencieux.
+**a. Le conteneur ne parlait pas au bon serveur.** `smtp.gie.local` se résout
+en `10.11.20.171` depuis le conteneur et en `10.12.20.172` depuis le poste. Les
+deux acceptent une connexion sur le port 25, ce qui rendait le défaut
+invisible : la conversation SMTP restait simplement en attente, sans erreur
+exploitable. `extra_hosts` fixe l'adresse dans `docker-compose.yml`, réglable
+par `SMTP_RELAY_IP` sans reconstruire l'image.
 
-**À faire côté infrastructure :** faire signer le certificat du relais par
-l'autorité interne, puis remettre la vérification. Tant que ce n'est pas fait,
-la case reste décochée.
+**b. Le certificat est auto-signé.** STARTTLS est obligatoire — le port 25 en
+clair n'annonce que `AUTH NTLM`, que `smtplib` ne sait pas parler — mais la
+vérification échouait. L'option `smtp_verify_cert` permet de l'accepter, comme
+un choix posé et non un contournement muet.
+
+**c. Le relais n'accepte pas l'authentification de base**, bien qu'il annonce
+`LOGIN` après STARTTLS. Trois formes d'identifiant ont été essayées —
+`cbcautoma`, `cbcautoma@groupecommercialbank.com`, `GIE\cbcautoma` — toutes
+refusées en `535 5.7.3`. Le mot de passe stocké est pourtant intact (14
+caractères, sans mutilation ni caractère perdu). Les essais ont été arrêtés là :
+au-delà, le compte de service risquait le verrouillage.
+
+Le relais accepte en revanche la **remise anonyme**, y compris chiffrée — la
+configuration habituelle d'un connecteur applicatif, restreint par adresse IP.
+C'est ce qui est retenu :
+
+| Réglage | Valeur |
+|---|---|
+| Serveur | `smtp.gie.local` → `10.12.20.172` |
+| Port | 25 |
+| Authentification | **désactivée** |
+| Chiffrement | STARTTLS |
+| Vérification du certificat | désactivée (auto-signé) |
+| Expéditeur | `sentinel@groupecommercialbank.com` |
+
+Le mot de passe reste stocké : il redeviendra utile si l'authentification est
+ouverte plus tard sur ce connecteur.
+
+**À faire côté infrastructure**, dans l'ordre d'importance décroissante :
+faire signer le certificat du relais par l'autorité interne puis remettre la
+vérification ; corriger la résolution de `smtp.gie.local` du côté Docker pour
+retirer `extra_hosts` ; ouvrir l'authentification si la remise anonyme par IP
+n'est pas jugée suffisante.
+
+Défaut trouvé au passage : la copie était versée dans `To`. L'en-tête `Cc`
+n'existait pas, si bien qu'un lecteur en copie se lisait comme destinataire
+direct — et sur une alerte, cela change qui se croit chargé de la traiter.
 
 ### 5. Destinataires d'alerte — résolu le 2 septembre 2026
 

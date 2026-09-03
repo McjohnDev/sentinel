@@ -75,6 +75,16 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.server
     container_name: sentinel-server
+    # Le DNS du conteneur ne rend pas la meme adresse que le poste pour le
+    # relais de messagerie : 10.11.20.171 ici, 10.12.20.172 sur le reseau de
+    # la banque. Le conteneur composait donc une adresse qui n'accepte pas
+    # notre remise, et aucune alerte ne partait -- sans aucun message d'erreur
+    # exploitable, la connexion restant simplement en attente.
+    #
+    # `SMTP_RELAY_IP` permet de corriger sans reconstruire l'image le jour ou
+    # l'adresse du relais change.
+    extra_hosts:
+      - "smtp.gie.local:${SMTP_RELAY_IP:-10.12.20.172}"
     ports:
       - "8443:8000"
     # Configuration hors dépôt (annuaire LDAP, SMTP, secrets). Sans ceci, le
