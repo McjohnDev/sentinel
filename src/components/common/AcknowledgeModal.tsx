@@ -59,7 +59,7 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2 bg-[var(--color-ln2)] hover:bg-slate-200 text-[var(--color-tx2)] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
           >
             Annuler
           </button>
@@ -77,20 +77,20 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Alert Details Summary */}
-        <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+        <div className="p-3.5 bg-[var(--color-ln2)] border border-[var(--color-ln)]/80 rounded-xl space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Badge type="severity" value={alert.severity} size="sm" />
-              <span className="font-bold text-xs text-slate-900">{alert.agentName}</span>
+              <span className="font-bold text-xs text-[var(--color-tx)]">{alert.agentName}</span>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">{alert.timestamp}</span>
+            <span className="text-[11px] font-mono text-[var(--color-tx3)]">{alert.timestamp}</span>
           </div>
-          <p className="text-xs text-slate-700 leading-relaxed font-medium">{alert.message}</p>
+          <p className="text-xs text-[var(--color-tx2)] leading-relaxed font-medium">{alert.message}</p>
         </div>
 
         {/* Operator Name Input */}
         <div>
-          <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+          <label className="block text-xs font-bold text-[var(--color-tx)] mb-1 flex items-center gap-1.5">
             <UserIcon className="w-3.5 h-3.5 text-blue-600" />
             Nom de l'opérateur / Intervenant <span className="text-rose-500">*</span>
           </label>
@@ -101,20 +101,20 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
               value={operatorName}
               onChange={(e) => setOperatorName(e.target.value)}
               placeholder="Ex: Jean-Paul Nkouam (Opérateur SOC)"
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D0B335] font-medium shadow-2xs"
+              className="w-full px-3 py-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs text-[var(--color-tx)] focus:outline-none focus:ring-2 focus:ring-[#D0B335] font-medium shadow-2xs"
             />
           </div>
 
           {/* Quick suggestions from users list */}
           {users.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-slate-400">Suggestions :</span>
+              <span className="text-[10px] font-semibold text-[var(--color-tx3)]">Suggestions :</span>
               {users.map((u) => (
                 <button
                   key={u.id}
                   type="button"
                   onClick={() => setOperatorName(`${u.name} (${u.role})`)}
-                  className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium cursor-pointer"
+                  className="text-[10px] px-2 py-0.5 bg-[var(--color-ln2)] hover:bg-slate-200 text-[var(--color-tx2)] rounded-lg transition-colors font-medium cursor-pointer"
                 >
                   {u.name}
                 </button>
@@ -125,7 +125,7 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
 
         {/* Comment / Intervention Report */}
         <div>
-          <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+          <label className="block text-xs font-bold text-[var(--color-tx)] mb-1 flex items-center gap-1.5">
             <MessageSquare className="w-3.5 h-3.5 text-[#8D771B]" />
             Commentaire d'intervention (Optionnel)
           </label>
@@ -134,7 +134,7 @@ export const AcknowledgeModal: React.FC<AcknowledgeModalProps> = ({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Ex: Analyse en cours. Service redémarré avec succès. Ticket JIRA #CBC-402 créé."
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D0B335] font-medium shadow-2xs"
+            className="w-full p-3 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs text-[var(--color-tx)] focus:outline-none focus:ring-2 focus:ring-[#D0B335] font-medium shadow-2xs"
           />
         </div>
 

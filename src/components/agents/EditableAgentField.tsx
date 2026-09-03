@@ -91,7 +91,7 @@ export const EditableAgentField: React.FC<Props> = ({
     return (
       <span className={`inline-flex items-center gap-1.5 ${className}`}>
         {value || placeholder}
-        <Lock className="w-3 h-3 text-slate-400" aria-label="Constaté par l'agent — non modifiable" />
+        <Lock className="w-3 h-3 text-[var(--color-tx3)]" aria-label="Constaté par l'agent — non modifiable" />
       </span>
     );
   }
@@ -100,12 +100,12 @@ export const EditableAgentField: React.FC<Props> = ({
     return (
       <span className="inline-flex items-center gap-1.5 group">
         <span className={className}>
-          {value || <span className="text-slate-400 italic">{placeholder}</span>}
+          {value || <span className="text-[var(--color-tx3)] italic">{placeholder}</span>}
         </span>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-700 transition-opacity"
+          className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[var(--color-tx3)] hover:text-[var(--color-tx2)] transition-opacity"
           title="Modifier"
           aria-label={`Modifier ${field}`}
         >
@@ -143,7 +143,7 @@ export const EditableAgentField: React.FC<Props> = ({
           type="button"
           onClick={cancel}
           disabled={saving}
-          className="p-1 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+          className="p-1 rounded text-[var(--color-tx2)] hover:bg-[var(--color-ln2)] disabled:opacity-50"
           title="Annuler"
         >
           <X className="w-4 h-4" />

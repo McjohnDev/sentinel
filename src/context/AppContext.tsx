@@ -30,6 +30,9 @@ import { DataMapper } from '../services/mappers/data.mapper';
 interface AppContextType {
   currentUser: User | null;
   currentRole: Role;
+  /** Clair ou sombre. Choix explicite uniquement, memorise. */
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
   setCurrentRole: (role: Role) => void;
   selectedAgentId: string | null;
   setSelectedAgentId: (id: string | null) => void;
@@ -100,6 +103,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+
+  // Clair par defaut au premier chargement, comme le modele repris ; le
+  // choix de l'utilisateur est ensuite memorise plutot que redemande a
+  // chaque visite.
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}theme`);
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}theme`, theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -874,6 +890,8 @@ function withAlertCounts(agents: Agent[], alerts: Alert[]): Agent[] {
         currentUser,
         currentRole,
         setCurrentRole,
+        theme,
+        toggleTheme,
         selectedAgentId,
         setSelectedAgentId,
         agents,

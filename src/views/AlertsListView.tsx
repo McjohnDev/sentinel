@@ -71,9 +71,9 @@ export const AlertsListView: React.FC = () => {
       />
 
       <div className="cbc-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-5 flex-wrap">
+        <div className="px-4 py-3 border-b border-[var(--color-ln)] flex items-center gap-5 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{t('alerts.severity')}</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">{t('alerts.severity')}</span>
             {/* Les quatre gravités du référentiel (ALR-004). 'warning' est une
                 valeur héritée que serialize_severity replie sur 'major' côté
                 serveur : elle n'atteint jamais le client et ne doit donc pas
@@ -83,13 +83,13 @@ export const AlertsListView: React.FC = () => {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{t('alerts.status')}</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">{t('alerts.status')}</span>
             {(['open', 'acknowledged', 'resolved'] as AlertStatus[]).map((s) => (
               <FilterChip key={s} label={alertStatusMeta(s).label} active={statuses.includes(s)} onClick={() => toggle(statuses, s, setStatuses)} />
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{t('alerts.family')}</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">{t('alerts.family')}</span>
             {(['cpu', 'ram', 'disk', 'offline'] as AlertType[]).map((s) => (
               <FilterChip key={s} label={s} active={types.includes(s)} onClick={() => toggle(types, s, setTypes)} />
             ))}
@@ -104,9 +104,9 @@ export const AlertsListView: React.FC = () => {
         ) : (
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+              <tr className="bg-[var(--color-ln2)] border-b border-[var(--color-ln)]">
                 {[t('alerts.severity'), t('alerts.status'), t('alerts.colHost'), t('alerts.colMessage'), t('alerts.colDetected'), t('alerts.colNotif'), ''].map((c) => (
-                  <th key={c || 'act'} className="text-left px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                  <th key={c || 'act'} className="text-left px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] whitespace-nowrap">
                     {c}
                   </th>
                 ))}
@@ -120,7 +120,7 @@ export const AlertsListView: React.FC = () => {
                   <tr
                     key={a.id}
                     onClick={() => setDrawer(a)}
-                    className={`border-b border-slate-50 hover:bg-slate-50 cursor-pointer ${
+                    className={`border-b border-[var(--color-ln2)] hover:bg-[var(--color-ln2)] cursor-pointer ${
                       a.severity === 'critical' && a.status === 'open' ? 'bg-rose-50/40' : ''
                     }`}
                   >
@@ -135,8 +135,8 @@ export const AlertsListView: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-3 text-[13px] font-bold whitespace-nowrap">{a.agentName}</td>
-                    <td className="p-3 text-[13px] text-slate-700">{a.message}</td>
-                    <td className="p-3 tnum text-[12.5px] text-slate-500 whitespace-nowrap">{a.timestamp}</td>
+                    <td className="p-3 text-[13px] text-[var(--color-tx2)]">{a.message}</td>
+                    <td className="p-3 tnum text-[12.5px] text-[var(--color-tx2)] whitespace-nowrap">{a.timestamp}</td>
                     <td className="p-3 text-center">
                       <MailCheck
                         className={`inline-block w-4 h-4 ${deliveryMeta(a.mailStatus).fg}`}
@@ -156,7 +156,7 @@ export const AlertsListView: React.FC = () => {
                           {t('alerts.ack')}
                         </button>
                       ) : (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-[var(--color-tx3)]">—</span>
                       )}
                     </td>
                   </tr>
@@ -278,7 +278,7 @@ export const AlertsListView: React.FC = () => {
           </>
         }
       >
-        <p className="text-sm text-slate-600">Acquitter toutes les alertes ouvertes ? Un commentaire d'urgence sera enregistré.</p>
+        <p className="text-sm text-[var(--color-tx2)]">Acquitter toutes les alertes ouvertes ? Un commentaire d'urgence sera enregistré.</p>
       </Modal>
     </div>
   );

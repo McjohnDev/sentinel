@@ -61,11 +61,11 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
   }, [inventory, tab, query]);
 
   if (loading) {
-    return <div className="cbc-card p-6 text-[12.5px] text-slate-500">Chargement de l’inventaire…</div>;
+    return <div className="cbc-card p-6 text-[12.5px] text-[var(--color-tx2)]">Chargement de l’inventaire…</div>;
   }
 
   if (failed) {
-    return <div className="cbc-card p-6 text-[12.5px] text-slate-500">Inventaire indisponible.</div>;
+    return <div className="cbc-card p-6 text-[12.5px] text-[var(--color-tx2)]">Inventaire indisponible.</div>;
   }
 
   const collectedAt = inventory?.collected_at;
@@ -73,10 +73,10 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
     return (
       <div className="cbc-card p-6">
         <div className="flex items-start gap-3">
-          <Package className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+          <Package className="w-5 h-5 text-[var(--color-tx3)] shrink-0 mt-0.5" />
           <div>
             <h3 className="text-[14px] font-bold m-0">Inventaire pas encore remonté</h3>
-            <p className="text-[12.5px] text-slate-600 mt-1.5 mb-0 max-w-2xl">
+            <p className="text-[12.5px] text-[var(--color-tx2)] mt-1.5 mb-0 max-w-2xl">
               L’agent transmet son inventaire logiciel peu après son premier battement,
               puis à cadence lente. Un hôte fraîchement enrôlé n’a donc encore rien
               envoyé — ce n’est pas un défaut.
@@ -96,7 +96,7 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
         <div className="flex items-center gap-2.5">
           <Package className="w-4 h-4 text-[#A68523]" />
           <span className="text-[13.5px] font-bold">Inventaire logiciel</span>
-          <span className="text-[11.5px] text-slate-500">
+          <span className="text-[11.5px] text-[var(--color-tx2)]">
             relevé le {new Date(collectedAt).toLocaleString()}
           </span>
         </div>
@@ -107,7 +107,7 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
               type="button"
               onClick={() => setTab(id)}
               className={`px-3 py-1.5 rounded-lg text-[12.5px] font-semibold ${
-                tab === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                tab === id ? 'bg-slate-900 text-white' : 'text-[var(--color-tx2)] hover:bg-[var(--color-ln2)]'
               }`}
             >
               {id === 'applications' ? 'Applications' : 'Pilotes'} (
@@ -124,7 +124,7 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
         <div className="cbc-card p-4 border-amber-200">
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-[12.5px] text-slate-700">
+            <div className="text-[12.5px] text-[var(--color-tx2)]">
               {unavailable.length > 0 && (
                 <p className="m-0">
                   Sections que l’hôte n’a pas pu lire : <strong>{unavailable.join(', ')}</strong>.
@@ -142,26 +142,26 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
       )}
 
       <div className="cbc-card overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-          <Search className="w-3.5 h-3.5 text-slate-400" />
+        <div className="px-5 py-3 border-b border-[var(--color-ln2)] flex items-center gap-2">
+          <Search className="w-3.5 h-3.5 text-[var(--color-tx3)]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={tab === 'applications' ? 'Filtrer par nom, version, éditeur…' : 'Filtrer par nom…'}
             className="flex-1 text-[12.5px] outline-none bg-transparent"
           />
-          <span className="text-[11.5px] text-slate-400 tnum">{rows.length}</span>
+          <span className="text-[11.5px] text-[var(--color-tx3)] tnum">{rows.length}</span>
         </div>
 
         {rows.length === 0 ? (
-          <p className="px-5 py-6 text-[12.5px] text-slate-500 m-0">
+          <p className="px-5 py-6 text-[12.5px] text-[var(--color-tx2)] m-0">
             {query ? 'Aucune correspondance.' : 'Rien à afficher.'}
           </p>
         ) : (
           <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
             <table className="w-full text-[12.5px]">
-              <thead className="sticky top-0 bg-white">
-                <tr className="text-left text-[10.5px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+              <thead className="sticky top-0 bg-[var(--color-panel)]">
+                <tr className="text-left text-[10.5px] uppercase tracking-wider text-[var(--color-tx3)] border-b border-[var(--color-ln2)]">
                   <th className="px-5 py-2.5 font-bold">Nom</th>
                   <th className="px-5 py-2.5 font-bold">Version</th>
                   <th className="px-5 py-2.5 font-bold">
@@ -171,20 +171,20 @@ export const HostInventoryPanel: React.FC<{ agentId: string }> = ({ agentId }) =
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={`${r.name}-${i}`} className="border-b border-slate-50 last:border-0">
+                  <tr key={`${r.name}-${i}`} className="border-b border-[var(--color-ln2)] last:border-0">
                     <td className="px-5 py-2 font-semibold">
                       {r.name}
                       {tab === 'drivers' && (r as { display_name?: string | null }).display_name && (
-                        <span className="text-slate-500 font-normal">
+                        <span className="text-[var(--color-tx2)] font-normal">
                           {' '}
                           — {(r as { display_name?: string | null }).display_name}
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-2 tnum text-slate-600">
+                    <td className="px-5 py-2 tnum text-[var(--color-tx2)]">
                       {(r as { version?: string | null }).version || '—'}
                     </td>
-                    <td className="px-5 py-2 text-slate-600">
+                    <td className="px-5 py-2 text-[var(--color-tx2)]">
                       {tab === 'applications'
                         ? (r as { publisher?: string | null }).publisher || '—'
                         : (r as { state?: string | null }).state || '—'}

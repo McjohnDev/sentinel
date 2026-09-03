@@ -223,7 +223,7 @@ export const AgentDetailView: React.FC = () => {
     return (
       <div className="cbc-card p-16 text-center">
         <p className="font-bold">Hôte introuvable</p>
-        <p className="text-sm text-slate-500 mt-2">Cet agent n’est plus dans l’inventaire (supprimé ou jamais enrôlé).</p>
+        <p className="text-sm text-[var(--color-tx2)] mt-2">Cet agent n’est plus dans l’inventaire (supprimé ou jamais enrôlé).</p>
         <button type="button" className="cbc-btn-secondary mt-4" onClick={() => navigate('/agents')}>
           Retour au parc
         </button>
@@ -266,7 +266,7 @@ export const AgentDetailView: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <button type="button" onClick={() => navigate('/agents')} className="flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-900">
+      <button type="button" onClick={() => navigate('/agents')} className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--color-tx2)] hover:text-[var(--color-tx)]">
         <ArrowLeft className="w-4 h-4" />
         Parc
       </button>
@@ -289,7 +289,7 @@ export const AgentDetailView: React.FC = () => {
               {/* Identifiant attribué par la plateforme : court exprès, pour
                   pouvoir être dicté et recherché. */}
               <span
-                className="tnum px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11.5px] font-bold text-slate-600"
+                className="tnum px-2 py-0.5 rounded-md bg-[var(--color-ln2)] border border-[var(--color-ln)] text-[11.5px] font-bold text-[var(--color-tx2)]"
                 title="Identifiant attribué par la plateforme"
               >
                 {agent.id}
@@ -299,7 +299,7 @@ export const AgentDetailView: React.FC = () => {
                 {st.label}
               </span>
               {agent.uninstalled && (
-                <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[11px] font-semibold">
+                <span className="px-2 py-0.5 rounded-md bg-slate-200 text-[var(--color-tx2)] text-[11px] font-semibold">
                   Agent désinstallé{agent.uninstalledAt ? ` le ${String(agent.uninstalledAt).split('T')[0]}` : ''}
                 </span>
               )}
@@ -308,8 +308,8 @@ export const AgentDetailView: React.FC = () => {
             {/* Champs constatés par l'agent : affichés en lecture seule et
                 signalés comme tels. Les corriger depuis l'interface
                 produirait un inventaire qui contredit la machine réelle. */}
-            <div className="tnum text-[12.5px] text-slate-500 mt-2.5 flex items-center gap-1.5 flex-wrap">
-              <Lock className="w-3 h-3 text-slate-400" aria-hidden />
+            <div className="tnum text-[12.5px] text-[var(--color-tx2)] mt-2.5 flex items-center gap-1.5 flex-wrap">
+              <Lock className="w-3 h-3 text-[var(--color-tx3)]" aria-hidden />
               <span title="Constaté par l'agent — non modifiable">
                 {agent.hostname} · {agent.ipAddress} · {agent.os} {agent.osVersion} · agent {agent.agentVersion}
                 {agent.cpuCores ? ` · ${agent.cpuCores} vCPU` : ''}
@@ -319,23 +319,23 @@ export const AgentDetailView: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Site</span>
+              <span className="text-[11px] font-semibold text-[var(--color-tx3)] uppercase tracking-wider">Site</span>
               <EditableAgentField
                 agent={agent}
                 field="location"
                 value={agent.location}
                 placeholder="Non renseigné"
-                className="text-[12.5px] text-slate-700"
+                className="text-[12.5px] text-[var(--color-tx2)]"
                 onSaved={reloadAgent}
               />
-              <span className="text-slate-300">·</span>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">VLAN</span>
+              <span className="text-[var(--color-tx3)]">·</span>
+              <span className="text-[11px] font-semibold text-[var(--color-tx3)] uppercase tracking-wider">VLAN</span>
               <EditableAgentField
                 agent={agent}
                 field="vlan"
                 value={agent.vlan || ''}
                 placeholder="Non renseigné"
-                className="text-[12.5px] text-slate-700"
+                className="text-[12.5px] text-[var(--color-tx2)]"
                 onSaved={reloadAgent}
               />
               {/* Provenance du VLAN retenu. Un VLAN déduit du plan d'adressage
@@ -343,7 +343,7 @@ export const AgentDetailView: React.FC = () => {
                   l'exploitant doit pouvoir les distinguer d'un coup d'œil. */}
               {!agent.vlan && agent.vlanEffective && (
                 <span
-                  className="text-[12.5px] text-slate-700"
+                  className="text-[12.5px] text-[var(--color-tx2)]"
                   title={
                     agent.vlanSource === 'derived'
                       ? `Déduit du plan d'adressage — sous-réseau ${agent.vlanSubnet}`
@@ -351,13 +351,13 @@ export const AgentDetailView: React.FC = () => {
                   }
                 >
                   {agent.vlanEffective}
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-bold">
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-[var(--color-ln)] text-[10px] font-bold">
                     {agent.vlanSource === 'derived' ? 'déduit' : 'hôte'}
                   </span>
                 </span>
               )}
               {agent.vlanSource === 'derived' && agent.vlanLabel && (
-                <span className="text-[12px] text-slate-500">{agent.vlanLabel}</span>
+                <span className="text-[12px] text-[var(--color-tx2)]">{agent.vlanLabel}</span>
               )}
               {/* La divergence est le fait intéressant : un hôte rebranché sur
                   un autre port étiquette — ou se déduit — un VLAN que la fiche
@@ -382,19 +382,19 @@ export const AgentDetailView: React.FC = () => {
                     hôte : {agent.vlanObserved}
                   </span>
                 )}
-              <span className="text-slate-300">·</span>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Responsable</span>
+              <span className="text-[var(--color-tx3)]">·</span>
+              <span className="text-[11px] font-semibold text-[var(--color-tx3)] uppercase tracking-wider">Responsable</span>
               <AgentOwnerField
                 agent={agent}
                 canEdit={currentRole === 'Admin'}
                 onSaved={reloadAgent}
               />
-              <span className="text-slate-300">·</span>
-              <span className="tnum text-xs text-slate-600">
+              <span className="text-[var(--color-tx3)]">·</span>
+              <span className="tnum text-xs text-[var(--color-tx2)]">
                 {agent.customThresholds ? 'Seuils surchargés' : 'Seuils hérités'}
               </span>
-              <span className="text-slate-300">·</span>
-              <span className="text-[12.5px] text-slate-500">Dernier contact {agent.lastHeartbeat}</span>
+              <span className="text-[var(--color-tx3)]">·</span>
+              <span className="text-[12.5px] text-[var(--color-tx2)]">Dernier contact {agent.lastHeartbeat}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -410,14 +410,14 @@ export const AgentDetailView: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="flex gap-0.5 mt-5 -mx-[22px] px-3.5 border-t border-slate-200 bg-slate-50 rounded-b-xl overflow-x-auto">
+        <div className="flex gap-0.5 mt-5 -mx-[22px] px-3.5 border-t border-[var(--color-ln)] bg-[var(--color-ln2)] rounded-b-xl overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={`px-3.5 py-3 border-0 bg-transparent text-[12.5px] whitespace-nowrap border-b-2 ${
-                tab === t.id ? 'border-[#D0B335] text-slate-900 font-bold' : 'border-transparent text-slate-500 font-semibold'
+                tab === t.id ? 'border-[#D0B335] text-[var(--color-tx)] font-bold' : 'border-transparent text-[var(--color-tx2)] font-semibold'
               }`}
             >
               {t.label}
@@ -451,7 +451,7 @@ export const AgentDetailView: React.FC = () => {
                     className="w-24 h-24 rounded-full shrink-0 grid place-items-center"
                     style={{ background: `conic-gradient(${color} ${deg}deg, #F1F5F9 0)` }}
                   >
-                    <div className="w-[74px] h-[74px] rounded-full bg-white grid place-items-center">
+                    <div className="w-[74px] h-[74px] rounded-full bg-[var(--color-panel)] grid place-items-center">
                       <span className="tnum text-lg font-extrabold">{off ? '—' : `${Math.round(g.value!)}%`}</span>
                     </div>
                   </div>
@@ -475,7 +475,7 @@ export const AgentDetailView: React.FC = () => {
                 paramétrage de supervision arrive au lot B. */}
             <AgentRuntimePanel agent={agent} />
             <div className="cbc-card overflow-hidden">
-              <div className="px-[18px] py-3.5 border-b border-slate-200">
+              <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)]">
                 <h2 className="text-sm font-bold m-0">Alertes ouvertes</h2>
               </div>
               {openAlerts.length === 0 ? (
@@ -491,16 +491,16 @@ export const AgentDetailView: React.FC = () => {
                       key={a.id}
                       type="button"
                       onClick={() => setDrawer(a)}
-                      className="w-full text-left px-[18px] py-3.5 border-b border-slate-50 hover:bg-slate-50"
+                      className="w-full text-left px-[18px] py-3.5 border-b border-[var(--color-ln2)] hover:bg-[var(--color-ln2)]"
                     >
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold text-white" style={{ background: sev.bg }}>
                           {sev.label}
                         </span>
-                        <span className="text-[11.5px] text-slate-400">{a.type}</span>
-                        <span className="tnum text-[11.5px] text-slate-400 ml-auto">{a.timestamp}</span>
+                        <span className="text-[11.5px] text-[var(--color-tx3)]">{a.type}</span>
+                        <span className="tnum text-[11.5px] text-[var(--color-tx3)] ml-auto">{a.timestamp}</span>
                       </div>
-                      <div className="text-[12.5px] text-slate-700 mt-2">{a.message}</div>
+                      <div className="text-[12.5px] text-[var(--color-tx2)] mt-2">{a.message}</div>
                     </button>
                   );
                 })
@@ -522,20 +522,20 @@ export const AgentDetailView: React.FC = () => {
                 { label: 'Mémoire', color: '#64748B' },
                 { label: 'Disque', color: '#059669' },
               ].map((serie) => (
-                <span key={serie.label} className="inline-flex items-center gap-1.5 text-[12px] text-slate-600">
+                <span key={serie.label} className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-tx2)]">
                   <span className="w-3 h-0.5 rounded" style={{ background: serie.color }} />
                   {serie.label}
                 </span>
               ))}
             </div>
-            <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+            <div className="inline-flex rounded-lg border border-[var(--color-ln)] overflow-hidden">
               {RANGES.map((r) => (
                 <button
                   key={r.id}
                   type="button"
                   onClick={() => setRange(r.id)}
                   className={`px-2.5 py-1 text-[12px] font-semibold ${
-                    range === r.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                    range === r.id ? 'bg-slate-900 text-white' : 'text-[var(--color-tx2)] hover:bg-[var(--color-ln2)]'
                   }`}
                 >
                   {r.label}
@@ -546,7 +546,7 @@ export const AgentDetailView: React.FC = () => {
 
           <div className="h-72">
             {history.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[var(--color-tx2)]">
                 Aucune mesure sur cette période. Un hôte enrôlé depuis peu n’a pas encore
                 d’historique : essayer une fenêtre plus courte.
               </p>
@@ -569,12 +569,12 @@ export const AgentDetailView: React.FC = () => {
       {tab === 'alertes' && (
         <div className="cbc-card overflow-hidden">
           {hostAlerts.length === 0 ? (
-            <p className="p-10 text-center text-sm text-slate-500">Aucune alerte pour cet hôte.</p>
+            <p className="p-10 text-center text-sm text-[var(--color-tx2)]">Aucune alerte pour cet hôte.</p>
           ) : (
             hostAlerts.map((a) => (
-              <button key={a.id} type="button" onClick={() => setDrawer(a)} className="w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50">
+              <button key={a.id} type="button" onClick={() => setDrawer(a)} className="w-full text-left px-4 py-3 border-b border-[var(--color-ln2)] hover:bg-[var(--color-ln2)]">
                 <span className="text-[13px] font-semibold">{a.message}</span>
-                <span className="tnum text-xs text-slate-400 ml-2">{a.timestamp}</span>
+                <span className="tnum text-xs text-[var(--color-tx3)] ml-2">{a.timestamp}</span>
               </button>
             ))
           )}
@@ -677,10 +677,10 @@ export const AgentDetailView: React.FC = () => {
       />
       <AcknowledgeModal isOpen={!!ackTarget} onClose={() => setAckTarget(null)} alert={ackTarget} onConfirm={(id, c, n) => { acknowledgeAlert(id, c, n); setAckTarget(null); }} />
       <Modal isOpen={revokeOpen} onClose={() => setRevokeOpen(false)} title="Révoquer" footer={<><button type="button" className="cbc-btn-secondary" onClick={() => setRevokeOpen(false)}>Annuler</button><button type="button" className="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold" onClick={() => { revokeAgent(agent.id); setRevokeOpen(false); }}>Révoquer</button></>}>
-        <p className="text-sm text-slate-600">Révoquer {agent.name} ?</p>
+        <p className="text-sm text-[var(--color-tx2)]">Révoquer {agent.name} ?</p>
       </Modal>
       <Modal isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} title="Supprimer" footer={<><button type="button" className="cbc-btn-secondary" onClick={() => setDeleteOpen(false)}>Annuler</button><button type="button" className="px-3 py-2 rounded-lg bg-rose-600 text-white text-xs font-semibold" onClick={() => { deleteAgent(agent.id); setDeleteOpen(false); navigate('/agents'); }}>Supprimer</button></>}>
-        <p className="text-sm text-slate-600">Supprimer définitivement {agent.name} ?</p>
+        <p className="text-sm text-[var(--color-tx2)]">Supprimer définitivement {agent.name} ?</p>
       </Modal>
     </div>
   );

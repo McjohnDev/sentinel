@@ -54,33 +54,43 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] px-4 bg-slate-950/40 animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[14vh] px-4 animate-fade-in"
+      style={{ background: 'rgba(9,11,16,.45)' }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white border border-slate-200 rounded-xl overflow-hidden animate-modal-in shadow-lg"
+        className="w-full max-w-lg rounded-2xl overflow-hidden animate-modal-in border"
+        style={{
+          background: 'var(--color-panel)',
+          borderColor: 'var(--color-ln)',
+          boxShadow: '0 32px 80px rgba(0,0,0,.35)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-3 border-b border-slate-200">
-          <Search className="w-4 h-4 text-slate-400 shrink-0" />
+        <div className="flex items-center gap-2 px-4 border-b" style={{ borderColor: 'var(--color-ln)' }}>
+          <Search className="w-4 h-4 shrink-0" style={{ color: 'var(--color-tx3)' }} />
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Hôtes, alertes, écrans…"
-            className="flex-1 py-3 border-0 text-sm outline-none bg-transparent"
+            className="flex-1 py-3 border-0 text-[14px] outline-none bg-transparent"
+            style={{ color: 'var(--color-tx)' }}
           />
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+            className="p-1.5 rounded-lg"
+            style={{ color: 'var(--color-tx3)' }}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="max-h-72 overflow-y-auto py-1">
+        <div className="max-h-72 overflow-y-auto p-1.5">
           {items.length === 0 ? (
-            <p className="px-4 py-6 text-xs text-slate-500 text-center">Aucun résultat</p>
+            <p className="px-4 py-6 text-xs text-center" style={{ color: 'var(--color-tx3)' }}>
+              Aucun résultat
+            </p>
           ) : (
             items.map((item) => (
               <button
@@ -90,13 +100,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
                   navigate(item.path);
                   onClose();
                 }}
-                className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center justify-between gap-2"
+                className="w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between gap-2 cbc-hover"
+                style={{ color: 'var(--color-tx)' }}
+                onMouseDown={(e) => e.preventDefault()}
               >
-                <span className="text-sm font-semibold text-slate-900">{item.label}</span>
-                <span className="text-[10px] text-slate-400 uppercase tracking-wide">{item.group}</span>
+                <span className="text-[13px] font-semibold">{item.label}</span>
+                <span
+                  className="font-mono text-[8.5px] tracking-[0.08em] border rounded px-1.5 py-0.5"
+                  style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx3)' }}
+                >
+                  {item.group.toUpperCase()}
+                </span>
               </button>
             ))
           )}
+        </div>
+        <div
+          className="px-4 py-1.5 border-t font-mono text-[9.5px]"
+          style={{ borderColor: 'var(--color-ln)', color: 'var(--color-tx3)' }}
+        >
+          ↵ ouvrir · esc fermer
         </div>
       </div>
     </div>

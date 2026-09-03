@@ -151,7 +151,7 @@ export const LdapPanel: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="cbc-card p-6 text-[13px] text-slate-400">Chargement…</div>;
+    return <div className="cbc-card p-6 text-[13px] text-[var(--color-tx3)]">Chargement…</div>;
   }
 
   if (loadError || !settings) {
@@ -166,7 +166,7 @@ export const LdapPanel: React.FC = () => {
     ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
     : settings.enabled
       ? 'bg-rose-50 text-rose-800 border-rose-200'
-      : 'bg-slate-100 text-slate-600 border-slate-200';
+      : 'bg-[var(--color-ln2)] text-[var(--color-tx2)] border-[var(--color-ln)]';
 
   const statusLabel = settings.operational
     ? 'Opérationnel'
@@ -175,9 +175,9 @@ export const LdapPanel: React.FC = () => {
       : 'Désactivé';
 
   const row = (label: string, value: React.ReactNode) => (
-    <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 last:border-0">
-      <span className="text-[12px] text-slate-500 shrink-0">{label}</span>
-      <span className="text-[12.5px] font-semibold text-slate-800 text-right break-all">{value}</span>
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-[var(--color-ln2)] last:border-0">
+      <span className="text-[12px] text-[var(--color-tx2)] shrink-0">{label}</span>
+      <span className="text-[12.5px] font-semibold text-[var(--color-tx)] text-right break-all">{value}</span>
     </div>
   );
 
@@ -190,7 +190,7 @@ export const LdapPanel: React.FC = () => {
               <ShieldCheck className="w-4 h-4 text-[#A68523]" />
               Annuaire d'entreprise (LDAP / Active Directory)
             </h3>
-            <p className="text-[12.5px] text-slate-500 mt-1 max-w-2xl">
+            <p className="text-[12.5px] text-[var(--color-tx2)] mt-1 max-w-2xl">
               Les identifiants ne sont jamais stockés par la plateforme :
               l'authentification est une liaison directe à l'annuaire. Le rôle
               est réaligné sur les groupes à chaque connexion.
@@ -217,12 +217,12 @@ export const LdapPanel: React.FC = () => {
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-x-8">
           <div>
-            {row('Serveur', settings.server_uri || <span className="text-slate-400">non renseigné</span>)}
-            {row('Base de recherche', settings.user_search_base || <span className="text-slate-400">non renseignée</span>)}
+            {row('Serveur', settings.server_uri || <span className="text-[var(--color-tx3)]">non renseigné</span>)}
+            {row('Base de recherche', settings.user_search_base || <span className="text-[var(--color-tx3)]">non renseignée</span>)}
             {row('Filtre', <code className="text-[11.5px]">{settings.user_filter}</code>)}
             {row(
               'Compte de service',
-              settings.bind_dn_configured ? 'Configuré' : <span className="text-slate-400">anonyme</span>
+              settings.bind_dn_configured ? 'Configuré' : <span className="text-[var(--color-tx3)]">anonyme</span>
             )}
           </div>
           <div>
@@ -243,12 +243,12 @@ export const LdapPanel: React.FC = () => {
 
       <div className="cbc-card p-5">
         <h4 className="text-[13.5px] font-bold mb-1">Correspondance groupes → rôles</h4>
-        <p className="text-[12px] text-slate-500 mb-3">
+        <p className="text-[12px] text-[var(--color-tx2)] mb-3">
           Le premier groupe correspondant l'emporte. Sans correspondance, le
           rôle par défaut s'applique — volontairement le moins privilégié.
         </p>
         {Object.keys(settings.role_mapping || {}).length === 0 ? (
-          <p className="text-[12.5px] text-slate-400">
+          <p className="text-[12.5px] text-[var(--color-tx3)]">
             Aucune correspondance définie : tous les comptes d'annuaire
             recevront le rôle « {ROLE_LABELS[settings.default_role] || settings.default_role} ».
           </p>
@@ -256,18 +256,18 @@ export const LdapPanel: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                <tr className="bg-[var(--color-ln2)] border-b border-[var(--color-ln)]">
+                  <th className="text-left px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">
                     Groupe (DN)
                   </th>
-                  <th className="text-left px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                  <th className="text-left px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">
                     Rôle attribué
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(settings.role_mapping as Record<string, string>).map(([dn, role]) => (
-                  <tr key={dn} className="border-b border-slate-50">
+                  <tr key={dn} className="border-b border-[var(--color-ln2)]">
                     <td className="p-3 text-[12px] font-mono break-all">{dn}</td>
                     <td className="p-3 text-[12.5px] font-semibold">{ROLE_LABELS[role] || role}</td>
                   </tr>
@@ -280,7 +280,7 @@ export const LdapPanel: React.FC = () => {
 
       <div className="cbc-card p-5">
         <h4 className="text-[13.5px] font-bold mb-1">Attribution des rôles</h4>
-        <p className="text-[12px] text-slate-500 mb-4 max-w-3xl">
+        <p className="text-[12px] text-[var(--color-tx2)] mb-4 max-w-3xl">
           Ces correspondances sont propres à cette application : elles sont
           enregistrées dans sa base, <strong>aucun groupe n'a à être créé dans
           Active Directory</strong> et le compte de service reste en lecture
@@ -290,7 +290,7 @@ export const LdapPanel: React.FC = () => {
         </p>
 
         {mappings.length === 0 ? (
-          <p className="text-[12.5px] text-slate-400 mb-4">
+          <p className="text-[12.5px] text-[var(--color-tx3)] mb-4">
             Aucune correspondance : tous les comptes d'annuaire sont en lecture
             seule et l'administration reste assurée par les comptes locaux.
           </p>
@@ -298,11 +298,11 @@ export const LdapPanel: React.FC = () => {
           <div className="overflow-x-auto mb-4">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
+                <tr className="bg-[var(--color-ln2)] border-b border-[var(--color-ln)]">
                   {['Type', 'Identité', 'Rôle', 'Priorité', ''].map((c) => (
                     <th
                       key={c || 'act'}
-                      className="text-left px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap"
+                      className="text-left px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] whitespace-nowrap"
                     >
                       {c}
                     </th>
@@ -311,7 +311,7 @@ export const LdapPanel: React.FC = () => {
               </thead>
               <tbody>
                 {mappings.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-50">
+                  <tr key={m.id} className="border-b border-[var(--color-ln2)]">
                     <td className="p-3 text-[12px]">{m.kind === 'user' ? 'Compte' : 'Groupe'}</td>
                     <td className="p-3 text-[12px] font-mono break-all">{m.value}</td>
                     <td className="p-3 text-[12.5px] font-semibold">
@@ -337,11 +337,11 @@ export const LdapPanel: React.FC = () => {
         )}
 
         {canEdit && (
-          <div className="flex flex-wrap gap-2 items-center pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap gap-2 items-center pt-3 border-t border-[var(--color-ln2)]">
             <select
               value={newKind}
               onChange={(e) => setNewKind(e.target.value as 'group' | 'user')}
-              className="px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+              className="px-2.5 py-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs font-semibold"
             >
               <option value="group">Groupe (DN)</option>
               <option value="user">Compte (identifiant)</option>
@@ -355,12 +355,12 @@ export const LdapPanel: React.FC = () => {
                   ? 'CN=Sentinel_Ops,OU=GROUPES,DC=gie,DC=local'
                   : 'jdupont'
               }
-              className="flex-1 min-w-[260px] px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
+              className="flex-1 min-w-[260px] px-3 py-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
             />
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
-              className="px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+              className="px-2.5 py-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs font-semibold"
             >
               <option value="admin">Administrateur</option>
               <option value="operator">Opérateur</option>
@@ -371,7 +371,7 @@ export const LdapPanel: React.FC = () => {
               type="number"
               value={newPriority}
               onChange={(e) => setNewPriority(Number(e.target.value) || 100)}
-              className="w-[90px] px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs"
+              className="w-[90px] px-3 py-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs"
               title="Priorité — la plus basse l'emporte"
             />
             <button
@@ -400,7 +400,7 @@ export const LdapPanel: React.FC = () => {
             {testing ? 'Test en cours…' : 'Tester la connexion'}
           </button>
           {!settings.enabled && (
-            <span className="text-[12px] text-slate-400">
+            <span className="text-[12px] text-[var(--color-tx3)]">
               Activer <code>LDAP_ENABLED</code> côté serveur pour lancer un test.
             </span>
           )}
@@ -421,9 +421,9 @@ export const LdapPanel: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-5 pt-4 border-t border-slate-100">
+        <div className="mt-5 pt-4 border-t border-[var(--color-ln2)]">
           <h5 className="text-[12.5px] font-bold mb-1">Résoudre un compte</h5>
-          <p className="text-[12px] text-slate-500 mb-3">
+          <p className="text-[12px] text-[var(--color-tx2)] mb-3">
             Valide le filtre et la correspondance des groupes avant d'ouvrir
             l'authentification aux utilisateurs. Aucun mot de passe n'est
             demandé : le compte n'est pas authentifié, seulement résolu.
@@ -434,7 +434,7 @@ export const LdapPanel: React.FC = () => {
               value={probeName}
               onChange={(e) => setProbeName(e.target.value)}
               placeholder="Identifiant annuaire (ex: j.dupont)"
-              className="flex-1 min-w-[220px] px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
+              className="flex-1 min-w-[220px] px-3 py-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
             />
             <button
               type="button"
@@ -448,7 +448,7 @@ export const LdapPanel: React.FC = () => {
           </div>
 
           {probeResult && (
-            <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50 text-[12.5px]">
+            <div className="mt-3 p-3 rounded-xl border border-[var(--color-ln)] bg-[var(--color-ln2)] text-[12.5px]">
               {!probeResult.found ? (
                 <span className="text-rose-700 font-semibold">
                   {probeResult.detail || 'Compte introuvable'}

@@ -53,14 +53,14 @@ export const Badge: React.FC<BadgeProps> = ({
         );
       case 'revoked':
         return (
-          <span className={`inline-flex items-center bg-slate-100 text-slate-700 border border-slate-300 ${sizeClasses[size]}`}>
-            {showIcon && <ShieldCheck className="w-3 h-3 text-slate-500" />}
+          <span className={`inline-flex items-center bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-slate-300 ${sizeClasses[size]}`}>
+            {showIcon && <ShieldCheck className="w-3 h-3 text-[var(--color-tx2)]" />}
             Révoqué
           </span>
         );
       default:
         return (
-          <span className={`inline-flex items-center bg-slate-100 text-slate-700 border border-slate-200 ${sizeClasses[size]}`}>
+          <span className={`inline-flex items-center bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-[var(--color-ln)] ${sizeClasses[size]}`}>
             {value}
           </span>
         );
@@ -116,7 +116,7 @@ export const Badge: React.FC<BadgeProps> = ({
         );
       case 'acknowledged':
         return (
-          <span className={`inline-flex items-center bg-slate-100 text-slate-700 border border-slate-300 font-medium ${sizeClasses[size]}`}>
+          <span className={`inline-flex items-center bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-slate-300 font-medium ${sizeClasses[size]}`}>
             Acquittée
           </span>
         );
@@ -156,7 +156,7 @@ export const Badge: React.FC<BadgeProps> = ({
         );
       default:
         return (
-          <span className={`inline-flex items-center bg-slate-100 text-slate-700 ${sizeClasses[size]}`}>
+          <span className={`inline-flex items-center bg-[var(--color-ln2)] text-[var(--color-tx2)] ${sizeClasses[size]}`}>
             {value}
           </span>
         );
@@ -187,7 +187,7 @@ export const Badge: React.FC<BadgeProps> = ({
         );
       case 'ReadOnly':
         return (
-          <span className={`inline-flex items-center bg-slate-100 text-slate-600 border border-slate-200 ${sizeClasses[size]}`}>
+          <span className={`inline-flex items-center bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-[var(--color-ln)] ${sizeClasses[size]}`}>
             Lecture seule
           </span>
         );
@@ -195,7 +195,7 @@ export const Badge: React.FC<BadgeProps> = ({
   }
 
   return (
-    <span className={`inline-flex items-center bg-slate-100 text-slate-700 border border-slate-200 ${sizeClasses[size]}`}>
+    <span className={`inline-flex items-center bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-[var(--color-ln)] ${sizeClasses[size]}`}>
       {value}
     </span>
   );

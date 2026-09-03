@@ -81,14 +81,14 @@ export const AgentsListView: React.FC = () => {
       />
 
       <div className="cbc-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 flex-wrap">
+        <div className="px-4 py-3 border-b border-[var(--color-ln)] flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-[var(--color-tx3)]" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="ID, nom, hostname, IP…"
-              className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-[13px] bg-slate-50 outline-none focus:border-[#D0B335] focus:bg-white"
+              className="w-full pl-8 pr-3 py-2 border border-[var(--color-ln)] rounded-lg text-[13px] bg-[var(--color-ln2)] outline-none focus:border-[#D0B335] focus:bg-[var(--color-panel)]"
             />
           </div>
           {(['linux', 'windows', 'macos'] as OperatingSystem[]).map((os) => (
@@ -106,7 +106,7 @@ export const AgentsListView: React.FC = () => {
             onClick={() => setParams(statusF === 'offline' ? {} : { status: 'offline' })}
           />
           <div className="w-px h-5 bg-slate-200" />
-          <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Vues</span>
+          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">Vues</span>
           {groups.slice(0, 4).map((g) => (
             <FilterChip key={g} label={g} active={view === g} onClick={() => setView(view === g ? null : g)} pill />
           ))}
@@ -134,12 +134,12 @@ export const AgentsListView: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
+                <tr className="bg-[var(--color-ln2)] border-b border-[var(--color-ln)]">
                   {['Statut', 'ID', 'Nom', 'Hostname', 'OS', 'Site', 'CPU', 'RAM', 'Disque', 'Heartbeat', 'Alertes', 'Config', ''].map(
                     (c, i) => (
                       <th
                         key={c || i}
-                        className={`px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap ${
+                        className={`px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] whitespace-nowrap ${
                           i >= 6 && i <= 8 ? 'text-right' : 'text-left'
                         }`}
                       >
@@ -160,7 +160,7 @@ export const AgentsListView: React.FC = () => {
                     <tr
                       key={h.id}
                       onClick={() => navigateToAgentDetail(h.id)}
-                      className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer"
+                      className="border-b border-[var(--color-ln2)] hover:bg-[var(--color-ln2)] cursor-pointer"
                     >
                       <td className="p-3">
                         <span className="inline-flex items-center gap-1.5">
@@ -173,21 +173,21 @@ export const AgentsListView: React.FC = () => {
                       {/* Identifiant attribué par la plateforme : court exprès,
                           pour être dicté au téléphone et recherché tel quel. */}
                       <td className="p-3 whitespace-nowrap">
-                        <span className="tnum px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11.5px] font-bold">
+                        <span className="tnum px-1.5 py-0.5 rounded bg-[var(--color-ln2)] text-[var(--color-tx2)] text-[11.5px] font-bold">
                           {h.id}
                         </span>
                       </td>
                       <td className="p-3 text-[13px] font-bold whitespace-nowrap">{h.name}</td>
                       {/* Nom machine constaté par l'agent — distinct du nom
                           d'hôte affiché ci-contre, et non modifiable. */}
-                      <td className="p-3 tnum text-xs text-slate-500 whitespace-nowrap">{h.hostname}</td>
+                      <td className="p-3 tnum text-xs text-[var(--color-tx2)] whitespace-nowrap">{h.hostname}</td>
                       <td className="p-3 whitespace-nowrap">
                         <span className={`inline-block px-2 py-0.5 rounded-md border text-[11px] font-semibold ${os.bg} ${os.fg} ${os.bd}`}>
                           {os.label}
                         </span>
                       </td>
                       <td className="p-3">
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--color-ln2)] text-[var(--color-tx2)] text-[11px] font-semibold">
                           {h.location || '—'}
                         </span>
                       </td>
@@ -206,14 +206,14 @@ export const AgentsListView: React.FC = () => {
                           {`${Math.round(h.metrics.disk)}%`}
                         </span>
                       </td>
-                      <td className="p-3 tnum text-xs text-slate-500 whitespace-nowrap">{h.lastHeartbeat}</td>
+                      <td className="p-3 tnum text-xs text-[var(--color-tx2)] whitespace-nowrap">{h.lastHeartbeat}</td>
                       <td className="p-3 text-center">
                         {h.activeAlertsCount > 0 ? (
                           <span className="tnum inline-block min-w-[22px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 text-[11.5px] font-bold">
                             {h.activeAlertsCount}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-300">—</span>
+                          <span className="text-xs text-[var(--color-tx3)]">—</span>
                         )}
                       </td>
                       <td className="p-3 whitespace-nowrap">
@@ -222,7 +222,7 @@ export const AgentsListView: React.FC = () => {
                             Surcharge
                           </span>
                         ) : (
-                          <span className="tnum text-xs text-slate-500">héritée</span>
+                          <span className="tnum text-xs text-[var(--color-tx2)]">héritée</span>
                         )}
                       </td>
                       <td className="p-3 pr-4 text-right">
@@ -234,7 +234,7 @@ export const AgentsListView: React.FC = () => {
                               e.stopPropagation();
                               setRevokeId(h.id);
                             }}
-                            className="w-7 h-7 border border-slate-200 bg-white rounded-lg text-slate-600 grid place-items-center hover:bg-slate-100"
+                            className="w-7 h-7 border border-[var(--color-ln)] bg-[var(--color-panel)] rounded-lg text-[var(--color-tx2)] grid place-items-center hover:bg-[var(--color-ln2)]"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
@@ -273,7 +273,7 @@ export const AgentsListView: React.FC = () => {
           </>
         }
       >
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--color-tx2)]">
           Révoquer <strong>{target?.name}</strong> ? L'agent cessera d'être authentifié (401) jusqu'à un nouvel enrôlement.
         </p>
       </Modal>

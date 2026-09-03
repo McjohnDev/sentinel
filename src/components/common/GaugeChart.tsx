@@ -42,8 +42,8 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
   }
 
   return (
-    <div className="flex flex-col items-center bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+    <div className="flex flex-col items-center bg-[var(--color-panel)] p-4 rounded-xl border border-[var(--color-ln)]/80 shadow-xs">
+      <div className="text-xs font-semibold text-[var(--color-tx2)] uppercase tracking-wider mb-2">
         {title}
       </div>
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -74,11 +74,11 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-2xl font-bold text-slate-900 tracking-tight">
+          <span className="text-2xl font-bold text-[var(--color-tx)] tracking-tight">
             {normalizedValue}%
           </span>
           {subValue && (
-            <span className="text-[11px] text-slate-500 font-medium px-1 truncate max-w-[100px]">
+            <span className="text-[11px] text-[var(--color-tx2)] font-medium px-1 truncate max-w-[100px]">
               {subValue}
             </span>
           )}

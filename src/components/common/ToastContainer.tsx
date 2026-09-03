@@ -8,6 +8,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 
+const TONE: Record<string, { border: string; icon: React.ReactNode }> = {
+  info: { border: 'var(--color-blu-b)', icon: <Info className="w-[18px] h-[18px]" style={{ color: 'var(--color-blu)' }} /> },
+  success: {
+    border: 'var(--color-grn-b)',
+    icon: <CheckCircle2 className="w-[18px] h-[18px]" style={{ color: 'var(--color-grn)' }} />,
+  },
+  error: {
+    border: 'var(--color-red-b)',
+    icon: <AlertCircle className="w-[18px] h-[18px]" style={{ color: 'var(--color-red)' }} />,
+  },
+  warning: {
+    border: 'var(--color-amb-b)',
+    icon: <AlertTriangle className="w-[18px] h-[18px]" style={{ color: 'var(--color-amb)' }} />,
+  },
+};
+
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useApp();
 
@@ -15,36 +31,33 @@ export const ToastContainer: React.FC = () => {
     <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none px-4 sm:px-0">
       <AnimatePresence>
         {toasts.map((toast) => {
-          let bgClass = 'bg-slate-900 text-white border-slate-800';
-          let icon = <Info className="w-5 h-5 text-blue-400 shrink-0" />;
-
-          if (toast.type === 'success') {
-            bgClass = 'bg-slate-900 text-white border-emerald-500/40';
-            icon = <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />;
-          } else if (toast.type === 'error') {
-            bgClass = 'bg-slate-900 text-white border-rose-500/40';
-            icon = <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />;
-          } else if (toast.type === 'warning') {
-            bgClass = 'bg-slate-900 text-white border-amber-500/40';
-            icon = <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />;
-          }
-
+          const tone = TONE[toast.type] || TONE.info;
           return (
             <motion.div
               key={toast.id}
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl border ${bgClass}`}
+              className="pointer-events-auto flex items-start gap-3 p-4 rounded-xl border"
+              style={{
+                background: 'var(--color-panel)',
+                borderColor: tone.border,
+                boxShadow: '0 14px 36px rgba(0,0,0,.18)',
+              }}
             >
-              {icon}
+              {tone.icon}
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold tracking-tight text-white">{toast.title}</h4>
-                <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">{toast.message}</p>
+                <h4 className="text-sm font-semibold tracking-tight m-0" style={{ color: 'var(--color-tx)' }}>
+                  {toast.title}
+                </h4>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--color-tx2)' }}>
+                  {toast.message}
+                </p>
               </div>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+                className="p-1 rounded-md shrink-0"
+                style={{ color: 'var(--color-tx3)' }}
                 aria-label="Fermer la notification"
               >
                 <X className="w-4 h-4" />

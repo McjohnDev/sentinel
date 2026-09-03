@@ -57,23 +57,23 @@ export const PlannedCapability: React.FC<PlannedCapabilityProps> = ({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-[15px] font-extrabold tracking-tight">Capacité non livrée</h3>
-            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-[10.5px] font-bold">
+            <span className="px-2 py-0.5 rounded-md bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-[var(--color-ln)] text-[10.5px] font-bold">
               {lot}
             </span>
           </div>
-          <p className="text-[13px] text-slate-600 mt-2 leading-relaxed max-w-3xl">{description}</p>
+          <p className="text-[13px] text-[var(--color-tx2)] mt-2 leading-relaxed max-w-3xl">{description}</p>
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div>
-          <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+          <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-2.5">
             Prévu dans ce périmètre
           </h4>
           <ul className="space-y-1.5">
             {planned.map((item) => (
-              <li key={item} className="text-[12.5px] text-slate-700 flex gap-2">
-                <span className="text-slate-300 shrink-0">—</span>
+              <li key={item} className="text-[12.5px] text-[var(--color-tx2)] flex gap-2">
+                <span className="text-[var(--color-tx3)] shrink-0">—</span>
                 <span>{item}</span>
               </li>
             ))}
@@ -82,13 +82,13 @@ export const PlannedCapability: React.FC<PlannedCapabilityProps> = ({
 
         {prerequisites && prerequisites.length > 0 && (
           <div>
-            <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+            <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-2.5">
               Prérequis
             </h4>
             <ul className="space-y-1.5">
               {prerequisites.map((item) => (
-                <li key={item} className="text-[12.5px] text-slate-700 flex gap-2">
-                  <span className="text-slate-300 shrink-0">—</span>
+                <li key={item} className="text-[12.5px] text-[var(--color-tx2)] flex gap-2">
+                  <span className="text-[var(--color-tx3)] shrink-0">—</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -101,7 +101,7 @@ export const PlannedCapability: React.FC<PlannedCapabilityProps> = ({
     {availableToday && availableToday.length > 0 && (
       <div className="cbc-card p-6">
         <h4 className="text-[13.5px] font-bold mb-1">Disponible dès aujourd'hui</h4>
-        <p className="text-[12.5px] text-slate-500 mb-4">
+        <p className="text-[12.5px] text-[var(--color-tx2)] mb-4">
           Ces fonctions couvrent une partie du besoin sans attendre la livraison
           ci-dessus.
         </p>
@@ -111,7 +111,7 @@ export const PlannedCapability: React.FC<PlannedCapabilityProps> = ({
               <ExternalLink className="w-3.5 h-3.5 text-[#A68523] mt-0.5 shrink-0" />
               <div>
                 <div className="text-[13px] font-bold">{item.label}</div>
-                <div className="text-[12.5px] text-slate-600">{item.hint}</div>
+                <div className="text-[12.5px] text-[var(--color-tx2)]">{item.hint}</div>
               </div>
             </li>
           ))}

@@ -18,11 +18,18 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   primaryAction,
   secondaryActions,
 }) => (
-  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-1">
+  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-1">
     <div>
-      <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
+      <h1
+        className="text-[20px] font-bold tracking-tight m-0"
+        style={{ color: 'var(--color-tx)' }}
+      >
+        {title}
+      </h1>
       {subtitle && (
-        <p className="text-[13px] leading-relaxed text-[#777777] mt-1.5">{subtitle}</p>
+        <p className="text-[12.5px] mt-[3px]" style={{ color: 'var(--color-tx2)' }}>
+          {subtitle}
+        </p>
       )}
     </div>
     {(primaryAction || secondaryActions) && (

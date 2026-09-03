@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { ToastContainer } from './components/common/ToastContainer';
+import { CommandPalette } from './components/layout/CommandPalette';
 
 import { LoginView } from './views/LoginView';
 import { DashboardView } from './views/DashboardView';
@@ -31,6 +32,20 @@ const LoginRoute: React.FC = () => {
 const MainLayout: React.FC = () => {
   const { currentUser } = useApp();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Un seul geste, deux points d'entree : la barre laterale et l'en-tete
+  // ouvrent la meme palette plutot que d'en gerer chacun une copie.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   if (!currentUser) {
     return (
@@ -45,14 +60,21 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen font-sans text-slate-900 antialiased" style={{ background: '#F1F5F9' }}>
+    <div
+      className="flex min-h-screen font-sans antialiased"
+      style={{ background: 'var(--color-bg)', color: 'var(--color-tx)' }}
+    >
       <Sidebar
         isMobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <Header onToggleSidebarMobile={() => setMobileSidebarOpen(true)} />
+        <Header
+          onToggleSidebarMobile={() => setMobileSidebarOpen(true)}
+          onOpenPalette={() => setPaletteOpen(true)}
+        />
 
         <main className="flex-1 px-4 sm:px-7 lg:px-8 py-6 lg:py-7 overflow-y-auto animate-fade-in">
           <div className="max-w-[1280px] mx-auto space-y-6">
@@ -75,6 +97,7 @@ const MainLayout: React.FC = () => {
       </div>
 
       <ToastContainer />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 };

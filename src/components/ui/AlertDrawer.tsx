@@ -105,11 +105,11 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
   return (
     <>
       <div className="fixed inset-0 z-40 bg-slate-950/30 animate-fade-in" onClick={onClose} />
-      <aside className="fixed top-0 right-0 bottom-0 w-full max-w-[480px] bg-white border-l border-slate-200 z-41 flex flex-col" style={{ zIndex: 41 }}>
-        <div className="px-5 py-5 border-b border-slate-200">
+      <aside className="fixed top-0 right-0 bottom-0 w-full max-w-[480px] bg-[var(--color-panel)] border-l border-[var(--color-ln)] z-41 flex flex-col" style={{ zIndex: 41 }}>
+        <div className="px-5 py-5 border-b border-[var(--color-ln)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="tnum text-[11px] font-bold tracking-wide text-slate-400">ALERTE {alert.id}</div>
+              <div className="tnum text-[11px] font-bold tracking-wide text-[var(--color-tx3)]">ALERTE {alert.id}</div>
               <h2 className="text-[17px] font-extrabold tracking-tight mt-2 mb-0">{alert.message}</h2>
               <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                 <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold text-white" style={{ background: sev.bg }}>
@@ -118,20 +118,20 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
                 <button type="button" onClick={() => onOpenHost(alert.agentId)} className="text-[13px] font-bold text-[#A68523]">
                   {alert.agentName}
                 </button>
-                <span className="text-xs text-slate-400">· {alert.type}</span>
+                <span className="text-xs text-[var(--color-tx3)]">· {alert.type}</span>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="w-[30px] h-[30px] grid place-items-center rounded-lg text-slate-400 hover:bg-slate-100 shrink-0">
+            <button type="button" onClick={onClose} className="w-[30px] h-[30px] grid place-items-center rounded-lg text-[var(--color-tx3)] hover:bg-[var(--color-ln2)] shrink-0">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
-        <div className="px-5 py-5 border-b border-slate-200">
+        <div className="px-5 py-5 border-b border-[var(--color-ln)]">
           <div className="flex items-center">
             {steps.map((s, i) => (
               <span key={s.label} className={`flex items-center ${i < 2 ? 'flex-1' : ''}`}>
-                <span className={`w-4 h-4 rounded-full border-2 shrink-0 ${s.on ? 'bg-[#D0B335] border-[#D0B335]' : 'bg-white border-slate-200'}`} />
-                <span className={`text-xs font-semibold ml-2 whitespace-nowrap ${s.on ? 'text-slate-900' : 'text-slate-400'}`}>
+                <span className={`w-4 h-4 rounded-full border-2 shrink-0 ${s.on ? 'bg-[#D0B335] border-[#D0B335]' : 'bg-[var(--color-panel)] border-[var(--color-ln)]'}`} />
+                <span className={`text-xs font-semibold ml-2 whitespace-nowrap ${s.on ? 'text-[var(--color-tx)]' : 'text-[var(--color-tx3)]'}`}>
                   {s.label}
                 </span>
                 {i < 2 && <span className="flex-1 h-0.5 bg-slate-200 mx-2.5" />}
@@ -140,11 +140,11 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
           </div>
         </div>
         <div className="px-5 py-5 flex-1 overflow-y-auto">
-          <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-3.5">Chronologie</div>
-          {loadingTimeline && <div className="text-[12.5px] text-slate-400 pb-4">Chargement…</div>}
+          <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-3.5">Chronologie</div>
+          {loadingTimeline && <div className="text-[12.5px] text-[var(--color-tx3)] pb-4">Chargement…</div>}
           {timelineError && <div className="text-[12.5px] text-rose-600 pb-4">{timelineError}</div>}
           {!loadingTimeline && !timelineError && events.length === 0 && (
-            <div className="text-[12.5px] text-slate-400 pb-4">Aucun évènement enregistré.</div>
+            <div className="text-[12.5px] text-[var(--color-tx3)] pb-4">Aucun évènement enregistré.</div>
           )}
           {events.map((e, i) => (
             <div key={e.id} className="flex gap-3.5 pb-4">
@@ -158,13 +158,13 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2.5">
                   <span className="tnum text-xs font-bold">{e.created_at}</span>
-                  <span className="text-[12.5px] text-slate-700">
+                  <span className="text-[12.5px] text-[var(--color-tx2)]">
                     {ACTION_LABELS[e.action] || e.action}
                     {e.actor ? ` · ${e.actor}` : ''}
                   </span>
                 </div>
                 {e.comment && (
-                  <div className="tnum text-[11.5px] leading-relaxed text-slate-400 mt-1">{e.comment}</div>
+                  <div className="tnum text-[11.5px] leading-relaxed text-[var(--color-tx3)] mt-1">{e.comment}</div>
                 )}
               </div>
             </div>
@@ -176,22 +176,22 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
               dit si l'incident est réel, la prise en charge dit qui le traite.
               Une alerte validée sans responsable reste ouverte pendant que
               chacun suppose qu'un autre s'en occupe. */}
-          <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-3.5 mt-2">
+          <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-3.5 mt-2">
             Traitement
           </div>
           <div className="space-y-2.5 mb-5">
             <div className="flex items-center gap-2.5">
-              <span className="text-[12.5px] text-slate-700 flex-1">Validation</span>
+              <span className="text-[12.5px] text-[var(--color-tx2)] flex-1">Validation</span>
               {alert.verdict === 'real' ? (
                 <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                   incident réel
                 </span>
               ) : alert.verdict === 'false_positive' ? (
-                <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-[var(--color-ln2)] text-[var(--color-tx2)] border border-[var(--color-ln)]">
                   faux positif
                 </span>
               ) : (
-                <span className="text-[12px] text-slate-400">non prononcée</span>
+                <span className="text-[12px] text-[var(--color-tx3)]">non prononcée</span>
               )}
             </div>
 
@@ -217,7 +217,7 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
                 <p className="text-[13px] m-0 mb-2">
                   <strong>{alert.assignedToUsername}</strong>
                   {alert.assignedBy ? (
-                    <span className="text-slate-500"> — confiée par {alert.assignedBy}</span>
+                    <span className="text-[var(--color-tx2)]"> — confiée par {alert.assignedBy}</span>
                   ) : null}
                 </p>
               ) : (
@@ -260,12 +260,12 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
                 c'est la seule fois ou l'on sait s'il merite un rappel dans une
                 heure, dans un jour, ou plus du tout. */}
             {onSetReminder && !resolved && (
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-xl border border-[var(--color-ln)] p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <Bell className="w-4 h-4 text-slate-500" />
+                  <Bell className="w-4 h-4 text-[var(--color-tx2)]" />
                   <span className="text-[12.5px] font-bold">Relance par courriel</span>
                   {(alert.reminderCount || 0) > 0 && (
-                    <span className="text-[11.5px] text-slate-500">
+                    <span className="text-[11.5px] text-[var(--color-tx2)]">
                       — {alert.reminderCount} rappel{(alert.reminderCount || 0) > 1 ? 's' : ''} deja
                       envoye{(alert.reminderCount || 0) > 1 ? 's' : ''}
                     </span>
@@ -297,7 +297,7 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
                   <option value="24">Une fois par jour</option>
                   <option value="0">Ne plus relancer cette alerte</option>
                 </select>
-                <p className="text-[11.5px] text-slate-500 mt-2 mb-0">
+                <p className="text-[11.5px] text-[var(--color-tx2)] mt-2 mb-0">
                   Le rappel continue tant que l'alerte est ouverte, meme prise en
                   charge : c'est l'alerte attribuee puis oubliee qu'il rattrape. La
                   resolution y met fin.
@@ -307,33 +307,33 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
 
             {alert.acknowledgedBy && (
               <div className="flex items-center gap-2.5">
-                <span className="text-[12.5px] text-slate-700 flex-1">Validée par</span>
-                <span className="text-[12.5px] text-slate-600">{alert.acknowledgedBy}</span>
+                <span className="text-[12.5px] text-[var(--color-tx2)] flex-1">Validée par</span>
+                <span className="text-[12.5px] text-[var(--color-tx2)]">{alert.acknowledgedBy}</span>
               </div>
             )}
             {alert.resolvedBy && (
               <div className="flex items-center gap-2.5">
-                <span className="text-[12.5px] text-slate-700 flex-1">Résolue par</span>
-                <span className="text-[12.5px] text-slate-600">{alert.resolvedBy}</span>
+                <span className="text-[12.5px] text-[var(--color-tx2)] flex-1">Résolue par</span>
+                <span className="text-[12.5px] text-[var(--color-tx2)]">{alert.resolvedBy}</span>
               </div>
             )}
           </div>
 
-          <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-3.5 mt-2">
+          <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-3.5 mt-2">
             Notifications
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2.5">
-              <span className="text-[12.5px] text-slate-700 flex-1">Mail CBC</span>
+              <span className="text-[12.5px] text-[var(--color-tx2)] flex-1">Mail CBC</span>
               <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold ${mail.badge}`}>{mail.label}</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="text-[12.5px] text-slate-700 flex-1">Webhook</span>
+              <span className="text-[12.5px] text-[var(--color-tx2)] flex-1">Webhook</span>
               <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold ${webhook.badge}`}>{webhook.label}</span>
             </div>
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-slate-200 bg-slate-50 flex gap-2">
+        <div className="px-5 py-4 border-t border-[var(--color-ln)] bg-[var(--color-ln2)] flex gap-2">
           {canAck && open && (
             <button type="button" onClick={() => onAck(alert)} className="cbc-btn-secondary">
               Acquitter

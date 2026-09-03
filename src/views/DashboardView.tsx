@@ -57,7 +57,7 @@ function triageSeverityStyle(severity: AlertSeverity) {
   if (severity === 'minor') {
     return { short: 'MIN', bg: 'bg-orange-50', fg: 'text-orange-800', bd: 'border-orange-200' };
   }
-  return { short: 'INFO', bg: 'bg-slate-100', fg: 'text-slate-600', bd: 'border-slate-200' };
+  return { short: 'INFO', bg: 'bg-[var(--color-ln2)]', fg: 'text-[var(--color-tx2)]', bd: 'border-[var(--color-ln)]' };
 }
 
 export const DashboardView: React.FC = () => {
@@ -135,22 +135,24 @@ export const DashboardView: React.FC = () => {
     [openAlerts]
   );
 
+  const silentAgents = useMemo(() => agents.filter((a) => a.status === 'offline'), [agents]);
+
   const pulseItems = useMemo(
     () => [
       {
         id: 'fleet',
-        label: 'Parc',
+        label: 'Parc en ligne',
         value: `${onlineAgents}/${totalAgents}`,
-        unit: 'en ligne',
-        color: 'text-slate-900',
+        color: 'text-[var(--color-tx)]',
+        sub: offlineAgents > 0 ? `${offlineAgents} hôte${offlineAgents > 1 ? 's' : ''} silencieux` : 'Tout le parc répond',
         onClick: () => navigate('/agents'),
       },
       {
         id: 'critical',
-        label: 'Critiques',
+        label: 'Alertes critiques ouvertes',
         value: criticalAlerts.length,
-        unit: 'ouvertes',
         color: criticalAlerts.length > 0 ? 'text-rose-600' : 'text-emerald-600',
+        sub: criticalAlerts[0] ? `dernière à ${criticalAlerts[0].timestamp}` : 'Aucune',
         onClick: () => navigate('/alerts'),
       },
       {
@@ -158,7 +160,8 @@ export const DashboardView: React.FC = () => {
         label: 'Hors ligne',
         value: offlineAgents,
         unit: 'hôtes',
-        color: offlineAgents > 0 ? 'text-amber-700' : 'text-slate-900',
+        color: offlineAgents > 0 ? 'text-amber-700' : 'text-[var(--color-tx)]',
+        sub: silentAgents.length === 1 ? silentAgents[0].name : undefined,
         onClick: () => navigate('/agents?status=offline'),
       },
       {
@@ -177,11 +180,12 @@ export const DashboardView: React.FC = () => {
             ? 'text-emerald-600'
             : notificationChannelStatus?.status === 'error'
               ? 'text-rose-600'
-              : 'text-slate-600',
-        onClick: () => navigate('/settings'),
+              : 'text-[var(--color-tx2)]',
+        sub: notificationChannelStatus?.error,
+        onClick: () => navigate('/integrations'),
       },
     ],
-    [onlineAgents, totalAgents, criticalAlerts.length, offlineAgents, notificationChannelStatus, navigate]
+    [onlineAgents, totalAgents, criticalAlerts, offlineAgents, silentAgents, notificationChannelStatus, navigate]
   );
 
   // Compute aggregated historical trend for Area Chart (average load across agents)
@@ -288,7 +292,7 @@ export const DashboardView: React.FC = () => {
 
       {totalAgents === 0 ? (
         <div className="cbc-card py-20 px-8 text-center">
-          <div className="w-24 h-24 rounded-3xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+          <div className="w-24 h-24 rounded-3xl bg-[var(--color-ln2)] border border-[var(--color-ln)] flex items-center justify-center mx-auto text-[var(--color-tx3)]">
             <ServerOff className="w-10 h-10" />
           </div>
           <h2 className="text-lg font-extrabold mt-5">{t('dashboard.emptyTitle')}</h2>
@@ -306,24 +310,24 @@ export const DashboardView: React.FC = () => {
           <PulseStrip items={pulseItems} />
 
           <div className="cbc-card overflow-hidden">
-            <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-slate-200">
+            <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-[var(--color-ln)]">
               <div className="flex items-center gap-2.5">
                 <h2 className="text-sm font-bold m-0">{t('dashboard.triage')}</h2>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                <span className="px-2 py-0.5 rounded-full bg-[var(--color-ln2)] text-[var(--color-tx2)] text-[11px] font-semibold">
                   {triageAlerts.length}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/alerts')}
-                className="text-[12.5px] font-semibold text-[#A68523] hover:text-slate-900 flex items-center gap-1"
+                className="text-[12.5px] font-semibold text-[#A68523] hover:text-[var(--color-tx)] flex items-center gap-1"
               >
                 {t('dashboard.viewAlerts')}
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
             {triageAlerts.length === 0 ? (
-              <div className="py-12 text-center text-sm text-slate-500">
+              <div className="py-12 text-center text-sm text-[var(--color-tx2)]">
                 <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                 Aucune alerte ouverte à traiter.
               </div>
@@ -335,7 +339,7 @@ export const DashboardView: React.FC = () => {
                     return (
                       <tr
                         key={alt.id}
-                        className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer"
+                        className="border-b border-[var(--color-ln2)] hover:bg-[var(--color-ln2)] cursor-pointer"
                         onClick={() => navigate('/alerts')}
                       >
                         <td className="py-3 px-[18px] w-[104px]">
@@ -346,8 +350,8 @@ export const DashboardView: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-2 text-[13px] font-bold w-32">{alt.agentName}</td>
-                        <td className="py-3 px-2 text-[13px] text-slate-700">{alt.message}</td>
-                        <td className="py-3 px-2 tnum text-[12.5px] text-slate-500 w-16">{alt.timestamp}</td>
+                        <td className="py-3 px-2 text-[13px] text-[var(--color-tx2)]">{alt.message}</td>
+                        <td className="py-3 px-2 tnum text-[12.5px] text-[var(--color-tx2)] w-16">{alt.timestamp}</td>
                         <td className="py-3 px-[18px] text-right w-[118px]">
                           {currentRole !== 'ReadOnly' && (
                             <button
@@ -379,11 +383,11 @@ export const DashboardView: React.FC = () => {
         <div className="lg:col-span-7 cbc-card p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-bold text-[var(--color-tx)] tracking-tight flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-[#D0B335]" />
                 Évolution de la charge système (24h)
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--color-tx2)] mt-0.5">
                 Consommation moyenne CPU, RAM et Disque sur l'ensemble du parc
               </p>
             </div>
@@ -437,18 +441,18 @@ export const DashboardView: React.FC = () => {
         <div className="lg:col-span-5 cbc-card p-5 flex flex-col justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
             <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-bold text-[var(--color-tx)] tracking-tight flex items-center gap-2">
                 <PieChartIcon className="w-4 h-4 text-[#D0B335]" />
                 Répartition globale du parc
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Distribution par OS, statut ou gravité d'alerte</p>
+              <p className="text-xs text-[var(--color-tx2)] mt-0.5">Distribution par OS, statut ou gravité d'alerte</p>
             </div>
 
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-[11px] font-bold">
+            <div className="flex items-center bg-[var(--color-ln2)] p-0.5 rounded-xl text-[11px] font-bold">
               <button
                 onClick={() => setPieMode('os')}
                 className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  pieMode === 'os' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  pieMode === 'os' ? 'bg-[var(--color-panel)] text-[var(--color-tx)] shadow-xs' : 'text-[var(--color-tx2)] hover:text-[var(--color-tx)]'
                 }`}
               >
                 Système OS
@@ -456,7 +460,7 @@ export const DashboardView: React.FC = () => {
               <button
                 onClick={() => setPieMode('status')}
                 className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  pieMode === 'status' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  pieMode === 'status' ? 'bg-[var(--color-panel)] text-[var(--color-tx)] shadow-xs' : 'text-[var(--color-tx2)] hover:text-[var(--color-tx)]'
                 }`}
               >
                 Statut
@@ -464,7 +468,7 @@ export const DashboardView: React.FC = () => {
               <button
                 onClick={() => setPieMode('alerts')}
                 className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  pieMode === 'alerts' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  pieMode === 'alerts' ? 'bg-[var(--color-panel)] text-[var(--color-tx)] shadow-xs' : 'text-[var(--color-tx2)] hover:text-[var(--color-tx)]'
                 }`}
               >
                 Alertes
@@ -474,7 +478,7 @@ export const DashboardView: React.FC = () => {
 
           <div className="h-64 w-full flex items-center justify-center relative">
             {pieChartData.length === 0 ? (
-              <div className="text-xs text-slate-400 font-medium text-center">
+              <div className="text-xs text-[var(--color-tx3)] font-medium text-center">
                 Aucune donnée à afficher pour cette catégorie.
               </div>
             ) : (
@@ -501,7 +505,7 @@ export const DashboardView: React.FC = () => {
                     verticalAlign="bottom"
                     height={36}
                     iconType="circle"
-                    formatter={(value) => <span className="text-xs font-bold text-slate-700 mr-2">{value}</span>}
+                    formatter={(value) => <span className="text-xs font-bold text-[var(--color-tx2)] mr-2">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -514,19 +518,19 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Agents List Widget (Col-8 on Desktop) */}
         <div className="lg:col-span-8 cbc-card overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="p-5 border-b border-[var(--color-ln2)] flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-bold text-[var(--color-tx)] tracking-tight flex items-center gap-2">
                 <Server className="w-4 h-4 text-[#D0B335]" />
                 Agents récents & Métriques en temps réel
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--color-tx2)] mt-0.5">
                 Aperçu rapide des 10 dernières machines enrôlées
               </p>
             </div>
             <button
               onClick={() => navigate('/agents')}
-              className="text-xs font-bold text-[#8D771B] hover:text-slate-900 transition-colors cursor-pointer"
+              className="text-xs font-bold text-[#8D771B] hover:text-[var(--color-tx)] transition-colors cursor-pointer"
             >
               Voir tous les agents ({agents.length}) →
             </button>
@@ -535,7 +539,7 @@ export const DashboardView: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                <tr className="bg-[var(--color-ln2)]/70 text-[11px] font-bold text-[var(--color-tx2)] uppercase tracking-wider border-b border-[var(--color-ln2)]">
                   <th className="py-3 px-4">Agent / Hostname</th>
                   <th className="py-3 px-4">OS</th>
                   <th className="py-3 px-4">Statut</th>
@@ -544,10 +548,10 @@ export const DashboardView: React.FC = () => {
                   <th className="py-3 px-4 text-center">Alertes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-[var(--color-ln2)] text-xs text-[var(--color-tx2)]">
                 {agents.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-8 px-4 text-center text-slate-400">
+                    <td colSpan={6} className="py-8 px-4 text-center text-[var(--color-tx3)]">
                       Aucun agent chargé. Déconnectez-vous, reconnectez-vous, puis rafraîchissez la page.
                     </td>
                   </tr>
@@ -556,13 +560,13 @@ export const DashboardView: React.FC = () => {
                   <tr
                     key={ag.id}
                     onClick={() => navigateToAgentDetail(ag.id)}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                    className="hover:bg-[var(--color-ln2)]/80 transition-colors cursor-pointer group"
                   >
                     <td className="py-3 px-4">
-                      <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                      <div className="font-bold text-[var(--color-tx)] group-hover:text-[#A68523] transition-colors">
                         {ag.name}
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono truncate max-w-[180px]">
+                      <div className="text-[11px] text-[var(--color-tx3)] font-mono truncate max-w-[180px]">
                         {ag.hostname}
                       </div>
                     </td>
@@ -584,7 +588,7 @@ export const DashboardView: React.FC = () => {
                           {ag.activeAlertsCount}
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-xs">-</span>
+                        <span className="text-[var(--color-tx3)] text-xs">-</span>
                       )}
                     </td>
                   </tr>
@@ -596,44 +600,44 @@ export const DashboardView: React.FC = () => {
 
         {/* Recent Alerts Widget (Col-4 on Desktop) */}
         <div className="lg:col-span-4 cbc-card flex flex-col overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="p-5 border-b border-[var(--color-ln2)] flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-bold text-[var(--color-tx)] tracking-tight flex items-center gap-2">
                 <Bell className="w-4 h-4 text-rose-500" />
                 Dernières alertes
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Alertes système non résolues</p>
+              <p className="text-xs text-[var(--color-tx2)] mt-0.5">Alertes système non résolues</p>
             </div>
             <button
               onClick={() => navigate('/alerts')}
-              className="text-xs font-bold text-[#8D771B] hover:text-slate-900 cursor-pointer"
+              className="text-xs font-bold text-[#8D771B] hover:text-[var(--color-tx)] cursor-pointer"
             >
               Toutes →
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-2">
+          <div className="flex-1 overflow-y-auto divide-y divide-[var(--color-ln2)] p-2">
             {openAlerts.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
+              <div className="p-8 text-center text-xs text-[var(--color-tx2)]">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
                 Toutes les alertes sont traitées.
               </div>
             ) : (
               openAlerts.slice(0, 5).map((alt) => (
-                <div key={alt.id} className="p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                <div key={alt.id} className="p-3 hover:bg-[var(--color-ln2)] rounded-xl transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <Badge type="severity" value={alt.severity} size="sm" />
-                    <span className="text-[10px] text-slate-400">{alt.timestamp}</span>
+                    <span className="text-[10px] text-[var(--color-tx3)]">{alt.timestamp}</span>
                   </div>
-                  <p className="text-xs font-bold text-slate-900 mt-1">{alt.agentName}</p>
-                  <p className="text-xs text-slate-600 line-clamp-2 mt-0.5 leading-relaxed">
+                  <p className="text-xs font-bold text-[var(--color-tx)] mt-1">{alt.agentName}</p>
+                  <p className="text-xs text-[var(--color-tx2)] line-clamp-2 mt-0.5 leading-relaxed">
                     {alt.message}
                   </p>
                   {currentRole !== 'ReadOnly' && (
                     <div className="mt-2 flex justify-end">
                       <button
                         onClick={() => handleOpenAckModal(alt)}
-                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                        className="text-[11px] font-bold text-[#A68523] hover:text-[#8D771B] cursor-pointer"
                       >
                         Acquitter
                       </button>

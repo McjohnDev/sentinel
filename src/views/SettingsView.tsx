@@ -358,8 +358,8 @@ export const SettingsView: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row gap-5 items-start">
         <aside className="cbc-card w-full lg:w-[240px] shrink-0 overflow-hidden lg:sticky lg:top-6">
-          <div className="px-3.5 py-3 border-b border-slate-200">
-            <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Configuration</div>
+          <div className="px-3.5 py-3 border-b border-[var(--color-ln)]">
+            <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">Configuration</div>
           </div>
           <nav className="p-2 flex lg:flex-col gap-0.5 overflow-x-auto lg:overflow-visible">
             {SETTINGS_NAV.map((item) => {
@@ -376,11 +376,11 @@ export const SettingsView: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-[12.5px] font-semibold whitespace-nowrap transition-colors ${
                     active
-                      ? 'bg-[#D0B335]/10 text-slate-900 border border-[#D0B335]/30'
-                      : 'text-slate-500 border border-transparent hover:bg-slate-50 hover:text-slate-800'
+                      ? 'bg-[#D0B335]/10 text-[var(--color-tx)] border border-[#D0B335]/30'
+                      : 'text-[var(--color-tx2)] border border-transparent hover:bg-[var(--color-ln2)] hover:text-[var(--color-tx)]'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#A68523]' : 'text-slate-400'}`} />
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#A68523]' : 'text-[var(--color-tx3)]'}`} />
                   <span className="leading-snug">{label}</span>
                 </button>
               );
@@ -391,7 +391,7 @@ export const SettingsView: React.FC = () => {
         <div className="flex-1 min-w-0 space-y-5">
       {/* TAB 1: THRESHOLDS */}
       {activeTab === 'thresholds' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-6">
           {formError && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold">
               {formError}
@@ -402,13 +402,13 @@ export const SettingsView: React.FC = () => {
             {/* Cadence de battement du parc. Bornée côté serveur : au-delà du
                 seuil de bascule hors ligne, chaque hôte serait affiché en
                 panne à chaque cycle sans qu'aucun ne le soit. */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+            <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <label className="block text-[13px] font-bold">
                     Cadence de battement du parc
                   </label>
-                  <p className="text-[12px] text-slate-500 mt-1 mb-0 max-w-2xl">
+                  <p className="text-[12px] text-[var(--color-tx2)] mt-1 mb-0 max-w-2xl">
                     Intervalle entre deux battements, pour les hôtes qui n’ont pas leur
                     propre cadence. Un hôte critique peut la resserrer depuis sa fiche,
                     onglet Configuration.
@@ -428,19 +428,19 @@ export const SettingsView: React.FC = () => {
                     }
                     className="cbc-input py-1.5 text-[13px] w-24 tnum"
                   />
-                  <span className="text-[12.5px] text-slate-500">secondes</span>
+                  <span className="text-[12.5px] text-[var(--color-tx2)]">secondes</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* CPU */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-tx2)] flex items-center gap-1.5">
                   <Cpu className="w-4 h-4 text-[#D0B335]" /> Seuils CPU (%)
                 </h4>
                 <div>
-                  <label className="block text-xs text-slate-600 font-medium mb-1">Warning (%)</label>
+                  <label className="block text-xs text-[var(--color-tx2)] font-medium mb-1">Warning (%)</label>
                   <input
                     type="number"
                     min="1"
@@ -448,11 +448,11 @@ export const SettingsView: React.FC = () => {
                     disabled={currentRole !== 'Admin'}
                     value={thresholdsForm.cpuWarning}
                     onChange={(e) => setThresholdsForm({ ...thresholdsForm, cpuWarning: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                    className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 font-medium mb-1">Critique (%)</label>
+                  <label className="block text-xs text-[var(--color-tx2)] font-medium mb-1">Critique (%)</label>
                   <input
                     type="number"
                     min="1"
@@ -460,18 +460,18 @@ export const SettingsView: React.FC = () => {
                     disabled={currentRole !== 'Admin'}
                     value={thresholdsForm.cpuCritical}
                     onChange={(e) => setThresholdsForm({ ...thresholdsForm, cpuCritical: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-rose-600"
+                    className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-rose-600"
                   />
                 </div>
               </div>
 
               {/* RAM */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-tx2)] flex items-center gap-1.5">
                   <Database className="w-4 h-4 text-blue-500" /> Seuils RAM (%)
                 </h4>
                 <div>
-                  <label className="block text-xs text-slate-600 font-medium mb-1">Warning (%)</label>
+                  <label className="block text-xs text-[var(--color-tx2)] font-medium mb-1">Warning (%)</label>
                   <input
                     type="number"
                     min="1"
@@ -479,11 +479,11 @@ export const SettingsView: React.FC = () => {
                     disabled={currentRole !== 'Admin'}
                     value={thresholdsForm.ramWarning}
                     onChange={(e) => setThresholdsForm({ ...thresholdsForm, ramWarning: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                    className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 font-medium mb-1">Critique (%)</label>
+                  <label className="block text-xs text-[var(--color-tx2)] font-medium mb-1">Critique (%)</label>
                   <input
                     type="number"
                     min="1"
@@ -491,21 +491,21 @@ export const SettingsView: React.FC = () => {
                     disabled={currentRole !== 'Admin'}
                     value={thresholdsForm.ramCritical}
                     onChange={(e) => setThresholdsForm({ ...thresholdsForm, ramCritical: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-rose-600"
+                    className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-rose-600"
                   />
                 </div>
               </div>
 
               {/* DISK */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-tx2)] flex items-center gap-1.5">
                   <HardDrive className="w-4 h-4 text-purple-500" /> Seuils Disque (%)
                 </h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-[var(--color-tx2)] leading-relaxed">
                   Défaut pour les partitions alertées sans plafond dédié.
                 </p>
                 <div>
-                  <label className="block text-xs text-slate-600 font-medium mb-1">Warning (%)</label>
+                  <label className="block text-xs text-[var(--color-tx2)] font-medium mb-1">Warning (%)</label>
                   <input
                     type="number"
                     min="1"
@@ -513,11 +513,11 @@ export const SettingsView: React.FC = () => {
                     disabled={currentRole !== 'Admin'}
                     value={thresholdsForm.diskWarning}
                     onChange={(e) => setThresholdsForm({ ...thresholdsForm, diskWarning: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                    className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-600 font-medium mb-1">Critique (%)</label>
+                  <label className="block text-xs text-[var(--color-tx2)] font-medium mb-1">Critique (%)</label>
                   <input
                     type="number"
                     min="1"
@@ -525,19 +525,19 @@ export const SettingsView: React.FC = () => {
                     disabled={currentRole !== 'Admin'}
                     value={thresholdsForm.diskCritical}
                     onChange={(e) => setThresholdsForm({ ...thresholdsForm, diskCritical: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-rose-600"
+                    className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-rose-600"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+            <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-tx2)]">
                     Plafonds par partition (défaut flotte)
                   </h4>
-                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-[var(--color-tx2)] mt-1 leading-relaxed">
                     Défauts pour tout le parc. Pour un hôte précis, préférez{' '}
                     <strong>Agents → Configuration</strong> (sélection depuis les partitions rapportées par l’agent).
                   </p>
@@ -561,7 +561,7 @@ export const SettingsView: React.FC = () => {
                         ],
                       })
                     }
-                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-[#D0B335]"
+                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-[var(--color-panel)] border border-[var(--color-ln)] text-[var(--color-tx2)] hover:border-[#D0B335]"
                   >
                     <Plus className="w-3.5 h-3.5" /> Ajouter
                   </button>
@@ -575,7 +575,7 @@ export const SettingsView: React.FC = () => {
               )}
 
               {(thresholdsForm.diskMountRules || []).length === 0 ? (
-                <p className="text-[11px] text-slate-400 italic">Aucun plafond spécifique — le défaut disque s’applique.</p>
+                <p className="text-[11px] text-[var(--color-tx3)] italic">Aucun plafond spécifique — le défaut disque s’applique.</p>
               ) : (
                 <div className="space-y-2">
                   {(thresholdsForm.diskMountRules || []).map((rule, idx) => (
@@ -584,7 +584,7 @@ export const SettingsView: React.FC = () => {
                       className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_1fr_1fr_auto] gap-2 items-end"
                     >
                       <div>
-                        <label className="block text-[10px] text-slate-500 font-medium mb-1">Partition</label>
+                        <label className="block text-[10px] text-[var(--color-tx2)] font-medium mb-1">Partition</label>
                         <select
                           disabled={currentRole !== 'Admin'}
                           value={rule.mount}
@@ -593,7 +593,7 @@ export const SettingsView: React.FC = () => {
                             next[idx] = { ...next[idx], mount: e.target.value };
                             setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
                           }}
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900"
+                          className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-mono font-bold text-[var(--color-tx)]"
                         >
                           <option value="">— Sélectionner —</option>
                           {discoveredPartitions.map((p) => (
@@ -610,7 +610,7 @@ export const SettingsView: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] text-slate-500 font-medium mb-1">Warning (%)</label>
+                        <label className="block text-[10px] text-[var(--color-tx2)] font-medium mb-1">Warning (%)</label>
                         <input
                           type="number"
                           min="1"
@@ -622,11 +622,11 @@ export const SettingsView: React.FC = () => {
                             next[idx] = { ...next[idx], warning: Number(e.target.value) };
                             setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
                           }}
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                          className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-slate-500 font-medium mb-1">Critique (%)</label>
+                        <label className="block text-[10px] text-[var(--color-tx2)] font-medium mb-1">Critique (%)</label>
                         <input
                           type="number"
                           min="1"
@@ -638,7 +638,7 @@ export const SettingsView: React.FC = () => {
                             next[idx] = { ...next[idx], critical: Number(e.target.value) };
                             setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
                           }}
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-rose-600"
+                          className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-rose-600"
                         />
                       </div>
                       {currentRole === 'Admin' && (
@@ -649,7 +649,7 @@ export const SettingsView: React.FC = () => {
                             const next = (thresholdsForm.diskMountRules || []).filter((_, i) => i !== idx);
                             setThresholdsForm({ ...thresholdsForm, diskMountRules: next });
                           }}
-                          className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 bg-white"
+                          className="p-2 rounded-lg border border-[var(--color-ln)] text-[var(--color-tx2)] hover:text-rose-600 hover:border-rose-200 bg-[var(--color-panel)]"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -661,33 +661,33 @@ export const SettingsView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
-                <label className="block text-xs font-bold text-slate-700 mb-1">Durée avant alerte (secondes)</label>
-                <p className="text-[11px] text-slate-500 mb-2">La métrique doit rester au-dessus du seuil pendant cette durée — un pic isolé n’alerte pas.</p>
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80">
+                <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Durée avant alerte (secondes)</label>
+                <p className="text-[11px] text-[var(--color-tx2)] mb-2">La métrique doit rester au-dessus du seuil pendant cette durée — un pic isolé n’alerte pas.</p>
                 <input
                   type="number"
                   min="0"
                   disabled={currentRole !== 'Admin'}
                   value={thresholdsForm.durationSeconds ?? 300}
                   onChange={(e) => setThresholdsForm({ ...thresholdsForm, durationSeconds: Number(e.target.value) })}
-                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                  className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                 />
               </div>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
-                <label className="block text-xs font-bold text-slate-700 mb-1">Escalade si non acquittée (minutes)</label>
-                <p className="text-[11px] text-slate-500 mb-2">Passe en Critique et re-notifie (mail CBC + webhook HMAC).</p>
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80">
+                <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Escalade si non acquittée (minutes)</label>
+                <p className="text-[11px] text-[var(--color-tx2)] mb-2">Passe en Critique et re-notifie (mail CBC + webhook HMAC).</p>
                 <input
                   type="number"
                   min="1"
                   disabled={currentRole !== 'Admin'}
                   value={thresholdsForm.escalateAfterMinutes ?? 15}
                   onChange={(e) => setThresholdsForm({ ...thresholdsForm, escalateAfterMinutes: Number(e.target.value) })}
-                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                  className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                 />
               </div>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
-                <label className="block text-xs font-bold text-slate-700 mb-1">Relance des alertes ouvertes (heures)</label>
-                <p className="text-[11px] text-slate-500 mb-2">
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80">
+                <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Relance des alertes ouvertes (heures)</label>
+                <p className="text-[11px] text-[var(--color-tx2)] mb-2">
                   Rappel par courriel tant que l’alerte reste ouverte, même prise en
                   charge : c’est l’alerte attribuée puis oubliée qu’il rattrape. La
                   résolution y met fin. <strong>0</strong> coupe la relance sur tout le
@@ -700,13 +700,13 @@ export const SettingsView: React.FC = () => {
                   disabled={currentRole !== 'Admin'}
                   value={thresholdsForm.alertReminderHours ?? 12}
                   onChange={(e) => setThresholdsForm({ ...thresholdsForm, alertReminderHours: Number(e.target.value) })}
-                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                  className="w-full p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-bold text-[var(--color-tx)]"
                 />
               </div>
             </div>
 
             {currentRole === 'Admin' && (
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              <div className="flex justify-end pt-4 border-t border-[var(--color-ln2)]">
                 <button
                   type="submit"
                   className="px-5 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
@@ -722,11 +722,11 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 2: MESSAGING API CBC */}
       {activeTab === 'messaging' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-6">
           <form onSubmit={handleSaveMessaging} className="space-y-6">
             {/* Destinataires */}
             <div className="space-y-3">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">
                 Destinataires des notifications d'alerte
               </h4>
 
@@ -737,7 +737,7 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setNewRecipient(e.target.value)}
                   placeholder="nom@cbcam.cm"
                   disabled={currentRole !== 'Admin'}
-                  className="w-full sm:w-80 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
+                  className="w-full sm:w-80 p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs text-[var(--color-tx)] font-medium focus:outline-none focus:ring-2 focus:ring-[#D0B335]"
                 />
                 {currentRole === 'Admin' && (
                   <button
@@ -755,14 +755,14 @@ export const SettingsView: React.FC = () => {
                 {messagingForm.recipients.map((rec) => (
                   <span
                     key={rec}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold border border-slate-200"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--color-ln2)] text-[var(--color-tx)] rounded-xl text-xs font-semibold border border-[var(--color-ln)]"
                   >
                     {rec}
                     {currentRole === 'Admin' && (
                       <button
                         type="button"
                         onClick={() => handleRemoveRecipient(rec)}
-                        className="text-slate-400 hover:text-rose-600"
+                        className="text-[var(--color-tx3)] hover:text-rose-600"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -773,42 +773,42 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* API de messagerie CBC Config */}
-            <div className="pt-4 border-t border-slate-100 space-y-4">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+            <div className="pt-4 border-t border-[var(--color-ln2)] space-y-4">
+              <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">
                 Configuration de l'API de messagerie interne CBC
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Endpoint API</label>
+                  <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Endpoint API</label>
                   <input
                     type="text"
                     disabled={currentRole !== 'Admin'}
                     value={messagingForm.apiEndpoint}
                     onChange={(e) => setMessagingForm({ ...messagingForm, apiEndpoint: e.target.value })}
                     placeholder="https://api.cbc.internal/messaging"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                    className="w-full p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-mono font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Clé API</label>
+                  <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Clé API</label>
                   <input
                     type="password"
                     disabled={currentRole !== 'Admin'}
                     value={messagingForm.apiKey}
                     onChange={(e) => setMessagingForm({ ...messagingForm, apiKey: e.target.value })}
                     placeholder="••••••••••••••••"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                    className="w-full p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-mono font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Timeout (secondes)</label>
+                  <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Timeout (secondes)</label>
                   <input
                     type="number"
                     disabled={currentRole !== 'Admin'}
                     value={messagingForm.apiTimeout}
                     onChange={(e) => setMessagingForm({ ...messagingForm, apiTimeout: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                    className="w-full p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-mono font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
@@ -820,17 +820,17 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) => setMessagingForm({ ...messagingForm, enabled: e.target.checked })}
                     className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
                   />
-                  <label htmlFor="messagingEnabled" className="text-xs font-bold text-slate-700">
+                  <label htmlFor="messagingEnabled" className="text-xs font-bold text-[var(--color-tx2)]">
                     Activer les notifications
                   </label>
                 </div>
-                <p className="text-[11px] text-slate-500 col-span-full">
+                <p className="text-[11px] text-[var(--color-tx2)] col-span-full">
                   Les mails utilisent des gabarits HTML par type d'alerte et par action (plugin + statut),
                   avec surcharge possible par hôte. Enregistrez endpoint, clé API et au moins un destinataire
                   ici — c'est cette configuration (pas seulement les variables d'environnement) qui déclenche l'envoi.
                 </p>
                 <div className="col-span-full pt-2 space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">Mail de test — destinataire</label>
+                  <label className="block text-xs font-bold text-[var(--color-tx2)]">Mail de test — destinataire</label>
                   <div className="flex flex-wrap gap-2 items-center">
                     <input
                       type="email"
@@ -838,13 +838,13 @@ export const SettingsView: React.FC = () => {
                       value={testMailTo}
                       onChange={(e) => setTestMailTo(e.target.value)}
                       placeholder={messagingForm.recipients[0] || 'vous@cbcam.cm'}
-                      className="w-full sm:w-80 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+                      className="w-full sm:w-80 p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-medium text-[var(--color-tx)]"
                     />
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-[var(--color-tx3)]">
                       Vide = premier destinataire de la liste
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-[var(--color-tx2)]">
                     Plus tard : chaque hôte aura un propriétaire ; le mail ira au propriétaire, avec la
                     hiérarchie (manager) en copie.
                   </p>
@@ -852,30 +852,30 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 space-y-4">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">Webhook HMAC (INT-003)</h4>
-              <p className="text-[11px] text-slate-500">POST JSON signé : en-tête X-CBC-Signature = sha256=&lt;hmac&gt;. Aucun compte cloud.</p>
+            <div className="pt-4 border-t border-[var(--color-ln2)] space-y-4">
+              <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">Webhook HMAC (INT-003)</h4>
+              <p className="text-[11px] text-[var(--color-tx2)]">POST JSON signé : en-tête X-CBC-Signature = sha256=&lt;hmac&gt;. Aucun compte cloud.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">URL webhook</label>
+                  <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">URL webhook</label>
                   <input
                     type="text"
                     disabled={currentRole !== 'Admin'}
                     value={messagingForm.webhookUrl || ''}
                     onChange={(e) => setMessagingForm({ ...messagingForm, webhookUrl: e.target.value })}
                     placeholder="https://itsm.interne.cbc/hooks/alerts"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                    className="w-full p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-mono font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Secret HMAC</label>
+                  <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Secret HMAC</label>
                   <input
                     type="password"
                     disabled={currentRole !== 'Admin'}
                     value={messagingForm.webhookSecret || ''}
                     onChange={(e) => setMessagingForm({ ...messagingForm, webhookSecret: e.target.value })}
                     placeholder="••••••••"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                    className="w-full p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-mono font-bold text-[var(--color-tx)]"
                   />
                 </div>
                 <div className="flex items-center gap-2 pt-2">
@@ -887,7 +887,7 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) => setMessagingForm({ ...messagingForm, webhookEnabled: e.target.checked })}
                     className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
                   />
-                  <label htmlFor="webhookEnabled" className="text-xs font-bold text-slate-700">
+                  <label htmlFor="webhookEnabled" className="text-xs font-bold text-[var(--color-tx2)]">
                     Activer le webhook signé
                   </label>
                 </div>
@@ -896,7 +896,7 @@ export const SettingsView: React.FC = () => {
 
             {/* Actions */}
             {currentRole === 'Admin' && (
-              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+              <div className="pt-4 border-t border-[var(--color-ln2)] flex items-center gap-3">
                 <button
                   type="submit"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
@@ -908,7 +908,7 @@ export const SettingsView: React.FC = () => {
                   type="button"
                   disabled={testMailBusy}
                   onClick={handleTestMessaging}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors border border-slate-200 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--color-ln2)] hover:bg-slate-200 text-[var(--color-tx)] text-xs font-bold rounded-xl transition-colors border border-[var(--color-ln)] disabled:opacity-60"
                 >
                   <Send className="w-4 h-4" />
                   {testMailBusy ? 'Envoi…' : 'Envoyer un mail de test'}
@@ -920,22 +920,22 @@ export const SettingsView: React.FC = () => {
       )}
 
       {activeTab === 'groups' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-6">
           <div>
-            <h3 className="text-sm font-black text-slate-900">Groupes de machines & config distante (AGT-008)</h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <h3 className="text-sm font-black text-[var(--color-tx)]">Groupes de machines & config distante (AGT-008)</h3>
+            <p className="text-xs text-[var(--color-tx2)] mt-1">
               Publiez une config versionnée. Les agents du groupe la reçoivent au prochain heartbeat (sans SSH).
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2 items-end">
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">Nouveau groupe</label>
+              <label className="block text-[11px] font-bold text-[var(--color-tx2)] mb-1">Nouveau groupe</label>
               <input
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
                 disabled={currentRole !== 'Admin'}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-xs w-56"
+                className="px-3 py-2 rounded-xl border border-[var(--color-ln)] text-xs w-56"
                 placeholder="Agence"
               />
             </div>
@@ -958,11 +958,11 @@ export const SettingsView: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <label className="block text-xs font-bold text-slate-700">Groupe</label>
+              <label className="block text-xs font-bold text-[var(--color-tx2)]">Groupe</label>
               <select
                 value={selectedGroupId}
                 onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-ln)] text-xs"
               >
                 <option value="">—</option>
                 {groups.map((g) => (
@@ -974,11 +974,11 @@ export const SettingsView: React.FC = () => {
 
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Assigner agent (ID)</label>
+                  <label className="block text-[11px] font-bold text-[var(--color-tx2)] mb-1">Assigner agent (ID)</label>
                   <input
                     value={assignAgentId}
                     onChange={(e) => setAssignAgentId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono"
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--color-ln)] text-xs font-mono"
                     placeholder="uuid agent"
                   />
                 </div>
@@ -999,20 +999,20 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payload JSON à publier</label>
+                <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Payload JSON à publier</label>
                 <textarea
                   rows={12}
                   value={publishJson}
                   onChange={(e) => setPublishJson(e.target.value)}
                   disabled={currentRole !== 'Admin'}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-[11px] font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-ln)] text-[11px] font-mono"
                 />
                 <input
                   value={publishNote}
                   onChange={(e) => setPublishNote(e.target.value)}
                   placeholder="Note de version"
                   disabled={currentRole !== 'Admin'}
-                  className="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                  className="mt-2 w-full px-3 py-2 rounded-xl border border-[var(--color-ln)] text-xs"
                 />
                 {currentRole === 'Admin' && (
                   <button
@@ -1039,18 +1039,18 @@ export const SettingsView: React.FC = () => {
             </div>
 
             <div>
-              <h4 className="text-xs font-bold text-slate-700 mb-2">Historique / rollback</h4>
+              <h4 className="text-xs font-bold text-[var(--color-tx2)] mb-2">Historique / rollback</h4>
               <div className="space-y-2 max-h-[420px] overflow-auto">
                 {revisions.length === 0 ? (
-                  <p className="text-xs text-slate-500">Aucune révision.</p>
+                  <p className="text-xs text-[var(--color-tx2)]">Aucune révision.</p>
                 ) : (
                   revisions.map((r) => (
-                    <div key={r.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                    <div key={r.id} className="p-3 rounded-xl border border-[var(--color-ln)] bg-[var(--color-ln2)] text-xs">
                       <div className="flex justify-between items-center gap-2">
                         <span className="font-bold">v{r.version}</span>
-                        <span className="text-slate-400">{r.created_by || '—'}</span>
+                        <span className="text-[var(--color-tx3)]">{r.created_by || '—'}</span>
                       </div>
-                      <p className="text-slate-600 mt-1">{r.note || '—'}</p>
+                      <p className="text-[var(--color-tx2)] mt-1">{r.note || '—'}</p>
                       {currentRole === 'Admin' && (
                         <button
                           type="button"
@@ -1075,15 +1075,15 @@ export const SettingsView: React.FC = () => {
       )}
 
       {activeTab === 'coverage' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-6">
           <div>
-            <h3 className="text-sm font-black text-slate-900">Carte de couverture PowerShell (DES-004)</h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <h3 className="text-sm font-black text-[var(--color-tx)]">Carte de couverture PowerShell (DES-004)</h3>
+            <p className="text-xs text-[var(--color-tx2)] mt-1">
               Plugins livrés vs inventaire CBC. Signalez les chevauchements script+agent (AGT-014).
             </p>
           </div>
           <table className="w-full text-xs">
-            <thead className="text-left text-slate-500 uppercase text-[10px]">
+            <thead className="text-left text-[var(--color-tx2)] uppercase text-[10px]">
               <tr>
                 <th className="py-2">Check</th>
                 <th className="py-2">Plugin</th>
@@ -1094,21 +1094,21 @@ export const SettingsView: React.FC = () => {
             </thead>
             <tbody>
               {coverageRows.map((row) => (
-                <tr key={row.check_id} className="border-t border-slate-100">
+                <tr key={row.check_id} className="border-t border-[var(--color-ln2)]">
                   <td className="py-2 font-mono font-bold">{row.check_id}</td>
                   <td className="py-2">{row.plugin}</td>
                   <td className="py-2">{row.status}</td>
                   <td className="py-2">{row.sprint}</td>
-                  <td className="py-2 text-slate-500">{row.notes || '—'}</td>
+                  <td className="py-2 text-[var(--color-tx2)]">{row.notes || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           <div>
-            <h4 className="text-xs font-bold text-slate-800 mb-2">Chevauchements actifs</h4>
+            <h4 className="text-xs font-bold text-[var(--color-tx)] mb-2">Chevauchements actifs</h4>
             {overlaps.length === 0 ? (
-              <p className="text-xs text-slate-500">Aucun chevauchement signalé.</p>
+              <p className="text-xs text-[var(--color-tx2)]">Aucun chevauchement signalé.</p>
             ) : (
               <ul className="space-y-2">
                 {overlaps.map((o) => (
@@ -1138,17 +1138,17 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 3: SUPERVISION SERVICES */}
       {(activeTab === 'services' || activeTab === 'files') && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-          <h4 className="text-sm font-bold text-slate-900 tracking-tight m-0">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs">
+          <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight m-0">
             La supervision se règle désormais par hôte
           </h4>
-          <p className="text-[13px] leading-relaxed text-slate-600 mt-3">
+          <p className="text-[13px] leading-relaxed text-[var(--color-tx2)] mt-3">
             Les services et fichiers à surveiller dépendent de la machine :
             une passerelle SWIFT et un poste bureautique n'ont ni les mêmes
             services ni les mêmes fichiers critiques. Un réglage global n'aurait
             de sens sur aucun des deux.
           </p>
-          <p className="text-[13px] leading-relaxed text-slate-600">
+          <p className="text-[13px] leading-relaxed text-[var(--color-tx2)]">
             Ouvrez la fiche d'un hôte, onglet <strong>Supervision</strong> : vous
             y choisissez les partitions et leurs seuils, les services avec leur
             état attendu, et les fichiers avec leur condition — présence exigée
@@ -1171,10 +1171,10 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 5: FENÊTRES HORAIRES */}
       {activeTab === 'availability' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-6">
           <form onSubmit={(e) => { e.preventDefault(); updateAvailabilityPolicy(availabilityForm); }} className="space-y-6">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">
                 Configuration des fenêtres horaires de disponibilité
               </h4>
               <div className="flex items-center gap-2">
@@ -1186,26 +1186,26 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setAvailabilityForm({ ...availabilityForm, enabled: e.target.checked })}
                   className="w-4 h-4 text-[#D0B335] rounded focus:ring-[#D0B335]"
                 />
-                <label htmlFor="availabilityEnabled" className="text-xs font-bold text-slate-700">
+                <label htmlFor="availabilityEnabled" className="text-xs font-bold text-[var(--color-tx2)]">
                   Activer les fenêtres horaires
                 </label>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">
                 Fenêtres horaires par jour
               </h4>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--color-tx2)]">
                 Définissez les plages horaires pendant lesquelles les postes de travail doivent être disponibles.
                 En dehors de ces plages, l'absence d'un poste ne générera pas d'alerte.
               </p>
 
               <div className="space-y-4">
                 {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                  <div key={day} className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <div key={day} className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-bold text-slate-800 capitalize">{day}</span>
+                      <span className="text-xs font-bold text-[var(--color-tx)] capitalize">{day}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -1216,7 +1216,7 @@ export const SettingsView: React.FC = () => {
                           setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
                         }}
                         disabled={currentRole !== 'Admin'}
-                        className="text-xs text-slate-600 hover:text-slate-900"
+                        className="text-xs text-[var(--color-tx2)] hover:text-[var(--color-tx)]"
                       >
                         + Ajouter plage
                       </button>
@@ -1233,9 +1233,9 @@ export const SettingsView: React.FC = () => {
                             setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
                           }}
                           disabled={currentRole !== 'Admin'}
-                          className="w-32 p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                          className="w-32 p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-mono"
                         />
-                        <span className="text-xs text-slate-500">→</span>
+                        <span className="text-xs text-[var(--color-tx2)]">→</span>
                         <input
                           type="time"
                           value={window.end}
@@ -1245,7 +1245,7 @@ export const SettingsView: React.FC = () => {
                             setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
                           }}
                           disabled={currentRole !== 'Admin'}
-                          className="w-32 p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                          className="w-32 p-2 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-lg text-xs font-mono"
                         />
                         {currentRole === 'Admin' && (
                           <button
@@ -1255,7 +1255,7 @@ export const SettingsView: React.FC = () => {
                               newTimeWindows[day].splice(index, 1);
                               setAvailabilityForm({ ...availabilityForm, timeWindows: newTimeWindows });
                             }}
-                            className="text-slate-400 hover:text-rose-600"
+                            className="text-[var(--color-tx3)] hover:text-rose-600"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1267,24 +1267,24 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Seuil offline personnalisé (secondes, optionnel)</label>
+            <div className="pt-4 border-t border-[var(--color-ln2)]">
+              <label className="block text-xs font-bold text-[var(--color-tx2)] mb-1">Seuil offline personnalisé (secondes, optionnel)</label>
               <input
                 type="number"
                 disabled={currentRole !== 'Admin'}
                 value={availabilityForm.offlineThresholdSeconds || ''}
                 onChange={(e) => setAvailabilityForm({ ...availabilityForm, offlineThresholdSeconds: e.target.value ? Number(e.target.value) : undefined })}
                 placeholder="Laisser vide pour utiliser le seuil par défaut"
-                className="w-full sm:w-40 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900"
+                className="w-full sm:w-40 p-2.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-xl text-xs font-mono font-bold text-[var(--color-tx)]"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[var(--color-tx2)] mt-1">
                 Remplace le seuil par défaut (90s pour serveurs, 7200s pour postes) si défini
               </p>
             </div>
 
             {/* Actions */}
             {currentRole === 'Admin' && (
-              <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+              <div className="pt-4 border-t border-[var(--color-ln2)] flex items-center gap-3">
                 <button
                   type="submit"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
@@ -1300,15 +1300,15 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 6: RÉTENTION DES DONNÉES */}
       {activeTab === 'retention' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-6">
           <form onSubmit={handleSaveRetention} className="space-y-6">
-            <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+            <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">
               Politique d'archivage et de suppression automatique
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
-                <label className="block text-xs font-bold text-slate-800">
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80 space-y-3">
+                <label className="block text-xs font-bold text-[var(--color-tx)]">
                   Rétention de l'historique des alertes (en jours)
                 </label>
                 <input
@@ -1318,15 +1318,15 @@ export const SettingsView: React.FC = () => {
                   disabled={currentRole !== 'Admin'}
                   value={retentionForm.alertsDays}
                   onChange={(e) => setRetentionForm({ ...retentionForm, alertsDays: Number(e.target.value) })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                  className="w-full p-2.5 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs font-bold text-[var(--color-tx)]"
                 />
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-[var(--color-tx2)] leading-relaxed">
                   Archivage automatique dans l'historique d'audit à 00:00 UTC.
                 </p>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
-                <label className="block text-xs font-bold text-slate-800">
+              <div className="p-4 bg-[var(--color-ln2)] rounded-xl border border-[var(--color-ln)]/80 space-y-3">
+                <label className="block text-xs font-bold text-[var(--color-tx)]">
                   Rétention des logs d'heartbeat (en jours)
                 </label>
                 <input
@@ -1336,16 +1336,16 @@ export const SettingsView: React.FC = () => {
                   disabled={currentRole !== 'Admin'}
                   value={retentionForm.heartbeatsDays}
                   onChange={(e) => setRetentionForm({ ...retentionForm, heartbeatsDays: Number(e.target.value) })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                  className="w-full p-2.5 bg-[var(--color-panel)] border border-[var(--color-ln)] rounded-xl text-xs font-bold text-[var(--color-tx)]"
                 />
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-[var(--color-tx2)] leading-relaxed">
                   Purge des métriques brutes à 01:00 UTC.
                 </p>
               </div>
             </div>
 
             {currentRole === 'Admin' && (
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              <div className="flex justify-end pt-4 border-t border-[var(--color-ln2)]">
                 <button
                   type="submit"
                   className="px-5 py-2.5 bg-[#D0B335] hover:bg-[#b89d2d] text-slate-950 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
@@ -1361,13 +1361,13 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 4: ENROLLMENT TOKENS */}
       {activeTab === 'tokens' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4 p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="bg-[var(--color-panel)] rounded-2xl border border-[var(--color-ln)]/80 shadow-xs overflow-hidden space-y-4 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--color-ln2)]">
             <div>
-              <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h4 className="text-sm font-bold text-[var(--color-tx)] tracking-tight">
                 Jetons d'enrôlement générés
               </h4>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--color-tx2)]">
                 Les jetons permettent d'authentifier les nouveaux agents lors de l'installation
               </p>
             </div>
@@ -1385,13 +1385,13 @@ export const SettingsView: React.FC = () => {
 
           {/* Token KPI Summary Bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 py-1">
-            <div className="p-3 bg-slate-50 border border-slate-200/60 rounded-xl flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-slate-200/70 text-slate-700 flex items-center justify-center font-bold">
+            <div className="p-3 bg-[var(--color-ln2)] border border-[var(--color-ln)]/60 rounded-xl flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-slate-200/70 text-[var(--color-tx2)] flex items-center justify-center font-bold">
                 <Key className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Jetons</p>
-                <p className="text-base font-black text-slate-900">{enrollmentTokens.length}</p>
+                <p className="text-[10px] font-bold text-[var(--color-tx2)] uppercase tracking-wider">Total Jetons</p>
+                <p className="text-base font-black text-[var(--color-tx)]">{enrollmentTokens.length}</p>
               </div>
             </div>
 
@@ -1400,7 +1400,7 @@ export const SettingsView: React.FC = () => {
                 <CheckCircle2 className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jetons Actifs</p>
+                <p className="text-[10px] font-bold text-[var(--color-tx2)] uppercase tracking-wider">Jetons Actifs</p>
                 <p className="text-base font-black text-emerald-700">
                   {enrollmentTokens.filter((t) => t.status === 'active').length}
                 </p>
@@ -1412,20 +1412,20 @@ export const SettingsView: React.FC = () => {
                 <BadgeCheck className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Consommés</p>
+                <p className="text-[10px] font-bold text-[var(--color-tx2)] uppercase tracking-wider">Consommés</p>
                 <p className="text-base font-black text-blue-700">
                   {enrollmentTokens.filter((t) => t.status === 'consumed').length}
                 </p>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-100/80 border border-slate-200/80 rounded-xl flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold">
+            <div className="p-3 bg-[var(--color-ln2)]/80 border border-[var(--color-ln)]/80 rounded-xl flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-slate-200 text-[var(--color-tx2)] flex items-center justify-center font-bold">
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expirés / Inactifs</p>
-                <p className="text-base font-black text-slate-700">
+                <p className="text-[10px] font-bold text-[var(--color-tx2)] uppercase tracking-wider">Expirés / Inactifs</p>
+                <p className="text-base font-black text-[var(--color-tx2)]">
                   {enrollmentTokens.filter((t) => t.status === 'expired').length}
                 </p>
               </div>
@@ -1435,7 +1435,7 @@ export const SettingsView: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                <tr className="bg-[var(--color-ln2)] text-[11px] font-bold text-[var(--color-tx2)] uppercase tracking-wider border-b border-[var(--color-ln2)]">
                   <th className="py-3 px-4">Code Jeton</th>
                   <th className="py-3 px-4">Créé par</th>
                   <th className="py-3 px-4">Date de création</th>
@@ -1444,13 +1444,13 @@ export const SettingsView: React.FC = () => {
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-[var(--color-ln2)] text-xs text-[var(--color-tx2)]">
                 {enrollmentTokens.map((tok) => (
-                  <tr key={tok.id} className="hover:bg-slate-50">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{tok.token}</td>
+                  <tr key={tok.id} className="hover:bg-[var(--color-ln2)]">
+                    <td className="py-3.5 px-4 font-mono font-bold text-[var(--color-tx)]">{tok.token}</td>
                     <td className="py-3.5 px-4 font-medium">{tok.createdBy}</td>
-                    <td className="py-3.5 px-4 text-slate-400 font-mono">{tok.createdAt}</td>
-                    <td className="py-3.5 px-4 text-slate-400 font-mono">{tok.expiresAt}</td>
+                    <td className="py-3.5 px-4 text-[var(--color-tx3)] font-mono">{tok.createdAt}</td>
+                    <td className="py-3.5 px-4 text-[var(--color-tx3)] font-mono">{tok.expiresAt}</td>
                     <td className="py-3.5 px-4">
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
@@ -1458,7 +1458,7 @@ export const SettingsView: React.FC = () => {
                             ? 'bg-emerald-100 text-emerald-800'
                             : tok.status === 'consumed'
                             ? 'bg-blue-100 text-blue-800'
-                            : 'bg-slate-100 text-slate-500'
+                            : 'bg-[var(--color-ln2)] text-[var(--color-tx2)]'
                         }`}
                       >
                         {tok.status === 'active'
@@ -1471,7 +1471,7 @@ export const SettingsView: React.FC = () => {
                     <td className="py-3.5 px-4 text-right">
                       <button
                         onClick={() => handleCopyCode(tok.token, tok.id)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg flex items-center gap-1 ml-auto"
+                        className="px-2.5 py-1 bg-[var(--color-ln2)] hover:bg-slate-200 text-[var(--color-tx)] text-xs font-semibold rounded-lg flex items-center gap-1 ml-auto"
                       >
                         {copiedTokenId === tok.id ? (
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -1498,11 +1498,11 @@ export const SettingsView: React.FC = () => {
       {activeTab === 'templates' && <MailTemplatesPanel />}
 
       {activeTab === 'platform' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="bg-[var(--color-panel)] p-6 rounded-2xl border border-[var(--color-ln)]/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-black text-slate-900">Santé plateforme (NFR-010)</h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <h3 className="text-sm font-black text-[var(--color-tx)]">Santé plateforme (NFR-010)</h3>
+              <p className="text-xs text-[var(--color-tx2)] mt-1">
                 Postgres, Redis, VictoriaMetrics, Loki + budgets de latence (FS7).
               </p>
             </div>
@@ -1522,7 +1522,7 @@ export const SettingsView: React.FC = () => {
             </button>
           </div>
           {!platformStatus ? (
-            <p className="text-xs text-slate-500">Impossible de charger le statut.</p>
+            <p className="text-xs text-[var(--color-tx2)]">Impossible de charger le statut.</p>
           ) : (
             <>
               <p className="text-sm font-bold">
@@ -1539,15 +1539,15 @@ export const SettingsView: React.FC = () => {
                   {platformStatus.status}
                 </span>
                 {platformStatus.checked_at ? (
-                  <span className="text-xs font-medium text-slate-400 ml-2">{platformStatus.checked_at}</span>
+                  <span className="text-xs font-medium text-[var(--color-tx3)] ml-2">{platformStatus.checked_at}</span>
                 ) : null}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {Object.entries(
                   (platformStatus.components || {}) as Record<string, { status?: string; error?: string }>
                 ).map(([name, c]) => (
-                  <div key={name} className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
-                    <p className="font-bold uppercase tracking-wide text-slate-600">{name}</p>
+                  <div key={name} className="p-3 rounded-xl border border-[var(--color-ln)] bg-[var(--color-ln2)] text-xs">
+                    <p className="font-bold uppercase tracking-wide text-[var(--color-tx2)]">{name}</p>
                     <p className="mt-1 font-semibold">{c.status}</p>
                     {c.error ? <p className="text-rose-600 mt-1">{c.error}</p> : null}
                   </div>
@@ -1559,8 +1559,8 @@ export const SettingsView: React.FC = () => {
                     const row = platformStatus.latency?.[key];
                     if (!row) return null;
                     return (
-                      <div key={key} className="p-3 rounded-xl border border-slate-200 text-xs">
-                        <p className="font-bold text-slate-700">{key}</p>
+                      <div key={key} className="p-3 rounded-xl border border-[var(--color-ln)] text-xs">
+                        <p className="font-bold text-[var(--color-tx2)]">{key}</p>
                         <p className="mt-1">
                           n={row.count ?? 0} · p95={row.p95_s ?? '—'}s · budget={row.budget_s ?? '—'}s ·{' '}
                           {row.within_budget == null ? 'n/a' : row.within_budget ? 'OK' : 'BREACH'}
@@ -1593,12 +1593,12 @@ export const SettingsView: React.FC = () => {
         }
       >
         <div className="space-y-4">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-[var(--color-tx2)]">
             Ce jeton est valide pendant 24 heures et permet l'enrôlement automatique d'un nouvel agent dans le parc informatique de la CBC.
           </p>
 
           <div className="p-4 bg-slate-900 rounded-xl text-center">
-            <span className="text-xs text-slate-400 block mb-1">Code du jeton</span>
+            <span className="text-xs text-[var(--color-tx3)] block mb-1">Code du jeton</span>
             <div className="text-lg font-mono font-bold text-[#D0B335] tracking-widest">
               {currentTokenCode}
             </div>

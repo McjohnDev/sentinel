@@ -199,7 +199,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
     }
   };
 
-  if (loading) return <div className="cbc-card p-6 text-[13px] text-slate-500">Chargement du plan…</div>;
+  if (loading) return <div className="cbc-card p-6 text-[13px] text-[var(--color-tx2)]">Chargement du plan…</div>;
   if (!plan) return <div className="cbc-card p-6 text-[13px] text-rose-600">{error}</div>;
 
   const disabled = !canEdit || saving;
@@ -217,14 +217,14 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
     onChange: (next: { warning: number | null; critical: number | null }) => void,
   ) => (
     <div className="grid grid-cols-[130px_1fr_1fr] gap-3 items-center py-2">
-      <div className="text-[12.5px] font-semibold text-slate-700">
+      <div className="text-[12.5px] font-semibold text-[var(--color-tx2)]">
         {label}
         {pair.inherited && (
-          <span className="ml-1.5 text-[10.5px] font-normal text-slate-400">hérité</span>
+          <span className="ml-1.5 text-[10.5px] font-normal text-[var(--color-tx3)]">hérité</span>
         )}
       </div>
       <label className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-500 w-20">Avertis.</span>
+        <span className="text-[11px] text-[var(--color-tx2)] w-20">Avertis.</span>
         <input
           type="number"
           min={0}
@@ -239,7 +239,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
         />
       </label>
       <label className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-500 w-20">Critique</span>
+        <span className="text-[11px] text-[var(--color-tx2)] w-20">Critique</span>
         <input
           type="number"
           min={0}
@@ -266,7 +266,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <h2 className="text-sm font-bold m-0">Cadence de battement</h2>
-            <p className="text-[12.5px] text-slate-500 mt-1 mb-0 max-w-2xl">
+            <p className="text-[12.5px] text-[var(--color-tx2)] mt-1 mb-0 max-w-2xl">
               Laisser vide pour suivre la cadence du parc. Le réglage descend à l’hôte
               au battement suivant, sans intervention sur la machine.
             </p>
@@ -282,7 +282,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
               onChange={(e) => setHeartbeat(e.target.value === '' ? null : Number(e.target.value))}
               className="cbc-input py-1.5 text-[13px] w-24 tnum"
             />
-            <span className="text-[12.5px] text-slate-500">secondes</span>
+            <span className="text-[12.5px] text-[var(--color-tx2)]">secondes</span>
             {canEdit && (
               <button
                 type="button"
@@ -302,14 +302,14 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
 
       {/* --- CPU / RAM / Disque --- */}
       <div className="cbc-card overflow-hidden">
-        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-start justify-between gap-4">
+        <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)] flex items-start justify-between gap-4">
           <div>
             <h2 className="text-sm font-bold m-0">Seuils</h2>
-            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+            <p className="text-[11.5px] text-[var(--color-tx2)] mt-1 mb-0">
               CPU et mémoire sont supervisés par défaut. Laisser un champ vide
               pour suivre le seuil global de la plateforme.
             </p>
-            <p className="text-[11px] text-slate-400 mt-1 mb-0">
+            <p className="text-[11px] text-[var(--color-tx3)] mt-1 mb-0">
               Héritage : Global → Groupe → Hôte
             </p>
           </div>
@@ -329,10 +329,10 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
 
       {/* --- Partitions --- */}
       <div className="cbc-card overflow-hidden">
-        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)] flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold m-0">Partitions surveillées</h2>
-            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+            <p className="text-[11.5px] text-[var(--color-tx2)] mt-1 mb-0">
               Sans sélection, seule la partition principale est évaluée.
             </p>
           </div>
@@ -368,7 +368,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
           </p>
         )}
         {plan.disk.partitions.length === 0 ? (
-          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">
+          <p className="px-[18px] py-4 text-[12.5px] text-[var(--color-tx2)] m-0">
             Aucune partition ciblée.
             {discoveredMounts.length > 0 &&
               ` ${discoveredMounts.length} partition(s) disponible(s) : ${discoveredMounts.join(', ')}.`}
@@ -398,13 +398,13 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
 
       {/* --- Services --- */}
       <div className="cbc-card overflow-hidden">
-        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)] flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold m-0 flex items-center gap-1.5">
-              <Server className="w-4 h-4 text-slate-400" />
+              <Server className="w-4 h-4 text-[var(--color-tx3)]" />
               Services
             </h2>
-            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+            <p className="text-[11.5px] text-[var(--color-tx2)] mt-1 mb-0">
               L'état attendu se règle par service : on alerte aussi bien sur un
               service critique arrêté que sur un service qui devrait le rester.
             </p>
@@ -429,7 +429,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
           )}
         </div>
         {plan.services.length === 0 ? (
-          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">
+          <p className="px-[18px] py-4 text-[12.5px] text-[var(--color-tx2)] m-0">
             Aucun service surveillé sur cet hôte — c'est un choix valide.
           </p>
         ) : (
@@ -452,13 +452,13 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
 
       {/* --- Fichiers --- */}
       <div className="cbc-card overflow-hidden">
-        <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)] flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold m-0 flex items-center gap-1.5">
-              <FileWarning className="w-4 h-4 text-slate-400" />
+              <FileWarning className="w-4 h-4 text-[var(--color-tx3)]" />
               Fichiers
             </h2>
-            <p className="text-[11.5px] text-slate-500 mt-1 mb-0">
+            <p className="text-[11.5px] text-[var(--color-tx2)] mt-1 mb-0">
               Alerter sur l'absence d'un fichier attendu, ou sur l'apparition
               d'un fichier qui ne devrait pas être là.
             </p>
@@ -483,7 +483,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
           )}
         </div>
         {plan.files.length === 0 ? (
-          <p className="px-[18px] py-4 text-[12.5px] text-slate-500 m-0">Aucun fichier surveillé.</p>
+          <p className="px-[18px] py-4 text-[12.5px] text-[var(--color-tx2)] m-0">Aucun fichier surveillé.</p>
         ) : (
           plan.files.map((file, i) => (
             <FileRow
@@ -503,7 +503,7 @@ export const MonitoringPlanPanel: React.FC<Props> = ({
 
       {/* --- Publication --- */}
       <div className="cbc-card px-[18px] py-3.5 flex items-center justify-between gap-4 flex-wrap">
-        <div className="text-[12px] text-slate-500">
+        <div className="text-[12px] text-[var(--color-tx2)]">
           Plan v{plan.version}
           {plan.version_acked >= plan.version ? (
             <span className="ml-2 inline-flex items-center gap-1 text-emerald-700 font-semibold">
@@ -536,7 +536,7 @@ const RemoveButton: React.FC<{ onClick: () => void; disabled: boolean }> = ({ on
     type="button"
     onClick={onClick}
     disabled={disabled}
-    className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+    className="p-1.5 rounded text-[var(--color-tx3)] hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40"
     title="Retirer"
   >
     <Trash2 className="w-3.5 h-3.5" />
@@ -607,7 +607,7 @@ const PartitionRow: React.FC<{
   onChange: (r: PartitionRule) => void;
   onRemove: () => void;
 }> = ({ rule, mounts, partitions, disabled, onChange, onRemove }) => (
-  <div className="grid grid-cols-[1fr_110px_110px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
+  <div className="grid grid-cols-[1fr_110px_110px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-[var(--color-ln2)]">
     {/* Une liste deroulante, non un champ libre avec datalist.
         Le datalist ne se montrait qu'en tapant : l'ecran n'annoncait jamais
         « voici les partitions de cet hote ». Il etait de surcroit rendu
@@ -715,7 +715,7 @@ const ServiceRow: React.FC<{
   onChange: (r: MonitoredServiceRule) => void;
   onRemove: () => void;
 }> = ({ rule, disabled, offered, onChange, onRemove }) => (
-  <div className="grid grid-cols-[1fr_150px_130px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
+  <div className="grid grid-cols-[1fr_150px_130px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-[var(--color-ln2)]">
     <ServiceNamePicker
       value={rule.name}
       disabled={disabled}
@@ -746,7 +746,7 @@ const FileRow: React.FC<{
   onChange: (r: MonitoredFileRule) => void;
   onRemove: () => void;
 }> = ({ rule, disabled, onChange, onRemove }) => (
-  <div className="grid grid-cols-[1fr_170px_130px_100px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-slate-50">
+  <div className="grid grid-cols-[1fr_170px_130px_100px_auto] gap-2.5 items-center px-[18px] py-2.5 border-b border-[var(--color-ln2)]">
     <input
       value={rule.path}
       disabled={disabled}

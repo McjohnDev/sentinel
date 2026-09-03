@@ -51,12 +51,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   return (
     <div className="w-full">
       {(label || showValue) && (
-        <div className="flex justify-between items-center text-xs mb-1 font-medium text-slate-600">
+        <div className="flex justify-between items-center text-xs mb-1 font-medium text-[var(--color-tx2)]">
           {label && <span>{label}</span>}
           {showValue && <span className={`${textColor}`}>{normalizedVal}%</span>}
         </div>
       )}
-      <div className={`w-full bg-slate-100 rounded-full overflow-hidden ${heightClasses[size]} border border-slate-200/60`}>
+      <div className={`w-full bg-[var(--color-ln2)] rounded-full overflow-hidden ${heightClasses[size]} border border-[var(--color-ln)]/60`}>
         <div
           className={`${barColor} ${heightClasses[size]} rounded-full transition-all duration-500 ease-out`}
           style={{ width: `${normalizedVal}%` }}

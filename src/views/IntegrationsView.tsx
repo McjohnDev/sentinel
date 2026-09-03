@@ -83,7 +83,7 @@ export const IntegrationsView: React.FC = () => {
         subtitle="Canaux sortants — état de configuration."
       />
 
-      <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-[12.5px] text-slate-600">
+      <div className="p-3.5 bg-[var(--color-ln2)] border border-[var(--color-ln)] rounded-2xl text-[12.5px] text-[var(--color-tx2)]">
         Cet écran indique ce qui est <strong>configuré</strong>. Un canal
         configuré n'est pas nécessairement joignable : l'état de livraison réel
         figure sur chaque alerte, et la santé des composants dans{' '}
@@ -104,7 +104,7 @@ export const IntegrationsView: React.FC = () => {
             <div key={card.title} className="cbc-card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--color-ln2)] text-[var(--color-tx2)] grid place-items-center shrink-0">
                     <Icon className="w-4 h-4" />
                   </div>
                   <h3 className="text-[14px] font-extrabold tracking-tight truncate">{card.title}</h3>
@@ -113,7 +113,7 @@ export const IntegrationsView: React.FC = () => {
                   className={`px-2 py-0.5 rounded-md border text-[10.5px] font-bold shrink-0 ${
                     card.configured
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                      : 'bg-[var(--color-ln2)] text-[var(--color-tx2)] border-[var(--color-ln)]'
                   }`}
                 >
                   {card.configured ? 'Configuré' : card.planned || 'Non configuré'}
@@ -121,7 +121,7 @@ export const IntegrationsView: React.FC = () => {
               </div>
               <ul className="mt-3 space-y-1.5">
                 {card.lines.map((line) => (
-                  <li key={line} className="text-[12.5px] text-slate-600 break-all">
+                  <li key={line} className="text-[12.5px] text-[var(--color-tx2)] break-all">
                     {line}
                   </li>
                 ))}

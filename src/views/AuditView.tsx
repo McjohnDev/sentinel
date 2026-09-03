@@ -119,7 +119,7 @@ export const AuditView: React.FC = () => {
 
       <div className="cbc-card overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-[13px] text-slate-400">Chargement…</div>
+          <div className="py-16 text-center text-[13px] text-[var(--color-tx3)]">Chargement…</div>
         ) : rows.length === 0 && !error ? (
           <div className="py-16 text-center">
             <div className="text-[15px] font-bold">Aucun évènement</div>
@@ -132,11 +132,11 @@ export const AuditView: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
+                <tr className="bg-[var(--color-ln2)] border-b border-[var(--color-ln)]">
                   {['Horodatage', 'Acteur', 'Action', 'Cible', 'Adresse IP', 'Statut'].map((c) => (
                     <th
                       key={c}
-                      className="text-left px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap"
+                      className="text-left px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] whitespace-nowrap"
                     >
                       {c}
                     </th>
@@ -145,18 +145,18 @@ export const AuditView: React.FC = () => {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-50">
-                    <td className="p-3 tnum text-[12.5px] text-slate-500 whitespace-nowrap">
+                  <tr key={r.id} className="border-b border-[var(--color-ln2)]">
+                    <td className="p-3 tnum text-[12.5px] text-[var(--color-tx2)] whitespace-nowrap">
                       {formatDate(r.created_at)}
                     </td>
                     <td className="p-3 text-[13px] font-semibold">{r.username || r.user_id || '—'}</td>
                     <td className="p-3 tnum text-[12.5px]">{r.event_type}</td>
-                    <td className="p-3 text-[12.5px] text-slate-600">{r.target || '—'}</td>
+                    <td className="p-3 text-[12.5px] text-[var(--color-tx2)]">{r.target || '—'}</td>
                     {/* Adresse réellement observée sur la requête, jamais une
                         valeur d'affichage. Vide si le serveur ne l'a pas
                         enregistrée — c'est une information plus honnête
                         qu'une IP inventée. */}
-                    <td className="p-3 tnum text-[12.5px] text-slate-500">{r.ip_address || '—'}</td>
+                    <td className="p-3 tnum text-[12.5px] text-[var(--color-tx2)]">{r.ip_address || '—'}</td>
                     <td className="p-3">
                       <span
                         className={`inline-flex px-2 py-0.5 rounded-md border text-[11px] font-semibold ${

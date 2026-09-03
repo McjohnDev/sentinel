@@ -101,10 +101,10 @@ export const AlertServicesPanel: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="cbc-card p-6 text-[12.5px] text-slate-500">Chargement…</div>;
+    return <div className="cbc-card p-6 text-[12.5px] text-[var(--color-tx2)]">Chargement…</div>;
   }
   if (!cfg) {
-    return <div className="cbc-card p-6 text-[12.5px] text-slate-500">{error || 'Indisponible.'}</div>;
+    return <div className="cbc-card p-6 text-[12.5px] text-[var(--color-tx2)]">{error || 'Indisponible.'}</div>;
   }
 
   const plaintextAuth = cfg.auth && cfg.encryption === 'none';
@@ -129,7 +129,7 @@ export const AlertServicesPanel: React.FC = () => {
                 Activé
               </label>
             </div>
-            <p className="text-[12.5px] text-slate-600 mt-2 mb-0 max-w-3xl">
+            <p className="text-[12.5px] text-[var(--color-tx2)] mt-2 mb-0 max-w-3xl">
               Second canal de notification, à côté de l’API Mail CBC et du webhook n8n.
               Les trois coexistent volontairement : un relais interne reste joignable
               quand l’API est en panne, et inversement.
@@ -217,7 +217,7 @@ export const AlertServicesPanel: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="cbc-input py-1.5 text-[13px] w-full"
                 />
-                <p className="text-[11px] text-slate-500 mt-1 mb-0">
+                <p className="text-[11px] text-[var(--color-tx2)] mt-1 mb-0">
                   Jamais réaffiché. Laisser vide conserve le mot de passe enregistré.
                 </p>
               </Field>
@@ -297,7 +297,7 @@ export const AlertServicesPanel: React.FC = () => {
       <div className="cbc-card p-5 border-amber-200">
         <div className="flex items-start gap-3">
           <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-[12.5px] text-slate-700">
+          <div className="text-[12.5px] text-[var(--color-tx2)]">
             <p className="m-0 font-semibold">
               Les destinataires ne se saisissent pas ici.
             </p>
@@ -321,8 +321,8 @@ export const AlertServicesPanel: React.FC = () => {
       </div>
 
       <div className="cbc-card p-5 flex items-start gap-3">
-        <KeyRound className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-        <p className="text-[12.5px] text-slate-600 m-0">
+        <KeyRound className="w-4 h-4 text-[var(--color-tx3)] shrink-0 mt-0.5" />
+        <p className="text-[12.5px] text-[var(--color-tx2)] m-0">
           Les autres canaux se règlent ailleurs : l’<strong>API Mail CBC</strong> dans
           « Notifications API CBC », le <strong>webhook signé qui déclenche n8n</strong>{' '}
           dans « Courriels par vérification », où se trouve aussi son essai.
@@ -334,7 +334,7 @@ export const AlertServicesPanel: React.FC = () => {
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
-    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-tx3)] mb-1.5">
       {label}
     </label>
     {children}

@@ -46,11 +46,11 @@ const Row: React.FC<{ icon: React.ReactNode; label: string; children: React.Reac
   label,
   children,
 }) => (
-  <div className="flex items-start gap-2.5 px-[18px] py-2.5 border-b border-slate-50 last:border-0">
-    <span className="text-slate-400 mt-0.5 shrink-0">{icon}</span>
+  <div className="flex items-start gap-2.5 px-[18px] py-2.5 border-b border-[var(--color-ln2)] last:border-0">
+    <span className="text-[var(--color-tx3)] mt-0.5 shrink-0">{icon}</span>
     <div className="min-w-0 flex-1">
-      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
-      <div className="text-[12.5px] text-slate-700 break-all">{children}</div>
+      <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">{label}</div>
+      <div className="text-[12.5px] text-[var(--color-tx2)] break-all">{children}</div>
     </div>
   </div>
 );
@@ -61,10 +61,10 @@ export const AgentRuntimePanel: React.FC<{ agent: Agent }> = ({ agent }) => {
   if (!runtime) {
     return (
       <div className="cbc-card overflow-hidden">
-        <div className="px-[18px] py-3.5 border-b border-slate-200">
+        <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)]">
           <h2 className="text-sm font-bold m-0">Exécution sur l'hôte</h2>
         </div>
-        <div className="px-[18px] py-6 text-[12.5px] text-slate-500">
+        <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-tx2)]">
           Cet hôte n'a pas encore transmis son descriptif d'exécution. Il sera
           renseigné au prochain battement d'un agent en version 1.2 ou
           supérieure.
@@ -81,7 +81,7 @@ export const AgentRuntimePanel: React.FC<{ agent: Agent }> = ({ agent }) => {
 
   return (
     <div className="cbc-card overflow-hidden">
-      <div className="px-[18px] py-3.5 border-b border-slate-200 flex items-center justify-between">
+      <div className="px-[18px] py-3.5 border-b border-[var(--color-ln)] flex items-center justify-between">
         <h2 className="text-sm font-bold m-0">Exécution sur l'hôte</h2>
         <span
           className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
@@ -126,7 +126,7 @@ export const AgentRuntimePanel: React.FC<{ agent: Agent }> = ({ agent }) => {
       <Row icon={<HardDrive className="w-3.5 h-3.5" />} label="Exécutable">
         {runtime.executable_path || '—'}
         {runtime.packaging && (
-          <span className="ml-2 text-[11px] text-slate-500">
+          <span className="ml-2 text-[11px] text-[var(--color-tx2)]">
             ({PACKAGING_LABELS[runtime.packaging] || runtime.packaging})
           </span>
         )}
@@ -160,7 +160,7 @@ export const AgentRuntimePanel: React.FC<{ agent: Agent }> = ({ agent }) => {
         </div>
       )}
 
-      <div className="px-[18px] py-3 text-[11px] text-slate-400">
+      <div className="px-[18px] py-3 text-[11px] text-[var(--color-tx3)]">
         {runtime.platform} · Python {runtime.python_version}
         {runtime.plugins?.length ? ` · ${runtime.plugins.length} collecteur(s)` : ''}
       </div>

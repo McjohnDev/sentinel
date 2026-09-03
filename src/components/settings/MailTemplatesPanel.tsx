@@ -154,7 +154,7 @@ export const MailTemplatesPanel: React.FC = () => {
           <Webhook className="w-5 h-5 text-[#A68523] shrink-0 mt-0.5" />
           <div>
             <h3 className="text-[14px] font-bold m-0">Déclenchement n8n</h3>
-            <p className="text-[12.5px] text-slate-600 mt-1.5 mb-0 max-w-2xl">
+            <p className="text-[12.5px] text-[var(--color-tx2)] mt-1.5 mb-0 max-w-2xl">
               Chaque alerte est postée sur le webhook signé (HMAC) configuré dans
               Intégrations. C’est le canal par lequel n8n est déclenché. L’essai envoie
               une charge marquée <code className="tnum">test: true</code>, qu’un scénario
@@ -177,17 +177,17 @@ export const MailTemplatesPanel: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5">
         <div className="cbc-card overflow-hidden self-start">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-slate-400" />
+          <div className="px-4 py-3 border-b border-[var(--color-ln2)] flex items-center gap-2">
+            <Mail className="w-4 h-4 text-[var(--color-tx3)]" />
             <span className="text-[13px] font-bold">Vérifications</span>
           </div>
           {loading ? (
-            <p className="px-4 py-4 text-[12.5px] text-slate-500 m-0">Chargement…</p>
+            <p className="px-4 py-4 text-[12.5px] text-[var(--color-tx2)] m-0">Chargement…</p>
           ) : (
             <div className="max-h-[460px] overflow-y-auto">
               {Object.entries(grouped).map(([kind, list]) => (
                 <div key={kind}>
-                  <div className="px-4 py-1.5 bg-slate-50 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="px-4 py-1.5 bg-[var(--color-ln2)] text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)]">
                     {KIND_LABEL[kind] || kind}
                   </div>
                   {list.map((row) => {
@@ -197,13 +197,13 @@ export const MailTemplatesPanel: React.FC = () => {
                         key={id}
                         type="button"
                         onClick={() => open(row)}
-                        className={`w-full text-left px-4 py-2 text-[12.5px] border-b border-slate-50 hover:bg-slate-50 ${
+                        className={`w-full text-left px-4 py-2 text-[12.5px] border-b border-[var(--color-ln2)] hover:bg-[var(--color-ln2)] ${
                           selected === id ? 'bg-amber-50/60 font-semibold' : ''
                         }`}
                       >
                         <span className="tnum">{row.event_key}</span>
                         {row.description && (
-                          <span className="block text-[11.5px] text-slate-500">{row.description}</span>
+                          <span className="block text-[11.5px] text-[var(--color-tx2)]">{row.description}</span>
                         )}
                       </button>
                     );
@@ -216,7 +216,7 @@ export const MailTemplatesPanel: React.FC = () => {
 
         <div className="cbc-card p-5">
           {!current ? (
-            <p className="text-[12.5px] text-slate-500 m-0">
+            <p className="text-[12.5px] text-[var(--color-tx2)] m-0">
               Choisir une vérification pour régler le courriel qu’elle envoie.
             </p>
           ) : (
@@ -259,7 +259,7 @@ export const MailTemplatesPanel: React.FC = () => {
                 )}
               </div>
 
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-tx3)] mb-1.5">
                 Objet
               </label>
               <input
@@ -269,7 +269,7 @@ export const MailTemplatesPanel: React.FC = () => {
                 className="cbc-input py-1.5 text-[13px] w-full"
               />
 
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mt-4 mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-tx3)] mt-4 mb-1.5">
                 Corps (HTML)
               </label>
               <textarea
@@ -279,7 +279,7 @@ export const MailTemplatesPanel: React.FC = () => {
                 rows={12}
                 className="cbc-input py-2 text-[12px] w-full font-mono"
               />
-              <p className="text-[11.5px] text-slate-500 mt-2 mb-0">
+              <p className="text-[11.5px] text-[var(--color-tx2)] mt-2 mb-0">
                 Champs disponibles : <code>{'{hostname}'}</code> <code>{'{severity}'}</code>{' '}
                 <code>{'{message}'}</code> <code>{'{value}'}</code> <code>{'{threshold}'}</code>{' '}
                 <code>{'{mount}'}</code> <code>{'{timestamp}'}</code>. Un champ inconnu est laissé
@@ -289,13 +289,13 @@ export const MailTemplatesPanel: React.FC = () => {
               {error && <p className="text-[12.5px] text-rose-600 mt-3 mb-0">{error}</p>}
 
               {preview && (
-                <div className="mt-5 border-t border-slate-100 pt-4">
-                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                <div className="mt-5 border-t border-[var(--color-ln2)] pt-4">
+                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-2">
                     Aperçu — rien n’a été envoyé
                   </div>
                   <div className="text-[13px] font-bold mb-2">{preview.subject}</div>
                   <div
-                    className="border border-slate-200 rounded-xl p-3 bg-white max-h-[320px] overflow-y-auto"
+                    className="border border-[var(--color-ln)] rounded-xl p-3 bg-[var(--color-panel)] max-h-[320px] overflow-y-auto"
                     // Contenu produit par la plateforme à partir du gabarit que
                     // l'administrateur vient de saisir : c'est précisément ce
                     // qu'il demande à voir rendu.

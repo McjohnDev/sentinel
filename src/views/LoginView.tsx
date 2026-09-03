@@ -59,7 +59,7 @@ export const LoginView: React.FC = () => {
       }}
     >
       <div className="w-full max-w-[420px]">
-        <div className="bg-white rounded-2xl px-[34px] py-9">
+        <div className="bg-[var(--color-panel)] rounded-2xl px-[34px] py-9">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-[#D0B335] text-[#020617] text-[13px] font-extrabold flex items-center justify-center">
               CBC
@@ -75,7 +75,7 @@ export const LoginView: React.FC = () => {
           </p>
 
           <form onSubmit={handleSubmit}>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('login.identifier')}</label>
+            <label className="block text-xs font-semibold text-[var(--color-tx2)] mb-1.5">{t('login.identifier')}</label>
             <input
               type="text"
               value={identifier}
@@ -87,7 +87,7 @@ export const LoginView: React.FC = () => {
               spellCheck={false}
             />
 
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('login.password')}</label>
+            <label className="block text-xs font-semibold text-[var(--color-tx2)] mb-1.5">{t('login.password')}</label>
             <div className="relative mb-5">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -99,7 +99,7 @@ export const LoginView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 rounded-lg"
+                className="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-[var(--color-tx3)] hover:bg-[var(--color-ln2)] rounded-lg"
                 title={t('login.showPassword')}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -131,23 +131,23 @@ export const LoginView: React.FC = () => {
 
           <div className="flex items-center gap-3 my-6">
             <span className="flex-1 h-px bg-slate-200" />
-            <span className="text-[11px] text-slate-400">{t('login.or')}</span>
+            <span className="text-[11px] text-[var(--color-tx3)]">{t('login.or')}</span>
             <span className="flex-1 h-px bg-slate-200" />
           </div>
 
           <button
             type="button"
             disabled
-            className="w-full py-2.5 border border-slate-200 rounded-lg bg-white text-[13px] font-semibold text-slate-800 flex items-center justify-center gap-2 opacity-90 cursor-not-allowed"
+            className="w-full py-2.5 border border-[var(--color-ln)] rounded-lg bg-[var(--color-panel)] text-[13px] font-semibold text-[var(--color-tx)] flex items-center justify-center gap-2 opacity-90 cursor-not-allowed"
           >
             {t('login.sso')}
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10.5px] font-semibold">
+            <span className="px-2 py-0.5 rounded-full bg-[var(--color-ln2)] text-[var(--color-tx2)] text-[10.5px] font-semibold">
               {t('login.ssoSoon')}
             </span>
           </button>
         </div>
 
-        <p className="text-center text-[11px] leading-relaxed text-slate-500 mt-5">
+        <p className="text-center text-[11px] leading-relaxed text-[var(--color-tx2)] mt-5">
           Usage interne CBC · ISO 27001 & COBAC
         </p>
       </div>
@@ -162,7 +162,7 @@ export const LoginView: React.FC = () => {
           </button>
         }
       >
-        <p className="text-sm text-slate-600 leading-relaxed">
+        <p className="text-sm text-[var(--color-tx2)] leading-relaxed">
           Contactez votre administrateur DTDSI pour réinitialiser votre accès CBC Supervision.
         </p>
       </Modal>

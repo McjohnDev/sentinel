@@ -10,7 +10,7 @@ export type Lang = 'fr' | 'en';
 const messages = {
   fr: {
     'nav.main': 'Menu principal',
-    'nav.group.exploit': 'Exploiter',
+    'nav.group.exploit': 'Opérer',
     'nav.group.admin': 'Administrer',
     'nav.group.configure': 'Configurer',
     'nav.integrations': 'Intégrations',

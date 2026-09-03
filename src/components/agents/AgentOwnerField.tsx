@@ -129,7 +129,7 @@ export const AgentOwnerField: React.FC<Props> = ({ agent, canEdit, onSaved }) =>
         </span>
       );
     }
-    return <span className="text-[12.5px] text-slate-700">{parts.join(' · ')}</span>;
+    return <span className="text-[12.5px] text-[var(--color-tx2)]">{parts.join(' · ')}</span>;
   };
 
   if (!editing) {
@@ -140,7 +140,7 @@ export const AgentOwnerField: React.FC<Props> = ({ agent, canEdit, onSaved }) =>
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-700 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[var(--color-tx3)] hover:text-[var(--color-tx2)] transition-opacity"
             title="Attribuer cet hôte"
             aria-label="Attribuer cet hôte"
           >
@@ -154,16 +154,16 @@ export const AgentOwnerField: React.FC<Props> = ({ agent, canEdit, onSaved }) =>
   return (
     <div ref={panelRef} className="relative inline-block">
       <div className="absolute z-30 top-0 left-0 w-[330px] cbc-card p-4 shadow-lg">
-        <div className="flex items-center gap-2 pb-2.5 mb-3 border-b border-slate-100">
+        <div className="flex items-center gap-2 pb-2.5 mb-3 border-b border-[var(--color-ln2)]">
           <Users className="w-4 h-4 text-[#A68523]" />
           <span className="text-[13px] font-bold">Responsabilité de l'hôte</span>
         </div>
 
         {loading ? (
-          <p className="text-[12.5px] text-slate-500 m-0">Chargement…</p>
+          <p className="text-[12.5px] text-[var(--color-tx2)] m-0">Chargement…</p>
         ) : (
           <>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-tx3)] mb-1.5">
               Responsable nommé
             </label>
             <select
@@ -180,7 +180,7 @@ export const AgentOwnerField: React.FC<Props> = ({ agent, canEdit, onSaved }) =>
               ))}
             </select>
 
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mt-3.5 mb-1.5">
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-tx3)] mt-3.5 mb-1.5">
               Équipe d'administration
             </label>
             <select
@@ -197,7 +197,7 @@ export const AgentOwnerField: React.FC<Props> = ({ agent, canEdit, onSaved }) =>
               ))}
             </select>
 
-            <p className="text-[11.5px] leading-relaxed text-slate-500 mt-3 mb-0">
+            <p className="text-[11.5px] leading-relaxed text-[var(--color-tx2)] mt-3 mb-0">
               {owner || group
                 ? "Le responsable et les membres de l'équipe pourront administrer cet hôte."
                 : "Sans attribution, seuls les administrateurs globaux pourront intervenir sur cet hôte."}

@@ -30,15 +30,15 @@ export const ProfileView: React.FC = () => {
 
       <div className="cbc-card p-5 space-y-3">
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700">Nom</span>
-          <input value={currentUser?.name || ''} readOnly className="cbc-input mt-1.5 bg-slate-50" />
+          <span className="text-xs font-semibold text-[var(--color-tx2)]">Nom</span>
+          <input value={currentUser?.name || ''} readOnly className="cbc-input mt-1.5 bg-[var(--color-ln2)]" />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700">E-mail</span>
-          <input value={currentUser?.email || ''} readOnly className="cbc-input mt-1.5 bg-slate-50" />
+          <span className="text-xs font-semibold text-[var(--color-tx2)]">E-mail</span>
+          <input value={currentUser?.email || ''} readOnly className="cbc-input mt-1.5 bg-[var(--color-ln2)]" />
         </label>
         <div>
-          <span className="text-xs font-semibold text-slate-700">Langue</span>
+          <span className="text-xs font-semibold text-[var(--color-tx2)]">Langue</span>
           <div className="mt-2">
             <SegmentedControl
               options={[
@@ -93,15 +93,15 @@ export const ProfileView: React.FC = () => {
       >
         <h2 className="text-sm font-bold m-0">Changement de mot de passe</h2>
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700">Actuel</span>
+          <span className="text-xs font-semibold text-[var(--color-tx2)]">Actuel</span>
           <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} className="cbc-input mt-1.5" autoComplete="current-password" />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700">Nouveau</span>
+          <span className="text-xs font-semibold text-[var(--color-tx2)]">Nouveau</span>
           <input type="password" value={next} onChange={(e) => setNext(e.target.value)} className="cbc-input mt-1.5" autoComplete="new-password" />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700">Confirmation</span>
+          <span className="text-xs font-semibold text-[var(--color-tx2)]">Confirmation</span>
           <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="cbc-input mt-1.5" autoComplete="new-password" />
         </label>
         {error && <p className="text-xs text-rose-600">{error}</p>}

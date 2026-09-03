@@ -102,7 +102,7 @@ export const VlanPlanPanel: React.FC = () => {
             <h3 className="text-[15px] font-extrabold tracking-tight m-0">
               Plan d’adressage réseau
             </h3>
-            <p className="text-[12.5px] text-slate-600 mt-2 leading-relaxed max-w-3xl mb-0">
+            <p className="text-[12.5px] text-[var(--color-tx2)] mt-2 leading-relaxed max-w-3xl mb-0">
               Fichier fourni par l’équipe réseau, associant chaque sous-réseau à son
               VLAN. La plupart des hôtes sont sur port d’accès et ne peuvent pas
               connaître leur VLAN : la plateforme le déduit de leur adresse IP,
@@ -110,16 +110,16 @@ export const VlanPlanPanel: React.FC = () => {
               la déduction suit une machine qui change d’adresse.
             </p>
 
-            <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <div className="mt-4 p-3 rounded-xl bg-[var(--color-ln2)] border border-[var(--color-ln)]">
+              <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-tx3)] mb-1.5">
                 Format attendu — CSV ou .xlsx
               </div>
-              <pre className="text-[12px] text-slate-700 m-0 whitespace-pre overflow-x-auto">
+              <pre className="text-[12px] text-[var(--color-tx2)] m-0 whitespace-pre overflow-x-auto">
 {`Sous-réseau     ; VLAN ; Libellé
 10.20.4.0/24    ; 20   ; Monétique
 10.20.8.0/24    ; 30   ; Agences`}
               </pre>
-              <p className="text-[11.5px] text-slate-500 mt-2 mb-0">
+              <p className="text-[11.5px] text-[var(--color-tx2)] mt-2 mb-0">
                 Le séparateur point-virgule d’Excel, les en-têtes accentués et
                 « VLAN 20 » écrit en toutes lettres sont acceptés. Un import
                 remplace le plan précédent.
@@ -174,15 +174,15 @@ export const VlanPlanPanel: React.FC = () => {
               {result.rejected.length} ligne(s) non importée(s)
             </h4>
           </div>
-          <p className="text-[12px] text-slate-500 mb-3">
+          <p className="text-[12px] text-[var(--color-tx2)] mb-3">
             Ces lignes sont restées hors du plan. Les hôtes qu’elles devaient
             couvrir n’auront pas de VLAN déduit.
           </p>
           <ul className="space-y-1.5">
             {result.rejected.map((r) => (
-              <li key={`${r.line}-${r.reason}`} className="text-[12.5px] text-slate-700">
+              <li key={`${r.line}-${r.reason}`} className="text-[12.5px] text-[var(--color-tx2)]">
                 <span className="tnum font-semibold">Ligne {r.line}</span> — {r.reason}
-                {r.value ? <span className="text-slate-500"> « {r.value} »</span> : null}
+                {r.value ? <span className="text-[var(--color-tx2)]"> « {r.value} »</span> : null}
               </li>
             ))}
           </ul>
@@ -190,10 +190,10 @@ export const VlanPlanPanel: React.FC = () => {
       )}
 
       <div className="cbc-card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-5 py-3.5 border-b border-[var(--color-ln2)] flex items-center justify-between">
           <h4 className="text-[13.5px] font-bold m-0">Sous-réseaux ({rows.length})</h4>
           {rows[0]?.imported_at && (
-            <span className="text-[11.5px] text-slate-500">
+            <span className="text-[11.5px] text-[var(--color-tx2)]">
               Importé par {rows[0].imported_by || '—'}
               {rows[0].source_file ? ` · ${rows[0].source_file}` : ''}
             </span>
@@ -201,9 +201,9 @@ export const VlanPlanPanel: React.FC = () => {
         </div>
 
         {loading ? (
-          <p className="text-[12.5px] text-slate-500 px-5 py-6 m-0">Chargement…</p>
+          <p className="text-[12.5px] text-[var(--color-tx2)] px-5 py-6 m-0">Chargement…</p>
         ) : rows.length === 0 ? (
-          <p className="text-[12.5px] text-slate-500 px-5 py-6 m-0">
+          <p className="text-[12.5px] text-[var(--color-tx2)] px-5 py-6 m-0">
             Aucun plan importé. Les hôtes n’auront de VLAN que s’il est saisi sur
             leur fiche, ou s’ils étiquettent eux-mêmes.
           </p>
@@ -211,7 +211,7 @@ export const VlanPlanPanel: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead>
-                <tr className="text-left text-[10.5px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <tr className="text-left text-[10.5px] uppercase tracking-wider text-[var(--color-tx3)] border-b border-[var(--color-ln2)]">
                   <th className="px-5 py-2.5 font-bold">Sous-réseau</th>
                   <th className="px-5 py-2.5 font-bold">VLAN</th>
                   <th className="px-5 py-2.5 font-bold">Libellé</th>
@@ -219,10 +219,10 @@ export const VlanPlanPanel: React.FC = () => {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-50 last:border-0">
+                  <tr key={r.id} className="border-b border-[var(--color-ln2)] last:border-0">
                     <td className="px-5 py-2.5 tnum font-semibold">{r.cidr}</td>
                     <td className="px-5 py-2.5 tnum">{r.vlan}</td>
-                    <td className="px-5 py-2.5 text-slate-600">{r.label || '—'}</td>
+                    <td className="px-5 py-2.5 text-[var(--color-tx2)]">{r.label || '—'}</td>
                   </tr>
                 ))}
               </tbody>

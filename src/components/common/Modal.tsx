@@ -60,17 +60,17 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 my-8`}
+            className={`relative w-full ${sizeClasses[size]} bg-[var(--color-panel)] rounded-2xl shadow-2xl border border-[var(--color-ln)] overflow-hidden z-10 my-8`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-ln2)] bg-[var(--color-ln2)]/50">
+              <h3 className="text-lg font-bold text-[var(--color-tx)] tracking-tight flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#D0B335]"></span>
                 {title}
               </h3>
               <button
                 onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 text-[var(--color-tx3)] hover:text-[var(--color-tx2)] hover:bg-[var(--color-ln2)] rounded-lg transition-colors"
                 aria-label="Fermer la boîte de dialogue"
               >
                 <X className="w-5 h-5" />
@@ -78,13 +78,13 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
 
             {/* Body */}
-            <div className="p-6 max-h-[75vh] overflow-y-auto text-slate-700 font-sans">
+            <div className="p-6 max-h-[75vh] overflow-y-auto text-[var(--color-tx2)] font-sans">
               {children}
             </div>
 
             {/* Footer */}
             {footer && (
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-ln2)] bg-[var(--color-ln2)]/50">
                 {footer}
               </div>
             )}
