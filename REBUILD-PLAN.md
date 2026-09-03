@@ -459,6 +459,37 @@ pas un oubli.
 
 ---
 
+### Personnalisation de l'apparence, espacement, clarté de l'import VLAN — 3 septembre 2026
+
+Trois retours sur la refonte visuelle, en une passe.
+
+**Espacement.** Le contenu flottait dans une colonne centrée à 1280px : sur
+un écran large, cela laissait un vide symétrique énorme entre le contenu et
+la barre latérale comme le bandeau. Le centrage est retiré ; le contenu
+s'appuie contre la marge, plafonné à 1680px pour rester lisible sur très
+grand écran.
+
+**Personnalisation de l'apparence** (Paramètres → Apparence). Un jeu de
+réglages *par thème* (clair et sombre distincts, pour qu'un dégradé pensé
+pour le jour ne jure pas la nuit tombée) : accent, couleur de la barre
+latérale, du bandeau, teinte du contenu, dégradé, intensité du survol.
+Quatre thèmes prêts à l'emploi (Or CBC, Marine, Ardoise, Aurore). Une couleur
+personnalisée calcule elle-même un texte lisible par luminance relative
+(WCAG) — la teinte de contenu reste un lavis à 14 % sur le fond du thème,
+jamais une recoloration complète, pour ne pas casser la lisibilité du texte
+courant de toute l'application.
+
+**Import VLAN.** Le message d'échec existait déjà et nommait la ligne
+fautive, mais pour un préfixe hors bornes (`/250`, transmis par
+Paserelle.csv) il se contentait de dire « invalide » sans dire pourquoi ni
+quoi corriger. Il nomme désormais la borne réelle (« le maximum est /32 »)
+et propose la correction la plus probable (« vouliez-vous dire /24 ? »).
+Vérifié contre le serveur réel : le mécanisme d'import fonctionnait déjà
+(un fichier valide s'importe sans problème) — seul le message manquait de
+clarté sur ce cas précis.
+
+---
+
 ## Interface — ce qui a été retiré
 
 Dix écrans hors périmètre, avec leurs routes, entrées de navigation et clés
@@ -520,6 +551,40 @@ configuration réelle. 25 tests.
 `agent.spec` était périmé depuis la refonte de l'agent — il déclarait une
 dizaine de modules retirés (`durable_buffer`, `action_plugins`,
 `windows_service`...) et ne construisait plus rien. Réécrit.
+
+### Installation réelle sur CBCM04PCSINA398 — trois défauts trouvés et corrigés
+
+Un essai réel de l'installateur sur le poste de l'utilisateur a trouvé trois
+choses qu'aucun test n'avait couvertes :
+
+**Sortie accentuée illisible.** « Hôte » s'affichait « H¶te » dès que la
+sortie de l'agent était redirigée — ce que fait justement l'installateur.
+Windows choisit l'encodage de la locale (cp1252) pour un flux redirigé, pas
+UTF-8. L'agent reconfigure désormais `stdout`/`stderr` en UTF-8
+(`errors="replace"`, pour dégrader un caractère plutôt que refuser de
+démarrer), combiné au même réglage côté installateur.
+
+**L'agent était injoignable derrière le proxy sortant d'entreprise.**
+`requests` lit `HTTP_PROXY`/`HTTPS_PROXY` dans l'environnement : sur un poste
+d'entreprise, le battement partait donc vers le proxy — alors que la
+plateforme est interne. Le proxy répondait 403, l'hôte se déclarait hors
+ligne alors que la plateforme était à deux sauts de réseau. Mesuré plutôt que
+supposé contre un proxy réel : `session.proxies['no_proxy']` ne sert à rien
+(`requests` lit `no_proxy` dans les options de la *requête*, jamais de la
+session) ; `trust_env=False` fonctionne mais ferait aussi ignorer
+`REQUESTS_CA_BUNDLE`, où un parc bancaire sert souvent ses certificats
+internes. `transport.build_session(config)` centralise la construction de la
+session pour les six points d'entrée réseau de l'agent, avec l'exemption
+posée par requête, pour la seule adresse de la plateforme.
+
+**L'installateur mangeait son propre message d'échec.** Sans `Out-Host`,
+PowerShell versait la sortie de l'agent dans la valeur de retour, et le
+message d'échec devenait « Enrôlement refusé (code Hôte : ... 1) » —
+illisible au seul moment où on en a besoin.
+
+Vérifié sur le poste réel, proxy actif : le battement vers l'adresse LAN
+aboutit, l'écho de la plateforme rapporte une vraie reprise de contact.
+24 tests supplémentaires.
 
 ---
 
