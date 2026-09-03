@@ -427,6 +427,38 @@ liste plutôt qu'un instantané.
 
 ---
 
+### Refonte visuelle — livrée le 3 septembre 2026
+
+Demande : « build the UI using this as model », une maquette complète
+fournie (palette bleue, typographie Geist, barre latérale + en-tête +
+palette de commandes, thème clair/sombre).
+
+L'accent retenu est l'or CBC (#A68523), pas le bleu de la maquette : c'est
+la couleur de marque déjà en usage dans tout le produit, et les gravités
+d'alerte (rose/ambre/orange/bleu) n'ont pas été rouvertes.
+
+Fondations en jetons CSS réels (`src/index.css`, `@theme` Tailwind v4),
+redéfinis sous `:root[data-theme="dark"]` : c'est ce qui permet à un thème
+sombre de s'appliquer d'un coup plutôt que de reprendre chaque `bg-white`
+un par un. Bascule explicite (pas de suivi des préférences système),
+mémorisée, exposée dans `AppContext`. Barre latérale rendue sensible au
+thème (panneau clair ou sombre) au lieu d'un navy fixe — le changement le
+plus visible du modèle repris.
+
+Passe mécanique sur 32 fichiers : les classes Tailwind de gris neutre
+(`bg-slate-50`, `text-slate-900`…) remplacées par leurs équivalents en
+valeur arbitraire pointant sur les jetons, ce qui propage le thème sombre à
+toute l'application sans réécrire chaque écran.
+
+**Restructurés au modèle** : coquille (barre latérale, en-tête, palette de
+commandes, toasts), tableau de bord (indicateurs en cartes distinctes avec
+ligne d'explication réelle). **Suivent seulement les jetons neutres**, sans
+restructuration écran par écran : Paramètres, Utilisateurs, Audit,
+Intégrations. La page de connexion garde son fond sombre fixe — un choix,
+pas un oubli.
+
+---
+
 ## Interface — ce qui a été retiré
 
 Dix écrans hors périmètre, avec leurs routes, entrées de navigation et clés
