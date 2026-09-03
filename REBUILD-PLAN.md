@@ -360,21 +360,23 @@ précisément la raison pour laquelle l'acquittement n'est pas facultatif.
 ### Relance des alertes ouvertes — livré le 2 septembre 2026
 
 Demande ajoutée en cours de route : *« mail reminder at 3hrs defaults, mais
-configurable même par alerte »*.
+configurable même par alerte »*. Porté à 12 h le 3 septembre : trois heures
+faisait sonner l'alarme au milieu d'une même prise de poste ; douze heures
+croise le relais du matin et celui du soir sans devenir du bruit de fond.
 
 Une alerte notifiée une fois puis oubliée ne vaut guère mieux qu'une alerte
 jamais émise. Un rappel périodique part donc tant qu'elle reste ouverte.
 
 | Réglage | Où | Valeur |
 |---|---|---|
-| Parc entier | Paramètres → Seuils globaux | 3 h par défaut, `0` coupe tout |
+| Parc entier | Paramètres → Seuils globaux | 12 h par défaut, `0` coupe tout |
 | Une alerte | Tiroir d'alerte → Relance par courriel | 30 min à 1 jour, ou plus du tout |
 
 Trois décisions valent d'être notées, parce qu'elles auraient pu être prises
 autrement :
 
 - **Le décompte repart du dernier message**, pas de l'ouverture. Sans cela, un
-  délai raccourci de trois heures à une demi-heure déclencherait aussitôt un
+  délai raccourci de douze heures à une demi-heure déclencherait aussitôt un
   rappel pour un incident vieux de deux jours.
 - **La prise en charge n'interrompt pas la relance.** L'alerte attribuée puis
   oubliée est exactement le cas que ce rappel existe pour rattraper ; l'arrêter
@@ -442,6 +444,50 @@ Audit, Paramètres, Profil, Connexion.
 **Primitives disponibles pour la reconstruction :** `PlannedCapability`
 (annoncer une capacité non livrée sans simuler son fonctionnement),
 `EmptyState`, `GaugeChart`, `SkeletonLoader`.
+
+---
+
+### Installateur Windows — livré le 3 septembre 2026
+
+Demande : « créons un installateur Windows... avec la possibilité de changer
+l'adresse IP de l'agent au niveau du serveur pour si on met en production.
+Aussi les plugins pour les mises à jour ou désinstallation. »
+
+`agent/packaging/build_windows.ps1` fabrique un paquet autonome (13 Mo,
+aucune dépendance Python) : `cbc-agent.exe`, `Install-CbcAgent.ps1`,
+`LISEZ-MOI.txt`. `Install-CbcAgent.ps1` porte les cinq gestes de la vie de
+l'agent sur une machine :
+
+| Action | Ce qu'elle fait |
+|---|---|
+| `Install` | dépose le binaire, écrit la configuration, enrôle, enregistre le service, démarre |
+| `Update` | remplace le binaire — identité, jetons et historique conservés, aucun jeton consommé ; revient à la version précédente si le nouveau binaire ne démarre pas |
+| `Configure` | change l'adresse de la plateforme **sans réenrôler** — le geste demandé pour la bascule laboratoire → production |
+| `Uninstall` | signale le désenrôlement **avant** tout effacement local |
+| `Status` | identifiant, plateforme jointe, liaison, état du service |
+
+`Configure` existe aussi côté agent : `cbc-agent configure --server-url
+<adresse>`. Réinstaller un parc de deux cents postes pour un simple
+changement d'adresse ferait perdre à chacun son identité et son historique,
+et consommerait un jeton par poste — pour ce volume, une journée de travail
+en pure perte. L'écriture est atomique et ne touche que la section
+`server:` : le reste du réglage (type de machine, délai) survit. Un
+avertissement explicite prévient si la bascule vers HTTPS conserverait la
+tolérance au certificat non vérifié héritée du laboratoire — une régression
+de sécurité que rien d'autre n'aurait signalée.
+
+Le désenrôlement précède toujours l'effacement : sans cet ordre, un hôte
+retiré resterait affiché « hors ligne » dans le parc et alerterait pour une
+absence décidée, indistincte d'une vraie panne. Le service redémarre
+automatiquement après un échec, à intervalles croissants.
+
+Le paquet a été construit et éprouvé sur ce poste : les six commandes
+répondent depuis le binaire gelé, `configure` réécrit correctement une
+configuration réelle. 25 tests.
+
+`agent.spec` était périmé depuis la refonte de l'agent — il déclarait une
+dizaine de modules retirés (`durable_buffer`, `action_plugins`,
+`windows_service`...) et ne construisait plus rien. Réécrit.
 
 ---
 
