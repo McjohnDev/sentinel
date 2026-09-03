@@ -46,6 +46,7 @@ hiddenimports = [
     "plan",
     "runner",
     "session",
+    "transport",
     # Dépendances tierces dont les imports sont dynamiques.
     "psutil",
     "requests",
