@@ -107,3 +107,9 @@ server/ssl/*.pem
 
 # Agent runtime identity (per-machine, never shared)
 agent/.machine_id
+
+# Paquets d'agent construits localement : 13 Mo par version, reconstructibles
+# a l'identique par agent/packaging/build_windows.ps1.
+agent/packaging/exe/
+agent/packaging/dist/
+agent/packaging/build/

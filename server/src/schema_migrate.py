@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 _COLUMNS = [
     ("global_settings", "threshold_duration_seconds", "INTEGER DEFAULT 300"),
     ("global_settings", "escalate_after_minutes", "INTEGER DEFAULT 15"),
-    ("global_settings", "alert_reminder_hours", "REAL DEFAULT 3"),
+    ("global_settings", "alert_reminder_hours", "REAL DEFAULT 12"),
     ("global_settings", "agent_cpu_max_percent", "REAL DEFAULT 2"),
     ("global_settings", "agent_ram_max_mb", "REAL DEFAULT 300"),
     ("alerts", "mail_status", "VARCHAR"),

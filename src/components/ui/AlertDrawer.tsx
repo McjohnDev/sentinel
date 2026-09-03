@@ -293,7 +293,7 @@ export const AlertDrawer: React.FC<AlertDrawerProps> = ({
                   <option value="0.5">Toutes les 30 minutes</option>
                   <option value="1">Toutes les heures</option>
                   <option value="3">Toutes les 3 heures</option>
-                  <option value="8">Toutes les 8 heures</option>
+                  <option value="12">Toutes les 12 heures</option>
                   <option value="24">Une fois par jour</option>
                   <option value="0">Ne plus relancer cette alerte</option>
                 </select>

@@ -1022,11 +1022,12 @@ class AlertService:
 
     # ------------------------------------------------------------ relances
 
-    #: Délai de relance par défaut, en heures. Trois heures : assez long pour
-    #: qu'une intervention en cours ne soit pas interrompue par un rappel,
-    #: assez court pour qu'une alerte ouverte en début de matinée ne traverse
-    #: pas la journée sans que personne ne la revoie.
-    DEFAULT_REMINDER_HOURS = 3.0
+    #: Délai de relance par défaut, en heures. Douze heures : un incident
+    #: ouvert le matin est rappelé le soir, celui du soir l'est au matin. La
+    #: relance croise ainsi les deux prises de poste sans se transformer en
+    #: bruit de fond — un rappel trop frequent finit filtré, et c'est alors la
+    #: notification initiale qui se perd avec lui.
+    DEFAULT_REMINDER_HOURS = 12.0
 
     #: Plancher. En deçà, la relance cesse d'être un rappel et devient du
     #: harcèlement : l'opérateur apprend à filtrer les messages de la

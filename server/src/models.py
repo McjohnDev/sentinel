@@ -471,7 +471,7 @@ class GlobalSettings(Base):
     heartbeat_interval_seconds = Column(Integer, default=30)
     #: Délai de relance par courriel d'une alerte restée ouverte, en heures.
     #: `0` désactive la relance pour tout le parc.
-    alert_reminder_hours = Column(Float, default=3.0)
+    alert_reminder_hours = Column(Float, default=12.0)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 

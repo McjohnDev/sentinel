@@ -1,139 +1,173 @@
-# Script de build pour Windows (MSI)
+<#
+.SYNOPSIS
+    Fabrique le paquet d'installation Windows de l'agent CBC.
 
-$ErrorActionPreference = "Stop"
+.DESCRIPTION
+    Produit un dossier autonome, puis une archive ZIP a copier sur les
+    machines a equiper. Le paquet contient trois choses et rien d'autre :
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ProjectRoot = Split-Path -Parent $ScriptDir
+      cbc-agent.exe          l'agent gele, sans dependance Python
+      Install-CbcAgent.ps1   installation, mise a jour, bascule, retrait
+      LISEZ-MOI.txt          la marche a suivre, hors de tout navigateur
 
-Write-Host "🔨 Construction de l'agent pour Windows..." -ForegroundColor Green
+    **Reecrit.** Le script precedent construisait un « MSI » qui n'en etait
+    pas un -- il assemblait une arborescence de fichiers sans jamais appeler
+    d'outil de packaging -- et ecrivait dans la configuration livree un
+    `enrollment_token: your-token-here` qui aurait ete diffuse avec chaque
+    installation. Le jeton arrive desormais a l'enrolement, une seule fois.
 
-# Nettoyage
-Write-Host "🧹 Nettoyage..." -ForegroundColor Yellow
-Remove-Item -Path "$ProjectRoot\packaging\build" -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "$ProjectRoot\packaging\dist" -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path "$ProjectRoot\packaging\build" -Force | Out-Null
-New-Item -ItemType Directory -Path "$ProjectRoot\packaging\dist" -Force | Out-Null
+.PARAMETER Version
+    Etiquette du paquet. Par defaut, la version declaree par l'agent.
 
-# Construction de l'exécutable
-Write-Host "📦 Construction de l'exécutable avec PyInstaller..." -ForegroundColor Yellow
-Set-Location $ProjectRoot
-pyinstaller --clean --noconfirm packaging\agent.spec
+.PARAMETER SkipBuild
+    Reutilise l'executable deja gele. Utile pour retoucher l'installateur
+    sans repayer les deux minutes de PyInstaller.
 
-# Construction du package MSI
-Write-Host "🔨 Construction du package MSI..." -ForegroundColor Yellow
+.EXAMPLE
+    .\build_windows.ps1
+#>
+[CmdletBinding()]
+param(
+    [string] $Version,
+    [switch] $SkipBuild
+)
 
-$MSIBuildDir = "$ProjectRoot\packaging\build\msi"
-New-Item -ItemType Directory -Path "$MSIBuildDir\Program Files\CBC Agent" -Force | Out-Null
-New-Item -ItemType Directory -Path "$MSIBuildDir\ProgramData\CBC Agent" -Force | Out-Null
+$ErrorActionPreference = 'Stop'
 
-# Copie de l'exécutable
-if (Test-Path "$ProjectRoot\dist\cbc-agent.exe") {
-    Copy-Item "$ProjectRoot\dist\cbc-agent.exe" "$MSIBuildDir\Program Files\CBC Agent\cbc-agent.exe"
+$PackagingDir = $PSScriptRoot
+$AgentDir = Split-Path -Parent $PackagingDir
+$RepoRoot = Split-Path -Parent $AgentDir
+$DistDir = Join-Path $PackagingDir 'dist'
+$BuildDir = Join-Path $PackagingDir 'build'
+
+function Write-Etape([string] $Texte) {
+    Write-Host ""
+    Write-Host "  $Texte" -ForegroundColor Cyan
 }
 
-# Création du fichier de configuration
-$ConfigContent = @"
-server:
-  url: https://localhost:8443
-  enrollment_token: your-token-here
-
-agent:
-  heartbeat_interval: 30
-  retry_interval: 60
-  max_retries: 3
-
-metrics:
-  cpu: true
-  memory: true
-  disk: true
-  network: true
-
-degraded_mode:
-  enabled: true
-  buffer_size: 100
-
-logging:
-  level: INFO
-  file: C:\ProgramData\CBC Agent\agent.log
-  max_size: 10485760
-  backup_count: 5
-"@
-Set-Content -Path "$MSIBuildDir\Program Files\CBC Agent\config.yaml" -Value $ConfigContent
-
-# Création du script d'installation WiX
-$WxsContent = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <Product Id="*" Name="CBC Agent" Language="1033" Version="1.0.0.0" 
-             Manufacturer="CBC Supervision" UpgradeCode="12345678-1234-1234-1234-123456789012">
-        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-        
-        <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
-        <MediaTemplate EmbedCab="yes" />
-        
-        <Feature Id="ProductFeature" Title="CBC Agent" Level="1">
-            <ComponentGroupRef Id="ProductComponents" />
-            <ComponentRef Id="ServiceComponent" />
-        </Feature>
-        
-        <DirectoryRef Id="TARGETDIR">
-            <Component Id="ServiceComponent" Guid="*">
-                <ServiceInstall Id="CBCAgentService"
-                                Type="ownProcess"
-                                Vital="yes"
-                                Name="CBCAgent"
-                                DisplayName="CBC Supervision Agent"
-                                Description="CBC Supervision Agent - System Monitoring"
-                                Start="auto"
-                                Account="LocalSystem"
-                                ErrorControl="ignore"
-                                Interactive="no">
-                    <ServiceConfig DelayedAutoStart="yes" />
-                </ServiceInstall>
-                <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="CBCAgent" Wait="yes" />
-            </Component>
-        </DirectoryRef>
-    </Product>
-    
-    <Fragment>
-        <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="ProgramFilesFolder">
-                <Directory Id="INSTALLFOLDER" Name="CBC Agent" />
-            </Directory>
-            <Directory Id="ProgramDataFolder">
-                <Directory Id="DATADIR" Name="CBC Agent" />
-            </Directory>
-        </Directory>
-    </Fragment>
-    
-    <Fragment>
-        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-            <Component Id="MainExecutable" Guid="*">
-                <File Id="AgentExe" Source="cbc-agent.exe" />
-            </Component>
-            <Component Id="ConfigFile" Guid="*">
-                <File Id="ConfigYaml" Source="config.yaml" />
-            </Component>
-        </ComponentGroup>
-    </Fragment>
-</Wix>
-"@
-Set-Content -Path "$MSIBuildDir\agent.wxs" -Value $WxsContent
-
-# Vérification de WiX
-if (Get-Command candle -ErrorAction SilentlyContinue) {
-    Write-Host "🔨 Construction du package MSI avec WiX..." -ForegroundColor Yellow
-    
-    # Compilation avec candle
-    candle "$MSIBuildDir\agent.wxs" -out "$MSIBuildDir\agent.wixobj" -ext WixUtilExtension
-    
-    # Linking avec light
-    light "$MSIBuildDir\agent.wixobj" -out "$ProjectRoot\packaging\dist\cbc-agent-1.0.0.msi" -ext WixUtilExtension
-    
-    Write-Host "✅ Package MSI construit: $ProjectRoot\packaging\dist\cbc-agent-1.0.0.msi" -ForegroundColor Green
-} else {
-    Write-Host "⚠️  WiX Toolset n'est pas installé. Package MSI non construit." -ForegroundColor Yellow
-    Write-Host "   Installez WiX Toolset depuis: https://wixtoolset.org/" -ForegroundColor Cyan
+if (-not $Version) {
+    $ligne = Select-String -Path (Join-Path $AgentDir 'src\enrollment.py') -Pattern 'AGENT_VERSION\s*=\s*"([^"]+)"'
+    $Version = if ($ligne) { $ligne.Matches[0].Groups[1].Value } else { '0.0.0' }
 }
 
-Write-Host "🎉 Construction Windows terminée!" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Paquet agent CBC Supervision $Version" -ForegroundColor Green
+
+$Bundle = Join-Path $DistDir "cbc-agent-$Version-windows"
+
+if (-not $SkipBuild) {
+    Write-Etape "Gel de l'agent (PyInstaller)"
+    if (-not (Get-Command pyinstaller -ErrorAction SilentlyContinue)) {
+        throw "pyinstaller introuvable. Installer : pip install pyinstaller"
+    }
+    Remove-Item $BuildDir -Recurse -Force -ErrorAction SilentlyContinue
+    Push-Location $RepoRoot
+    try {
+        pyinstaller --noconfirm --clean `
+            --distpath (Join-Path $PackagingDir 'exe') `
+            --workpath $BuildDir `
+            (Join-Path $PackagingDir 'agent.spec')
+        if ($LASTEXITCODE -ne 0) { throw "PyInstaller a echoue (code $LASTEXITCODE)." }
+    } finally {
+        Pop-Location
+    }
+}
+
+$Exe = Join-Path $PackagingDir 'exe\cbc-agent.exe'
+if (-not (Test-Path $Exe)) {
+    throw "Executable introuvable : $Exe. Relancer sans -SkipBuild."
+}
+
+Write-Etape "Assemblage du paquet"
+Remove-Item $Bundle -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $Bundle -Force | Out-Null
+
+Copy-Item $Exe (Join-Path $Bundle 'cbc-agent.exe')
+Copy-Item (Join-Path $PackagingDir 'Install-CbcAgent.ps1') $Bundle
+
+# Le mode d'emploi voyage avec le paquet : celui qui installe est rarement
+# celui qui a lu la documentation, et il n'a pas toujours le depot sous la
+# main -- ni meme un navigateur, sur un serveur de production.
+$Lisez = @"
+AGENT CBC SUPERVISION $Version
+===============================================================
+
+Ouvrir PowerShell EN ADMINISTRATEUR dans ce dossier.
+
+1. INSTALLER
+   Reclamer un jeton d'enrolement dans la plateforme
+   (Parametres > Jetons d'enrolement). Il ne sert qu'une fois.
+
+   .\Install-CbcAgent.ps1 -Action Install ``
+       -ServerUrl https://sentinel.cbc.cm:8443 ``
+       -Token <le-jeton> ``
+       -MachineType server
+
+   -MachineType vaut « server » ou « workstation » : il determine les
+   seuils herites par defaut.
+
+   Plateforme de laboratoire en HTTP clair : ajouter -NoVerifyTls.
+
+2. VERIFIER
+   .\Install-CbcAgent.ps1 -Action Status
+
+   Affiche l'identifiant de l'hote, la plateforme jointe, l'etat de la
+   liaison et celui du service.
+
+3. METTRE A JOUR
+   Deballer le nouveau paquet, puis :
+   .\Install-CbcAgent.ps1 -Action Update
+
+   L'hote garde son identifiant, son historique et ses seuils. Aucun
+   jeton n'est consomme. En cas d'echec, la version precedente est
+   remise en place automatiquement.
+
+4. CHANGER DE PLATEFORME (passage en production)
+   .\Install-CbcAgent.ps1 -Action Configure ``
+       -ServerUrl https://sentinel-prod.cbc.cm:8443
+
+   L'adresse change, l'identite reste. Ni reenrolement, ni jeton, ni
+   perte d'historique -- ce qui compte quand on bascule deux cents
+   machines.
+
+5. DESINSTALLER
+   .\Install-CbcAgent.ps1 -Action Uninstall
+
+   La plateforme est prevenue AVANT tout effacement : c'est ce qui
+   distingue un retrait voulu d'une panne. Sans ce signalement, l'hote
+   resterait affiche « hors ligne » et alerterait pour une absence
+   pourtant decidee.
+
+   Si la plateforme est injoignable, le retrait s'arrete et le dit.
+   -Force passe outre, a charge d'aller nettoyer la fiche a la main.
+
+===============================================================
+CE QUE L'AGENT REMONTE
+  - processeur, memoire, disques et partitions
+  - services Windows designes par la plateforme
+  - presence et date de fichiers surveilles
+  - inventaire des applications et pilotes installes
+
+CE QU'IL N'EMPORTE JAMAIS
+  - aucun contenu de fichier, seulement leur presence et leur date
+  - aucun mot de passe : le jeton d'enrolement cede la place a une cle
+    propre a cet hote, des le premier contact
+
+OU VIT QUOI
+  Programme      : %ProgramFiles%\CBC Agent
+  Etat et cles   : %ProgramData%\CBC Agent
+  Service        : CBCAgent (demarrage automatique, relance sur echec)
+"@
+Set-Content -Path (Join-Path $Bundle 'LISEZ-MOI.txt') -Value $Lisez -Encoding UTF8
+
+Write-Etape "Archive"
+$Zip = "$Bundle.zip"
+Remove-Item $Zip -Force -ErrorAction SilentlyContinue
+Compress-Archive -Path "$Bundle\*" -DestinationPath $Zip
+
+$taille = [math]::Round((Get-Item $Zip).Length / 1MB, 1)
+Write-Host ""
+Write-Host "  Paquet pret : $Zip ($taille Mo)" -ForegroundColor Green
+Write-Host "  Copier l'archive sur la machine a equiper, la deballer,"
+Write-Host "  puis suivre LISEZ-MOI.txt."
+Write-Host ""

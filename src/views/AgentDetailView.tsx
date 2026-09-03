@@ -643,7 +643,7 @@ export const AgentDetailView: React.FC = () => {
             });
           }
         }}
-        fleetReminderHours={globalThresholds.alertReminderHours ?? 3}
+        fleetReminderHours={globalThresholds.alertReminderHours ?? 12}
         onSetReminder={async (a, hours) => {
           try {
             await alertsService.setReminder(a.id, hours);

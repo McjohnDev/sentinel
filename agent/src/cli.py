@@ -182,10 +182,19 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_status(_args: argparse.Namespace) -> int:
+def cmd_status(args: argparse.Namespace) -> int:
     creds = read_credentials()
     print("Version agent : %s" % AGENT_VERSION)
     print("État local    : %s" % state_dir())
+    # Vers quelle plateforme cet hôte parle : la première question posée
+    # quand un agent « ne remonte pas », et celle à laquelle personne ne
+    # pouvait répondre depuis la machine.
+    path = _config_path(args)
+    try:
+        print("Plateforme    : %s" % load_config(path).server_url)
+    except ConfigError as exc:
+        print("Plateforme    : indéterminée (%s)" % exc)
+    print("Configuration : %s" % (path or "aucun fichier"))
     print("Identité      : %s" % (machine_id_file() if machine_id_file().exists() else "non créée"))
     if creds:
         print("Enrôlement    : %s" % creds.agent_id)
@@ -202,6 +211,91 @@ def cmd_status(_args: argparse.Namespace) -> int:
         print("Échecs de suite: %d" % link.consecutive_failures)
     if link.last_error:
         print("Dernière erreur: %s" % link.last_error)
+    return 0
+
+
+def cmd_configure(args: argparse.Namespace) -> int:
+    """Change l'adresse de la plateforme sans reenroler l'hote.
+
+    Le passage du laboratoire a la production deplace la plateforme, pas les
+    machines : desinstaller puis reinstaller le parc pour un changement
+    d'adresse ferait perdre l'identite de chaque hote et son historique, et
+    consommerait un jeton par poste. L'identite et les jetons sont donc
+    conserves ; seule l'adresse change.
+    """
+    path = _config_path(args)
+    if path is None:
+        print(
+            "Aucun fichier de configuration a modifier. Attendu : %s" % DEFAULT_CONFIG,
+            file=sys.stderr,
+        )
+        return 2
+
+    url = (args.server_url or "").strip()
+    if not url.startswith(("http://", "https://")):
+        print(
+            "URL invalide : %r. Attendu une adresse commencant par http:// ou https://."
+            % args.server_url,
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        import yaml
+
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except FileNotFoundError:
+        print("Fichier introuvable : %s" % path, file=sys.stderr)
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        print("Configuration illisible (%s) : %s" % (path, exc), file=sys.stderr)
+        return 2
+
+    if not isinstance(raw, dict):
+        print("Configuration inattendue dans %s." % path, file=sys.stderr)
+        return 2
+
+    server = raw.get("server")
+    if not isinstance(server, dict):
+        server = {}
+    ancienne = server.get("url")
+    server["url"] = url
+    if args.tls_verify is not None:
+        server["tls_verify"] = args.tls_verify
+    raw["server"] = server
+
+    # Ecriture atomique : une coupure au mauvais moment laisserait sinon un
+    # fichier tronque, et l'agent ne saurait plus ou joindre la plateforme.
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        tmp.write_text(
+            yaml.safe_dump(raw, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
+        tmp.replace(path)
+    except OSError as exc:
+        print("Ecriture impossible (%s) : %s" % (path, exc), file=sys.stderr)
+        return 1
+
+    print("Plateforme : %s -> %s" % (ancienne or "(non renseignee)", url))
+
+    # Le laboratoire sert du HTTP en clair, et la configuration livree tolere
+    # donc l'absence de certificat. Basculer en HTTPS sans revenir dessus
+    # garderait cette tolerance : la liaison serait chiffree mais n'attesterait
+    # plus l'identite de la plateforme -- une regression que rien ne signale.
+    if url.startswith("https://") and server.get("tls_verify") is False:
+        print(
+            "Attention : le certificat de la plateforme n'est pas verifie. "
+            "La liaison est chiffree, mais un autre serveur pourrait se faire "
+            "passer pour elle. Relancer avec --tls-verify une fois le "
+            "certificat en place.",
+            file=sys.stderr,
+        )
+    if is_enrolled():
+        creds = read_credentials()
+        print("Hote %s conserve : ni reenrolement ni perte d'historique." % creds.agent_id)
+        print("Redemarrer le service pour que le changement prenne effet.")
+    else:
+        print("Hote non enrole : lancer « enroll » avec un jeton.")
     return 0
 
 
@@ -249,7 +343,24 @@ def build_parser() -> argparse.ArgumentParser:
     run_cmd.add_argument("--verbose", action="store_true", help="journal détaillé")
     run_cmd.set_defaults(func=cmd_run)
 
-    sub.add_parser("status", help="état local de l'agent").set_defaults(func=cmd_status)
+    configure_cmd = sub.add_parser(
+        "configure",
+        help="change l'adresse de la plateforme sans réenrôler",
+    )
+    configure_cmd.add_argument(
+        "--server-url", required=True, help="nouvelle URL de la plateforme"
+    )
+    configure_cmd.add_argument(
+        "--tls-verify",
+        dest="tls_verify",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="vérifier le certificat de la plateforme",
+    )
+    configure_cmd.set_defaults(func=cmd_configure)
+
+    status_cmd = sub.add_parser("status", help="état local de l'agent")
+    status_cmd.set_defaults(func=cmd_status)
     sub.add_parser("version", help="version de l'agent").set_defaults(func=cmd_version)
     return parser
 

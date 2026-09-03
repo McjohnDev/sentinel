@@ -145,14 +145,14 @@ def _reload(db, alert_id):
 # ------------------------------------------------------------------ delais
 
 
-def test_the_default_is_three_hours(db):
+def test_the_default_is_twelve_hours(db):
     _agent(db)
-    assert AlertService.reminder_interval_hours(db, _alert(db)) == 3.0
+    assert AlertService.reminder_interval_hours(db, _alert(db)) == 12.0
 
 
 def test_an_alert_younger_than_the_delay_is_left_alone(db, sent):
     _agent(db)
-    _alert(db, age_hours=2)
+    _alert(db, age_hours=6)
 
     assert AlertService.send_due_reminders(db) == 0
     assert sent == []
@@ -160,7 +160,7 @@ def test_an_alert_younger_than_the_delay_is_left_alone(db, sent):
 
 def test_an_alert_older_than_the_delay_is_reminded(db, sent):
     _agent(db)
-    alert = _alert(db, age_hours=4)
+    alert = _alert(db, age_hours=14)
 
     assert AlertService.send_due_reminders(db) == 1
     assert len(sent) == 1
@@ -170,7 +170,7 @@ def test_an_alert_older_than_the_delay_is_reminded(db, sent):
 def test_the_countdown_restarts_from_the_last_reminder(db, sent):
     """Sans cela, chaque passage du planificateur relancerait la meme alerte."""
     _agent(db)
-    _alert(db, age_hours=10)
+    _alert(db, age_hours=20)
 
     AlertService.send_due_reminders(db)
     again = AlertService.send_due_reminders(db)
@@ -181,11 +181,11 @@ def test_the_countdown_restarts_from_the_last_reminder(db, sent):
 
 def test_a_second_reminder_follows_after_another_delay(db, sent):
     _agent(db)
-    alert = _alert(db, age_hours=4)
+    alert = _alert(db, age_hours=14)
     AlertService.send_due_reminders(db)
 
     reloaded = _reload(db, alert.id)
-    reloaded.last_reminder_at = datetime.utcnow() - timedelta(hours=4)
+    reloaded.last_reminder_at = datetime.utcnow() - timedelta(hours=14)
     db.commit()
 
     assert AlertService.send_due_reminders(db) == 1
@@ -206,14 +206,14 @@ def test_a_resolved_alert_is_never_reminded(db, sent):
 def test_an_assigned_alert_is_still_reminded(db, sent):
     """L'alerte attribuee puis oubliee est le cas que la relance rattrape."""
     _agent(db)
-    _alert(db, age_hours=4, assigned_at=datetime.utcnow(), assigned_by="jkoum")
+    _alert(db, age_hours=14, assigned_at=datetime.utcnow(), assigned_by="jkoum")
 
     assert AlertService.send_due_reminders(db) == 1
 
 
 def test_an_acknowledged_alert_is_still_reminded(db, sent):
     _agent(db)
-    _alert(db, age_hours=4, acknowledged_at=datetime.utcnow(), acknowledged_by="jkoum")
+    _alert(db, age_hours=14, acknowledged_at=datetime.utcnow(), acknowledged_by="jkoum")
 
     assert AlertService.send_due_reminders(db) == 1
 
@@ -236,7 +236,7 @@ def test_zero_hours_on_the_fleet_silences_everything(db, sent):
 
 def test_a_maintenance_window_suspends_the_reminder(db, sent, monkeypatch):
     _agent(db)
-    _alert(db, age_hours=4)
+    _alert(db, age_hours=14)
     monkeypatch.setattr(AlertService, "in_maintenance", staticmethod(lambda db, agent_id: True))
 
     assert AlertService.send_due_reminders(db) == 0
@@ -282,10 +282,10 @@ def test_the_fleet_delay_is_stored_and_returned(db):
     assert client.get("/api/settings/thresholds").json()["alert_reminder_hours"] == 6
 
 
-def test_the_fleet_delay_defaults_to_three_when_never_set(db):
+def test_the_fleet_delay_defaults_to_twelve_when_never_set(db):
     """Sans cela l'interface annoncerait « aucune relance » et le planificateur relancerait."""
     client, _ = _client(db)
-    assert client.get("/api/settings/thresholds").json()["alert_reminder_hours"] == 3.0
+    assert client.get("/api/settings/thresholds").json()["alert_reminder_hours"] == 12.0
 
 
 def test_setting_an_alert_delay_through_the_api(db):
@@ -308,7 +308,7 @@ def test_clearing_an_alert_delay_returns_it_to_the_fleet(db):
     client.put("/api/alerts/%s/reminder" % alert.id, json={"hours": None})
 
     assert _reload(db, alert.id).reminder_hours is None
-    assert AlertService.reminder_interval_hours(db, _reload(db, alert.id)) == 3.0
+    assert AlertService.reminder_interval_hours(db, _reload(db, alert.id)) == 12.0
 
 
 def test_shortening_the_delay_does_not_fire_at_once(db, sent):
@@ -352,7 +352,7 @@ def test_a_reader_cannot_change_the_delay(db):
 def test_the_reminder_is_marked_as_such_in_the_message(db, sent):
     """Sans marque, la relance se lit comme un second incident."""
     _agent(db)
-    _alert(db, age_hours=4)
+    _alert(db, age_hours=14)
 
     AlertService.send_due_reminders(db)
 

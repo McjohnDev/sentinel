@@ -698,7 +698,7 @@ export const SettingsView: React.FC = () => {
                   min="0"
                   step="0.5"
                   disabled={currentRole !== 'Admin'}
-                  value={thresholdsForm.alertReminderHours ?? 3}
+                  value={thresholdsForm.alertReminderHours ?? 12}
                   onChange={(e) => setThresholdsForm({ ...thresholdsForm, alertReminderHours: Number(e.target.value) })}
                   className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
                 />

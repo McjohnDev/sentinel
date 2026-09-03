@@ -113,7 +113,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     diskCritical: 95,
     durationSeconds: 300,
     escalateAfterMinutes: 15,
-    alertReminderHours: 3,
+    alertReminderHours: 12,
     heartbeatIntervalSeconds: 30,
     diskMountRules: [],
   });

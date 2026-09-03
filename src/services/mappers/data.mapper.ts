@@ -372,7 +372,7 @@ export class DataMapper {
       diskCritical: backendSettings.disk_critical_threshold,
       durationSeconds: backendSettings.threshold_duration_seconds ?? backendSettings.duration_seconds ?? 300,
       escalateAfterMinutes: backendSettings.escalate_after_minutes ?? 15,
-      alertReminderHours: backendSettings.alert_reminder_hours ?? 3,
+      alertReminderHours: backendSettings.alert_reminder_hours ?? 12,
     // Valeur réelle du serveur ; 30 s n'est qu'un repli si la plateforme est
     // d'une version antérieure au réglage.
     heartbeatIntervalSeconds:
