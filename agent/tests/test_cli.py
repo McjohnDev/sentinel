@@ -86,8 +86,39 @@ def test_status_shows_the_link_as_the_host_sees_it(capsys):
 
     out = capsys.readouterr().out
     assert "A3F09C" in out
-    assert "rompue" in out
+    # Jamais un seul succès : « rompue » laisserait croire à une liaison
+    # qui aurait fonctionné puis cédé, alors qu'elle n'a jamais été établie.
+    assert "jamais établie" in out
     assert "coupure réseau" in out
+
+
+def test_status_does_not_claim_a_link_when_nothing_is_running(capsys):
+    """Le defaut qui a trompe : le parc affichait « Hors ligne » pendant que
+    l'hote annoncait « Liaison : etablie ».
+
+    Les deux disaient vrai sur des questions differentes — la derniere
+    tentative avait reussi, mais plus rien ne battait depuis. Sur un produit
+    de supervision, confondre les deux est precisement ce qu'il ne faut pas
+    faire.
+    """
+    import session as session_module
+    from datetime import datetime, timezone
+
+    write_credentials(Credentials("A3F09C", "cle"))
+    session_module.record_success(
+        server_url="https://plateforme.cbc:8443",
+        agent_id="A3F09C",
+        at=datetime.now(timezone.utc),
+    )
+
+    assert cli.main(["status"]) == 0
+
+    out = capsys.readouterr().out
+    # Aucun verrou tenu : aucun agent ne tourne, quoi qu'ait dit le dernier
+    # essai.
+    assert "arrêté" in out
+    assert "sans objet" in out
+    assert "établie" not in out.replace("jamais établie", "")
 
 
 # -------------------------------------------------------------------- enroll

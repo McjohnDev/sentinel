@@ -27,7 +27,7 @@ from enrollment import (
 )
 from facts import collect
 from identity import load_or_create_machine_id
-from instance_lock import AlreadyRunning, InstanceLock
+from instance_lock import AlreadyRunning, InstanceLock, running_pid
 from runner import run as run_loop
 from session import read_state
 
@@ -182,6 +182,34 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _age_seconds(iso: str | None) -> int | None:
+    """Ancienneté d'un horodatage ISO, en secondes."""
+    if not iso:
+        return None
+    from datetime import datetime, timezone
+
+    try:
+        moment = datetime.fromisoformat(iso)
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return max(0, int((datetime.now(timezone.utc) - moment).total_seconds()))
+
+
+def _humanise(iso: str | None, age: int | None) -> str:
+    """Horodatage suivi de son ancienneté, qui est ce qu'on lit vraiment."""
+    if not iso:
+        return "jamais"
+    if age is None:
+        return iso
+    if age < 60:
+        return "%s (il y a %d s)" % (iso, age)
+    if age < 3600:
+        return "%s (il y a %d min)" % (iso, age // 60)
+    return "%s (il y a %d h %02d)" % (iso, age // 3600, (age % 3600) // 60)
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     creds = read_credentials()
     print("Version agent : %s" % AGENT_VERSION)
@@ -204,13 +232,39 @@ def cmd_status(args: argparse.Namespace) -> int:
     # État de la liaison vu depuis l'hôte. C'est la réponse à « le parc
     # l'affiche hors ligne, qui a raison ? » — sans interroger la plateforme,
     # qui est justement ce qu'on met en doute.
+    #
+    # Deux questions distinctes, et les confondre est précisément ce qui
+    # trompait : « la dernière tentative a-t-elle réussi ? » n'est pas
+    # « quelque chose bat-il en ce moment ? ». Un agent arrêté depuis une
+    # heure affichait « Liaison : établie » pendant que le parc le donnait
+    # hors ligne — et le parc avait raison.
+    pid = running_pid()
+    print("Agent         : %s" % ("en cours (PID %d)" % pid if pid else "arrêté — aucun battement"))
+
     link = read_state()
-    print("Liaison       : %s" % ("établie" if link.connected else "rompue"))
-    print("Dernier succès: %s" % (link.last_success_at or "jamais"))
+    age = _age_seconds(link.last_success_at)
+    if not link.last_success_at:
+        etat = "jamais établie"
+    elif pid is None:
+        etat = "sans objet — l'agent ne tourne pas"
+    elif link.connected:
+        etat = "établie"
+    else:
+        etat = "rompue"
+    print("Liaison       : %s" % etat)
+    print("Dernier succès: %s" % (_humanise(link.last_success_at, age)))
     if link.consecutive_failures:
         print("Échecs de suite: %d" % link.consecutive_failures)
     if link.last_error:
         print("Dernière erreur: %s" % link.last_error)
+
+    # Le seuil de bascule est porté par la plateforme ; l'agent ne le connaît
+    # pas. On signale le silence prolongé sans prétendre citer le seuil.
+    if age is not None and age > 300 and pid is None:
+        print()
+        print("L'hôte se lit « hors ligne » au parc après quelques minutes de")
+        print("silence. Lancer « run » — ou installer le service — pour qu'il")
+        print("batte en continu.")
     return 0
 
 

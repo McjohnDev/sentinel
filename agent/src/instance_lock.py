@@ -74,6 +74,20 @@ def read_holder(path: Optional[Path] = None) -> Optional[int]:
         return None
 
 
+def running_pid(path: Optional[Path] = None) -> Optional[int]:
+    """PID de l'agent en cours d'exécution, ou None si aucun ne tourne.
+
+    Distinct de `read_holder` : un verrou laissé par un processus mort ne
+    signifie pas qu'un agent tourne. C'est la différence entre « la dernière
+    tentative avait réussi » et « quelque chose bat en ce moment », et c'est
+    la seconde qui répond à « pourquoi le parc m'affiche hors ligne ».
+    """
+    pid = read_holder(path)
+    if pid is None or not _process_alive(pid):
+        return None
+    return pid
+
+
 class InstanceLock:
     """Verrou d'instance, utilisable comme gestionnaire de contexte."""
 
