@@ -1,26 +1,41 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
-alembic==1.13.1
-pydantic==2.5.3
-pydantic-settings==2.1.0
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
+# Dépendances du serveur CBC Supervision.
+#
+# **Versions relevées le 9 septembre 2026.** Le jeu précédent était figé sur
+# un instantané de fin 2023 et ne s'installait plus : `psycopg2-binary==2.9.9`
+# et `pydantic==2.5.3` (qui exige `pydantic-core==2.14.6`) n'ont jamais publié
+# de roue pour Python 3.13. L'image Docker tournant sur Python 3.11, où ces
+# roues existent, le problème est resté invisible jusqu'à la première
+# installation native — sur un poste où Python 3.13 est le seul disponible.
+#
+# La montée a été éprouvée : 480 tests serveur passent sous Python 3.13 avec
+# ce jeu. Les validateurs de style Pydantic v1 encore présents dans le code
+# restent acceptés (dépréciés, non retirés) ; c'était le risque à écarter.
+#
+# CI installe depuis ce fichier : le tenir à jour, ne pas déclarer ailleurs.
+
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+sqlalchemy==2.0.52
+psycopg2-binary==2.9.12
+alembic==1.19.2
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-multipart==0.0.32
+python-jose[cryptography]==3.5.0
 # passlib (unmaintained) read bcrypt.__about__, removed in bcrypt 4.1, so every
 # password hash raised ValueError depending on the installed version.
 # auth_service now calls bcrypt directly; the $2b$ hash format is unchanged.
-bcrypt>=4.0,<6
+bcrypt==5.0.0
 python-dotenv==1.0.0
-pytest==7.4.3
-httpx==0.25.2
-# Imported by server/src but previously declared only in docker/Dockerfile.server,
-# so `pip install -r server/requirements.txt` produced a server that could not
-# start. Keep this file authoritative: CI installs from it.
+pytest==9.1.1
+httpx==0.28.1
 redis==5.0.1
 slowapi==0.1.9
 prometheus-client==0.19.0
-email-validator==2.1.0
+# 2.1.0 a été retirée de PyPI (yanked) : elle déclarait à tort supporter
+# Python 3.7. L'épingler revenait à installer une version que son auteur
+# demande de ne plus utiliser.
+email-validator==2.3.0
 requests==2.31.0
 # LDAP / Active Directory authentication (API-003). Optional at runtime:
 # ldap_service degrades to local auth if this is absent.
