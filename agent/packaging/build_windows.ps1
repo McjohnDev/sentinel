@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Fabrique le paquet d'installation Windows de l'agent CBC.
 

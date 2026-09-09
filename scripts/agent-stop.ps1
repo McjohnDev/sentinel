@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Arrête l'agent CBC qui tourne sur ce poste.
 

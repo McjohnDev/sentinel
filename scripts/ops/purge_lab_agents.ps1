@@ -1,4 +1,4 @@
-# FS7 / ops — purge simulator & load-test agents (keep real enrolled hosts)
+﻿# FS7 / ops — purge simulator & load-test agents (keep real enrolled hosts)
 # Usage (from repo root, stack running):
 #   powershell -File scripts/ops/purge_lab_agents.ps1
 #   powershell -File scripts/ops/purge_lab_agents.ps1 -Apply

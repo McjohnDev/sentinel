@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Arrête et désinstalle l'agent de démonstration lancé sur ce poste.
 

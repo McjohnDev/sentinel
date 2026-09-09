@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   État de l'agent CBC de ce poste, vu depuis la machine.
 

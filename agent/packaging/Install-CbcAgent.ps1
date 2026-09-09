@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installe, met a jour, reconfigure ou retire l'agent CBC Supervision.
 

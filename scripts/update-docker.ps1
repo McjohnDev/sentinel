@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Rebuilds the local Sentinel Docker stack from the current working tree.
 

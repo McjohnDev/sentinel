@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Lance un agent CBC Supervision de démonstration sur ce poste.
 

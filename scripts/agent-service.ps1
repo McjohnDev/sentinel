@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Installe, retire ou pilote l'agent CBC en tant que service Windows.
 

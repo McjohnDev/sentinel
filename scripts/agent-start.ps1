@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Démarre l'agent CBC sur ce poste Windows.
 
