@@ -1,0 +1,121 @@
+SENTINEL — SERVEUR, INSTALLATION SUR LA MACHINE LARAGON
+================================================================
+Cible : 172.16.4.38 — installation NATIVE, sans acces Internet.
+Tout ce qui est necessaire est dans ce dossier.
+
+----------------------------------------------------------------
+DEUX SCRIPTS, DANS CET ORDRE
+
+  1. .\Preparer-Services.ps1 -MotDePasseBase '<un-mot-de-passe-fort>'
+
+     Installe PostgreSQL 18.6 depuis l'archive deposee ici, cree le
+     cluster, le role cbc_user et la base cbc_supervision, puis demarre
+     Redis (deja fourni par Laragon, simplement desactive).
+
+     A la fin, il affiche UNE FOIS le mot de passe du super-utilisateur
+     postgres. Le noter : il ne sera plus reaffiche.
+
+  2. .\Installer-Sentinel.ps1 -MotDePasseBase '<le meme mot de passe>'
+
+     Environnement Python, dependances hors ligne, configuration,
+     verifications, comptes initiaux.
+
+Les deux s'arretent net et disent pourquoi des qu'une condition manque.
+Ils ne poursuivent jamais a moitie : une installation a demi faite coute
+plus cher a diagnostiquer qu'un refus clair.
+
+Console PowerShell en ADMINISTRATEUR pour le premier (il ecrit dans
+bin\ et data\ de Laragon).
+
+----------------------------------------------------------------
+CE QUE CONTIENT CE DOSSIER
+
+  Preparer-Services.ps1    PostgreSQL + Redis
+  Installer-Sentinel.ps1   le serveur
+  postgresql-18.6-3-windows-x64-binaries.zip
+                           PostgreSQL, archive binaire (328 Mo)
+  paquets\                 58 paquets Python, telecharges d'avance
+                           -> aucune sortie Internet necessaire
+  requirements.txt         dependances du serveur, versions figees
+  src\                     le code du serveur
+  shared\                  contrats de protocole partages avec l'agent
+                           (le serveur ne demarre pas sans)
+  init_users.py            creation des comptes initiaux
+  tableau-de-bord\         l'interface, deja construite (fichiers
+                           statiques a servir par nginx)
+  config\
+    env.modele             modele de configuration
+    sentinel.conf          configuration nginx
+    sentinel-api.xml       definition du service Windows
+
+----------------------------------------------------------------
+ETAT CONSTATE DE LARAGON, ET CE QU'IL FAUT Y CHANGER
+
+Releve dans usr\laragon.ini (Use=0 signifie actif, -1 inactif) :
+
+  apache      Use=0     ACTIF   -> tient le port 80, a arreter
+  nginx       Use=-1    inactif -> a activer, c'est lui qui sert Sentinel
+  redis       Use=-1    inactif -> Preparer-Services.ps1 le demarre
+  postgresql  Use=-1    absent  -> Preparer-Services.ps1 l'installe
+  mysql       Use=0     actif   -> sans objet pour Sentinel, data\ vide
+
+Apache et nginx ne peuvent pas tenir le port 80 ensemble. Dans Laragon :
+Menu (clic droit) > Apache > Arreter, puis Menu > Nginx > Demarrer.
+Si Apache sert deja autre chose sur cette machine, donner plutot un autre
+port a nginx (8080) et adapter config\sentinel.conf.
+
+----------------------------------------------------------------
+CE QUE LES SCRIPTS NE FONT PAS
+
+Trois gestes modifient la machine au-dela de ce dossier ; ils sont
+laisses a la main, en connaissance de cause.
+
+  1. LE SERVICE WINDOWS — sans lui, rien ne repart au redemarrage
+       copier WinSW.exe ici sous le nom sentinel-api.exe
+       copier config\sentinel-api.xml a cote
+       .\sentinel-api.exe install
+       .\sentinel-api.exe start
+
+  2. NGINX
+       adapter <LARAGON> dans config\sentinel.conf
+       le copier dans <LARAGON>\etc\nginx\sites-enabled\
+       copier tableau-de-bord\* dans <LARAGON>\www\sentinel\
+       recharger nginx depuis Laragon
+
+  3. LE PARE-FEU — une seule ouverture entrante suffit
+       New-NetFirewallRule -DisplayName "Sentinel - HTTP 80" `
+         -Direction Inbound -Protocol TCP -LocalPort 80 `
+         -Action Allow -Profile Domain,Private
+
+----------------------------------------------------------------
+A FAIRE IMMEDIATEMENT APRES
+
+Changer les mots de passe des comptes admin / operator / readonly.
+init_users.py les cree avec des mots de passe ecrits en clair dans le
+depot (Admin123! ...). Tant qu'ils sont en place, le pare-feu ne doit
+pas etre ouvert.
+
+----------------------------------------------------------------
+NOTES
+
+REDIS. Celui de Laragon est le portage tporadowski fige sur 5.0.14, non
+maintenu depuis 2022. Retenu pour cette version a votre demande. Sa
+configuration est deja correcte : bind 127.0.0.1, protected-mode actif.
+Elle doit le rester — Sentinel ne lui envoie aucun mot de passe, et un
+Redis sans authentification joignable sur le reseau permet d'ecrire des
+fichiers sur l'hote via CONFIG SET.
+
+DEPENDANCES PYTHON. Le jeu a ete remonte le 9 septembre 2026 : l'ancien
+etait fige sur un instantane de fin 2023 et ne s'installait pas sur
+Python 3.13 (psycopg2-binary 2.9.9 et pydantic 2.5.3 n'ont jamais publie
+de paquet pour cette version). 480 tests serveur passent avec le jeu
+actuel sous Python 3.13.
+
+Les paquets de paquets\ sont compiles pour Python 3.13 sur Windows x64.
+Sur un autre Python, l'installation hors ligne echouera en nommant le
+paquet manquant.
+
+POSTGRESQL. Deploye depuis l'archive binaire, pas par l'installateur EDB :
+la machine n'a pas d'acces Internet, et cette forme se pose dans
+l'arborescence de Laragon (bin\postgresql\, data\postgresql-18.6\) comme
+les autres composants, au lieu d'un service separe vivant a part.

@@ -1,0 +1,47 @@
+<!--
+  Sentinel — service Windows du serveur FastAPI (WinSW).
+
+  Sans service, la plateforme meurt au premier redémarrage de la machine.
+  C'est exactement ce qui est arrivé à l'agent du poste de développement,
+  resté muet six heures parce qu'il tournait comme simple processus.
+
+  Installation, en console administrateur, dans le dossier du serveur :
+      WinSW.exe install    (le .exe doit porter le même nom que ce .xml)
+      WinSW.exe start
+
+  %BASE% désigne le dossier contenant ce fichier — donc le dossier du
+  serveur, avec son .venv et son .env à côté.
+-->
+<service>
+  <id>SentinelApi</id>
+  <name>CBC Supervision — API</name>
+  <description>Serveur FastAPI de la plateforme de supervision CBC. Reçoit les battements des agents, applique les seuils, émet les alertes.</description>
+
+  <executable>%BASE%\.venv\Scripts\python.exe</executable>
+  <arguments>-m uvicorn src.main:app --host 127.0.0.1 --port 8000</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <!-- Démarre avec la machine, sans session ouverte. -->
+  <startmode>Automatic</startmode>
+
+  <!-- PostgreSQL doit être debout avant : sinon le serveur échoue à créer
+       son schéma au démarrage et le service part en boucle d'échec. -->
+  <depend>postgresql-x64-18</depend>
+
+  <!-- Relance à intervalles croissants. Un serveur qui meurt et ne revient
+       pas rend tout le parc aveugle sans que personne ne le sache. -->
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="300 sec"/>
+  <resetfailure>1 hour</resetfailure>
+
+  <!-- Journaux tournants : sans plafond, un serveur bavard remplit le disque
+       de la machine qu'il est censé surveiller. -->
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+
+  <!-- Laisse au serveur le temps de fermer proprement ses connexions. -->
+  <stoptimeout>20 sec</stoptimeout>
+</service>
